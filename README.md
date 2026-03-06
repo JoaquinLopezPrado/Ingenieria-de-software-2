@@ -2,7 +2,10 @@
 
 Este repositorio contiene el desarrollo del proyecto para la cátedra de **Ingeniería de Software 2** de la Facultad de Informática, UNLP. El sistema está construido utilizando una arquitectura moderna con un backend en **Flask** y un frontend basado en un framework de **JavaScript**.
 
-## 👥 Integrantes - Grupo [Nombre del Grupo o Nro]
+## 👥 Integrantes - Grupo 12
+
+**Turno 3:** Viernes (B) 15:10  
+**Ayudante Asignado:** Barbi  
 
 A continuación se detallan los integrantes del equipo de desarrollo:
 
@@ -18,7 +21,7 @@ A continuación se detallan los integrantes del equipo de desarrollo:
 
 * **Backend:** [Flask](https://flask.palletsprojects.com/) (Python)
 * **Frontend:** [Nombre del Framework JS, ej: React / Vue / Angular]
-* **Base de Datos:** [PostgreSQL]
+* **Base de Datos:** PostgreSQL
 * **Gestión de Dependencias:** `uv` y `npm`/`yarn`
 
 ---
