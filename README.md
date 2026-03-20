@@ -4,7 +4,7 @@ Este repositorio contiene el desarrollo del proyecto para la cátedra de **Ingen
 
 ## 👥 Integrantes - Grupo 12
 
-**Turno 3:** Viernes (B) 15:10  
+**Turno 3:** Viernes (B) 16:40  
 **Ayudante Asignado:** Barbi  
 
 A continuación se detallan los integrantes del equipo de desarrollo:
