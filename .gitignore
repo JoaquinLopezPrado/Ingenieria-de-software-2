@@ -144,6 +144,16 @@ ENV/
 env.bak/
 venv.bak/
 
+# Los archivos de entorno pueden contener información sensible, por lo que es recomendable no incluirlos en el control de versiones. 
+# Sin embargo, si deseas incluir un archivo de ejemplo para mostrar la estructura esperada, puedes agregar una excepción para ese archivo específico. 
+# Por ejemplo, si tienes un archivo .env.example que sirve como plantilla para los archivos de entorno reales, 
+# puedes agregar la siguiente línea para asegurarte de que se incluya en el repositorio:
+.env
+.env.local
+.env.prod
+.env.*
+!.env.example
+
 # Spyder project settings
 .spyderproject
 .spyproject
