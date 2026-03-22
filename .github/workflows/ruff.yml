@@ -5,6 +5,8 @@ on:
     branches:
       - develop
       - main
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   revisar-codigo:
@@ -20,12 +22,15 @@ jobs:
           enable-cache: true # Guarda las librerías en caché para volar en el próximo PR
 
       - name: 📦 Instalar dependencias del proyecto
+        working-directory: ./backend
         run: uv sync
 
       - name: 🕵️‍♂️ Buscar errores de código (Ruff Linter)
         # El formato 'github' hace que los errores aparezcan comentados directo en la línea de código del PR
+        working-directory: ./backend
         run: uv run ruff check --output-format=github .
 
       - name: 🎨 Verificar formato de código (Ruff Formatter)
         # El '--check' hace que falle si alguien no corrió 'uv run ruff format .' antes de subirlo
+        working-directory: ./backend
         run: uv run ruff format --check .
