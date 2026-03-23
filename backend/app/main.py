@@ -17,12 +17,17 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
-    return {"status": "ok"}
+    return {
+        "message": f"Welcome to {settings.app_name} API",
+        "version": settings.short_sha,
+        "docs": "/docs",
+    }
 
 
 @app.get("/health")
 async def health(db: AsyncSession = Depends(get_db)):
     try:
+        # Verificamos conexión a PostgreSQL (que ya tenés configurado)
         await db.execute(text("SELECT 1"))
         db_status = "ok"
     except Exception:
@@ -33,4 +38,10 @@ async def health(db: AsyncSession = Depends(get_db)):
         "app": settings.app_name,
         "environment": settings.environment,
         "database": db_status,
+        "version": {
+            "sha_short": settings.short_sha,
+            "sha_full": settings.render_git_commit,
+            "branch": settings.render_git_branch,
+            "deployed_at": settings.deploy_timestamp,
+        },
     }
