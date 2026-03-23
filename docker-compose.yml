@@ -28,6 +28,8 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - /app/.venv        # Evita que el .venv de Docker sobrescriba el mio o viceversa
+      - /app/.uv_cache   # Evita que el .uv_cache de Docker sobrescriba el mio o viceversa
 
   frontend:
     build:
