@@ -19,16 +19,17 @@ A continuación se detallan los integrantes del equipo de desarrollo:
 
 ## 🛠️ Tecnologías Utilizadas
 
-* **Backend:** [Flask](https://flask.palletsprojects.com/) (Python)
-* **Frontend:** [Nombre del Framework JS, ej: React / Vue / Angular]
+* **Backend:** [FastAPI](https://fastapi.tiangolo.com/) (Python)
+* **Frontend:** [VueJS](https://vuejs.org/) (Framework JS/TS)
 * **Base de Datos:** PostgreSQL
-* **Gestión de Dependencias:** `uv` y `npm`/`yarn`
+* **Gestión de Dependencias:** `uv` y `npm`
 
 ---
 
 ## 🚀 Configuración del Entorno
 
 ### Requisitos Previos
+
 * Python 3.x
 * UV: Gestor de proyectos y paquetes de Python.
 * Node.js & npm
