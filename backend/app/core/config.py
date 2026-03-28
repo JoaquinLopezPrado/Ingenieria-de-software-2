@@ -32,8 +32,21 @@ class Settings(BaseSettings):
     # Se setea al momento de iniciar la app en el servidor
     deploy_timestamp: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Database
-    database_url: str
+    # Database: Estos valores se setean leyendo el .env.local o .env.prod dependiendo del entorno
+    db_user: str
+    db_password: str
+    db_host: str
+    db_port: int = 5432
+    db_name: str
+
+    # La URL de la base de datos se construye dinámicamente a partir de los otros campos
+    @property
+    def database_url(self) -> str:
+        """Construye la URL asíncrona dinámicamente."""
+        return (
+            f"postgresql+asyncpg://{self.db_user}:{self.db_password}@"
+            f"{self.db_host}:{self.db_port}/{self.db_name}"
+        )
 
     # Security
     secret_key: str

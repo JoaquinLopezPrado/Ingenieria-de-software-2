@@ -16,6 +16,9 @@ services:
       retries: 5
 
   backend:
+    environment:
+      - UV_LINK_MODE=copy
+      - UV_PROJECT_ENVIRONMENT=/app/.venv
     build:
       context: ./backend
       dockerfile: Dockerfile

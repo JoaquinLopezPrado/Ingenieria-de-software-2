@@ -1,0 +1,15 @@
+# Ignorar entornos virtuales locales
+.venv
+.venv/
+.uv_cache
+env/
+venv/
+
+# Ignorar archivos cacheados de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignorar Git y otros
+.git
+.gitignore

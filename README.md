@@ -15,7 +15,7 @@ A continuación se detallan los integrantes del equipo de desarrollo:
 | Kairiyama | Malena | 18640/2 |
 | Samudio | Santiago | 19336/1 |
 | Bonifazi | Matías | 23831/1 |
-| Lopez Prado | Joaquin | 23164/7 | ---
+| Lopez Prado | Joaquin | 23164/7 |
 
 ## 🛠️ Tecnologías Utilizadas
 
