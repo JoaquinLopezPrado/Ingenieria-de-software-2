@@ -1,18 +1,65 @@
-from pydantic import BaseModel
+import re
+from datetime import date
+from typing import Literal
+
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
+
+from app.domain.profile import Gender
+
 
 class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
 
+
 class LoginCredentials(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
+
 class TokenPayload(BaseModel):
-    sub: int = None # El ID del usuario
-    exp: int = None # Expiración
+    sub: int = None
+    exp: int = None
+
 
 class Verify2FARequest(BaseModel):
     temp_token: str
     code: str
+
+
+class RegisterClientRequest(BaseModel):
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    phone: str
+    birth_date: date
+    gender: Gender
+    doc_type_name: Literal["DNI", "PASAPORTE"]
+    doc_number: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña no cumple con los requisitos mínimos de seguridad.")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("La contraseña no cumple con los requisitos mínimos de seguridad.")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("La contraseña no cumple con los requisitos mínimos de seguridad.")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("La contraseña no cumple con los requisitos mínimos de seguridad.")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            raise ValueError("La contraseña no cumple con los requisitos mínimos de seguridad.")
+        return v
+
+    @model_validator(mode="after")
+    def validate_document_number(self) -> "RegisterClientRequest":
+        if self.doc_type_name == "DNI":
+            if not self.doc_number.isdigit():
+                raise ValueError("El número de DNI ingresado no es válido.")
+        elif self.doc_type_name == "PASAPORTE":
+            if not re.search(r"[A-Za-z]", self.doc_number) or not self.doc_number.isalnum():
+                raise ValueError("El número de PASAPORTE ingresado no es válido.")
+        return self

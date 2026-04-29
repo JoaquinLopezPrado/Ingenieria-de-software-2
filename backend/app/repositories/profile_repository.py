@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.domain.profile import ClientProfile, DocumentType, EmployeeProfile
+from app.domain.profile import ClientProfile, DocumentType, EmployeeProfile, Gender
 from app.models.profile import ClientProfile as ClientProfileORM
 from app.models.profile import DocumentType as DocumentTypeORM
 from app.models.profile import EmployeeProfile as EmployeeProfileORM
@@ -23,6 +23,14 @@ class AbstractProfileRepository(ABC):
 
     @abstractmethod
     async def get_document_type_by_id(self, doc_type_id: int) -> Optional[DocumentType]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_document_type_by_name(self, name: str) -> Optional[DocumentType]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_client_by_doc_number(self, doc_number: str) -> Optional[ClientProfile]:
         raise NotImplementedError
 
     @abstractmethod
@@ -62,6 +70,22 @@ class ProfileRepository(AbstractProfileRepository):
         orm_doc_type = result.scalar_one_or_none()
         return self._document_type_to_domain(orm_doc_type) if orm_doc_type else None
 
+    async def get_document_type_by_name(self, name: str) -> Optional[DocumentType]:
+        result = await self._session.execute(
+            select(DocumentTypeORM).where(DocumentTypeORM.name == name)
+        )
+        orm_doc_type = result.scalar_one_or_none()
+        return self._document_type_to_domain(orm_doc_type) if orm_doc_type else None
+
+    async def get_client_by_doc_number(self, doc_number: str) -> Optional[ClientProfile]:
+        result = await self._session.execute(
+            select(ClientProfileORM)
+            .options(selectinload(ClientProfileORM.document_type))
+            .where(ClientProfileORM.doc_number == doc_number)
+        )
+        orm_profile = result.scalar_one_or_none()
+        return self._client_to_domain(orm_profile) if orm_profile else None
+
     async def save_client(self, profile: ClientProfileORM) -> ClientProfile:
         self._session.add(profile)
         await self._session.flush()
@@ -83,6 +107,7 @@ class ProfileRepository(AbstractProfileRepository):
             birth_date=orm_profile.birth_date,
             document_type=self._document_type_to_domain(orm_profile.document_type),
             doc_number=orm_profile.doc_number,
+            gender=Gender(orm_profile.gender),
         )
 
     def _employee_to_domain(self, orm_profile: EmployeeProfileORM) -> EmployeeProfile:

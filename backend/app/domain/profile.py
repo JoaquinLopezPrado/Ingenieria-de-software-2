@@ -1,5 +1,11 @@
+import enum
 from datetime import date
 from typing import Optional
+
+
+class Gender(str, enum.Enum):
+    MALE = "masculino"
+    FEMALE = "femenino"
 
 
 class DocumentType:
@@ -19,6 +25,7 @@ class ClientProfile:
         birth_date: date,
         document_type: DocumentType,
         doc_number: str,
+        gender: Gender,
     ):
         self.id = id
         self.user_id = user_id
@@ -28,6 +35,7 @@ class ClientProfile:
         self.birth_date = birth_date
         self.document_type = document_type
         self.doc_number = doc_number
+        self.gender = gender
 
 
 class EmployeeProfile:
