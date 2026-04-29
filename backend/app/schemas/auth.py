@@ -39,6 +39,15 @@ class RegisterClientRequest(BaseModel):
     doc_type_name: Literal["DNI", "PASAPORTE"]
     doc_number: str
 
+    @field_validator("birth_date")
+    @classmethod
+    def validate_age(cls, v: date) -> date:
+        today = date.today()
+        age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
+        if age < 18:
+            raise ValueError("Debe ser mayor de edad para registrarse.")
+        return v
+
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
