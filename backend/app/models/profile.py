@@ -29,7 +29,6 @@ class ClientProfile(IDMixin, TimestampMixin, Base):
 class EmployeeProfile(IDMixin, TimestampMixin, Base):
     __tablename__ = "employee_profiles"
 
-    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     
     first_name = Column(String, nullable=False)
