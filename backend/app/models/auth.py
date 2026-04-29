@@ -1,12 +1,8 @@
-import enum
 from sqlalchemy import Column, Integer, String, Boolean, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.mixins import IDMixin, TimestampMixin
-
-class AuthProvider(str, enum.Enum):
-    LOCAL = "local"
-    GOOGLE = "google"
+from app.domain.user import AuthProvider
 
 class Role(IDMixin, TimestampMixin, Base):
     __tablename__ = "roles"
