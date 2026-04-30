@@ -1,6 +1,5 @@
 import re
 from datetime import date
-from typing import Literal
 
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 
@@ -36,8 +35,15 @@ class RegisterClientRequest(BaseModel):
     phone: str
     birth_date: date
     gender: Gender
-    doc_type_name: Literal["DNI", "PASAPORTE"]
+    doc_type_name: str
     doc_number: str
+
+    @field_validator("doc_type_name")
+    @classmethod
+    def validate_doc_type_name(cls, v: str) -> str:
+        if v not in ("DNI", "PASAPORTE"):
+            raise ValueError("El tipo de documento debe ser 'DNI' o 'PASAPORTE'.")
+        return v
 
     @field_validator("birth_date")
     @classmethod

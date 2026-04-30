@@ -1,17 +1,21 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.dependencies import get_db
 from app.api.v1.router import api_router
+from app.api.exception_handlers import http_exception_handler, validation_exception_handler
 
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
-    docs_url="/docs" if settings.debug else None,  # ocultar docs en prod
+    docs_url="/docs" if settings.debug else None,
 )
 
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
 app.include_router(api_router, prefix="/api/v1")
 
 
