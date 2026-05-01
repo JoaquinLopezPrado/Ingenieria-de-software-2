@@ -5,8 +5,14 @@ from app.models.auth import User as UserORM
 from app.models.profile import ClientProfile as ClientProfileORM
 from app.repositories.profile_repository import AbstractProfileRepository
 from app.repositories.user_repository import AbstractUserRepository
-from app.schemas.auth import LoginCredentials, RegisterClientRequest
-from app.utils.security import hash_password, verify_password
+from app.schemas.auth import LoginCredentials, RefreshTokenRequest, RegisterClientRequest
+from app.utils.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    hash_password,
+    verify_password,
+)
 
 
 class AuthService:
@@ -60,6 +66,16 @@ class AuthService:
         await self._profile_repo.save_client(profile_orm)
 
         return user
+
+    async def refresh(self, data: RefreshTokenRequest) -> tuple[str, str]:
+        try:
+            user_id = decode_refresh_token(data.refresh_token)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token de refresco inválido o expirado.",
+            )
+        return create_access_token(user_id), create_refresh_token(user_id)
 
     async def login(self, data: LoginCredentials) -> User:
         user = await self._user_repo.get_by_email(data.email)

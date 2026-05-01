@@ -1,4 +1,31 @@
-LOGIN_RESPONSES = {
+from typing import Any
+
+_Responses = dict[int | str, dict[str, Any]]
+
+REFRESH_RESPONSES: _Responses = {
+    200: {
+        "description": "Tokens renovados exitosamente.",
+        "content": {
+            "application/json": {
+                "example": {
+                    "access_token": "<jwt>",
+                    "refresh_token": "<jwt>",
+                    "token_type": "bearer",
+                }
+            }
+        },
+    },
+    401: {
+        "description": "Refresh token inválido o expirado.",
+        "content": {
+            "application/json": {
+                "example": {"errors": {"general": "Token de refresco inválido o expirado."}}
+            }
+        },
+    },
+}
+
+LOGIN_RESPONSES: _Responses = {
     200: {
         "description": "Inicio de sesión exitoso.",
         "content": {
@@ -29,7 +56,7 @@ LOGIN_RESPONSES = {
     },
 }
 
-REGISTER_RESPONSES = {
+REGISTER_RESPONSES: _Responses = {
     201: {
         "description": "Cliente registrado exitosamente.",
         "content": {

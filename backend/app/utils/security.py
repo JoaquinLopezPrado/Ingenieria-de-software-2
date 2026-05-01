@@ -42,3 +42,13 @@ def decode_access_token(token: str) -> int:
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         raise
+
+
+def decode_refresh_token(token: str) -> int:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise ValueError
+        return int(payload["sub"])
+    except (jwt.PyJWTError, KeyError) as e:
+        raise ValueError from e

@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_db
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import LoginCredentials, RegisterClientRequest, Token
+from app.schemas.auth import LoginCredentials, RefreshTokenRequest, RegisterClientRequest, Token
 from app.services.auth_service import AuthService
-from app.api.v1.docs.auth_responses import LOGIN_RESPONSES, REGISTER_RESPONSES
+from app.api.v1.docs.auth_responses import LOGIN_RESPONSES, REFRESH_RESPONSES, REGISTER_RESPONSES
 from app.utils.security import create_access_token, create_refresh_token
 
 router = APIRouter()
@@ -40,3 +40,12 @@ async def login(
         access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
     )
+
+
+@router.post("/refresh", response_model=Token, responses=REFRESH_RESPONSES)
+async def refresh(
+    data: RefreshTokenRequest,
+    service: AuthService = Depends(get_auth_service),
+):
+    access_token, refresh_token = await service.refresh(data)
+    return Token(access_token=access_token, refresh_token=refresh_token)

@@ -1,4 +1,8 @@
-ME_RESPONSES = {
+from typing import Any
+
+_Responses = dict[int | str, dict[str, Any]]
+
+ME_RESPONSES: _Responses = {
     200: {
         "description": "Datos del usuario autenticado.",
         "content": {

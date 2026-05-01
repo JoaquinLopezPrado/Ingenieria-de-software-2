@@ -27,6 +27,10 @@ class Verify2FARequest(BaseModel):
     code: str
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class RegisterClientRequest(BaseModel):
     email: EmailStr
     password: str
