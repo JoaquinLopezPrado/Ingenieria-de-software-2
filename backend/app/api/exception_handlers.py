@@ -4,6 +4,13 @@ from fastapi.responses import JSONResponse
 
 _LOCATION_PREFIXES = {"body", "query", "path", "header"}
 
+_TRANSLATED_MESSAGES = {
+    "Not authenticated": "No autenticado.",
+    "Method Not Allowed": "Método no permitido.",
+    "Not Found": "Recurso no encontrado.",
+    "Forbidden": "Acceso denegado.",
+}
+
 
 def _extract_field(loc: tuple) -> str:
     parts = [p for p in loc if p not in _LOCATION_PREFIXES]
@@ -26,7 +33,8 @@ async def validation_exception_handler(request: Request, exc: Exception) -> JSON
 
 async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     http_exc = exc if isinstance(exc, HTTPException) else HTTPException(status_code=500)
+    message = _TRANSLATED_MESSAGES.get(http_exc.detail, http_exc.detail)
     return JSONResponse(
         status_code=http_exc.status_code,
-        content={"errors": {"general": http_exc.detail}},
+        content={"errors": {"general": message}},
     )

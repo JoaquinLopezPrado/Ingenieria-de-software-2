@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # Security
     secret_key: str
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
 
     @property
     def short_sha(self) -> str:

@@ -5,8 +5,8 @@ from app.models.auth import User as UserORM
 from app.models.profile import ClientProfile as ClientProfileORM
 from app.repositories.profile_repository import AbstractProfileRepository
 from app.repositories.user_repository import AbstractUserRepository
-from app.schemas.auth import RegisterClientRequest
-from app.utils.security import hash_password
+from app.schemas.auth import LoginCredentials, RegisterClientRequest
+from app.utils.security import hash_password, verify_password
 
 
 class AuthService:
@@ -59,6 +59,15 @@ class AuthService:
         )
         await self._profile_repo.save_client(profile_orm)
 
+        return user
+
+    async def login(self, data: LoginCredentials) -> User:
+        user = await self._user_repo.get_by_email(data.email)
+        if not user or not user.hashed_password or not verify_password(data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="El email o la contraseña ingresados son incorrectos.",
+            )
         return user
 
     async def _ensure_email_is_unique(self, email: str) -> None:
