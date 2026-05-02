@@ -50,7 +50,7 @@ LOGIN_RESPONSES: _Responses = {
         "description": "Error de validación.",
         "content": {
             "application/json": {
-                "example": {"errors": {"email": "value is not a valid email address"}}
+                "example": {"errors": {"email": "el formato del email es inválido."}}
             }
         },
     },
