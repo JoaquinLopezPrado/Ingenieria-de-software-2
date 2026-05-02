@@ -56,6 +56,25 @@ LOGIN_RESPONSES: _Responses = {
     },
 }
 
+LOGOUT_RESPONSES: _Responses = {
+    200: {
+        "description": "Sesión cerrada exitosamente.",
+        "content": {
+            "application/json": {
+                "example": {"message": "Sesión cerrada exitosamente."}
+            }
+        },
+    },
+    401: {
+        "description": "No autenticado o token inválido.",
+        "content": {
+            "application/json": {
+                "example": {"errors": {"general": "No autenticado."}}
+            }
+        },
+    },
+}
+
 REGISTER_RESPONSES: _Responses = {
     201: {
         "description": "Cliente registrado exitosamente.",

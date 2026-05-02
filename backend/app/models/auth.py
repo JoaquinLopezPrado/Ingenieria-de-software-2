@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Enum, ForeignKey
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.mixins import IDMixin, TimestampMixin
@@ -27,6 +27,15 @@ class User(IDMixin, TimestampMixin,Base):
     is_active = Column(Boolean, default=True)
     is_2fa_enabled = Column(Boolean, default=False)
     totp_secret = Column(String, nullable=True)
+    token_version = Column(Integer, default=0, nullable=False)
 
     client_profile = relationship("ClientProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     employee_profile = relationship("EmployeeProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class RefreshToken(IDMixin, TimestampMixin, Base):
+    __tablename__ = "refresh_tokens"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)

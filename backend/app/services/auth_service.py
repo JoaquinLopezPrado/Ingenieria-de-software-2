@@ -1,9 +1,13 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import HTTPException, status
 
+from app.core.config import settings
 from app.domain.user import AuthProvider, User
 from app.models.auth import User as UserORM
 from app.models.profile import ClientProfile as ClientProfileORM
 from app.repositories.profile_repository import AbstractProfileRepository
+from app.repositories.token_repository import AbstractTokenRepository
 from app.repositories.user_repository import AbstractUserRepository
 from app.schemas.auth import LoginCredentials, RefreshTokenRequest, RegisterClientRequest
 from app.utils.security import (
@@ -11,6 +15,7 @@ from app.utils.security import (
     create_refresh_token,
     decode_refresh_token,
     hash_password,
+    hash_token,
     verify_password,
 )
 
@@ -21,9 +26,11 @@ class AuthService:
         self,
         user_repo: AbstractUserRepository,
         profile_repo: AbstractProfileRepository,
+        token_repo: AbstractTokenRepository,
     ):
         self._user_repo = user_repo
         self._profile_repo = profile_repo
+        self._token_repo = token_repo
 
     async def register_client(self, data: RegisterClientRequest) -> User:
         await self._ensure_email_is_unique(data.email)
@@ -67,6 +74,19 @@ class AuthService:
 
         return user
 
+    async def login(self, data: LoginCredentials) -> tuple[User, str, str]:
+        user = await self._user_repo.get_by_email(data.email)
+        if not user or not user.hashed_password or not verify_password(data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="El email o la contraseña ingresados son incorrectos.",
+            )
+        access_token = create_access_token(user.id, user.token_version)
+        refresh_token = create_refresh_token(user.id)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        await self._token_repo.save(user.id, hash_token(refresh_token), expires_at)
+        return user, access_token, refresh_token
+
     async def refresh(self, data: RefreshTokenRequest) -> tuple[str, str]:
         try:
             user_id = decode_refresh_token(data.refresh_token)
@@ -75,16 +95,27 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token de refresco inválido o expirado.",
             )
-        return create_access_token(user_id), create_refresh_token(user_id)
-
-    async def login(self, data: LoginCredentials) -> User:
-        user = await self._user_repo.get_by_email(data.email)
-        if not user or not user.hashed_password or not verify_password(data.password, user.hashed_password):
+        deleted = await self._token_repo.delete_by_hash(hash_token(data.refresh_token))
+        if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="El email o la contraseña ingresados son incorrectos.",
+                detail="Token de refresco inválido o expirado.",
             )
-        return user
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token de refresco inválido o expirado.",
+            )
+        new_access = create_access_token(user.id, user.token_version)
+        new_refresh = create_refresh_token(user.id)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        await self._token_repo.save(user.id, hash_token(new_refresh), expires_at)
+        return new_access, new_refresh
+
+    async def logout(self, user_id: int, refresh_token: str) -> None:
+        await self._token_repo.delete_by_hash(hash_token(refresh_token))
+        await self._user_repo.increment_token_version(user_id)
 
     async def _ensure_email_is_unique(self, email: str) -> None:
         if await self._user_repo.get_by_email(email):

@@ -23,6 +23,7 @@ class User:
         auth_provider: AuthProvider,
         is_active: bool,
         is_2fa_enabled: bool,
+        token_version: int = 0,
         hashed_password: Optional[str] = None,
         google_id: Optional[str] = None,
         totp_secret: Optional[str] = None,
@@ -33,6 +34,7 @@ class User:
         self.auth_provider = auth_provider
         self.is_active = is_active
         self.is_2fa_enabled = is_2fa_enabled
+        self.token_version = token_version
         self.hashed_password = hashed_password
         self.google_id = google_id
         self.totp_secret = totp_secret
