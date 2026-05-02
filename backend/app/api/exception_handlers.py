@@ -11,6 +11,12 @@ _TRANSLATED_MESSAGES = {
     "Forbidden": "Acceso denegado.",
 }
 
+_TRANSLATED_VALIDATION_MESSAGES = {
+    "Field required": "Este campo es requerido.",
+    "Value error": "Valor inválido.",
+    "value is not a valid email address": "El email no es válido.",
+}
+
 
 def _extract_field(loc: tuple) -> str:
     parts = [p for p in loc if p not in _LOCATION_PREFIXES]
@@ -23,8 +29,10 @@ async def validation_exception_handler(request: Request, exc: Exception) -> JSON
     for error in validation_error.errors():
         field = _extract_field(error.get("loc", ()))
         if field not in errors:
-            message = error.get("ctx", {}).get("error") or error.get("msg", "Error de validación.")
-            errors[field] = str(message)
+            raw = str(error.get("ctx", {}).get("error") or error.get("msg", "Error de validación."))
+            base = raw.split(":")[0].strip()
+            message = _TRANSLATED_VALIDATION_MESSAGES.get(raw) or _TRANSLATED_VALIDATION_MESSAGES.get(base, raw)
+            errors[field] = message
     return JSONResponse(
         status_code=422,
         content={"errors": errors},

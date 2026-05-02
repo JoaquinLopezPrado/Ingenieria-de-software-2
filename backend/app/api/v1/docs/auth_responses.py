@@ -23,6 +23,14 @@ REFRESH_RESPONSES: _Responses = {
             }
         },
     },
+    422: {
+        "description": "Error de validación.",
+        "content": {
+            "application/json": {
+                "example": {"errors": {"refresh_token": "refresh_token es requerido"}}
+            }
+        },
+    },
 }
 
 LOGIN_RESPONSES: _Responses = {
@@ -50,7 +58,16 @@ LOGIN_RESPONSES: _Responses = {
         "description": "Error de validación.",
         "content": {
             "application/json": {
-                "example": {"errors": {"email": "el formato del email es inválido."}}
+                "examples": {
+                    "campo_requerido": {
+                        "summary": "Campo requerido faltante",
+                        "value": {"errors": {"password": "Este campo es requerido."}},
+                    },
+                    "email_invalido": {
+                        "summary": "Email con formato inválido",
+                        "value": {"errors": {"email": "el email no es válido"}},
+                    },
+                }
             }
         },
     },
