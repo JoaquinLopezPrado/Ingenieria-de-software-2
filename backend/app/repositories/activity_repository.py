@@ -15,6 +15,10 @@ class AbstractActivityRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_active_by_id(self, activity_id: int) -> Optional[Activity]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def create(self, name: str, instructor: str) -> Activity:
         raise NotImplementedError
 
@@ -28,6 +32,16 @@ class ActivityRepository(AbstractActivityRepository):
         result = await self._session.execute(
             select(ActivityORM).where(
                 ActivityORM.name == name,
+                ActivityORM.is_active == True,
+            )
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def get_active_by_id(self, activity_id: int) -> Optional[Activity]:
+        result = await self._session.execute(
+            select(ActivityORM).where(
+                ActivityORM.id == activity_id,
                 ActivityORM.is_active == True,
             )
         )

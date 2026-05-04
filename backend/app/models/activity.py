@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, Index, String, text
-from sqlalchemy.orm import declared_attr
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 from app.models.mixins import IDMixin, TimestampMixin
@@ -11,6 +11,8 @@ class Activity(IDMixin, TimestampMixin, Base):
     name = Column(String, nullable=False)
     instructor = Column(String, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    turnos = relationship("Turno", back_populates="activity")
 
     __table_args__ = (
         Index(
