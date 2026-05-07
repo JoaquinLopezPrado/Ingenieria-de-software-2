@@ -1,6 +1,7 @@
 docs/
 !backend/app/api/v1/docs/
 
+node_modules/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

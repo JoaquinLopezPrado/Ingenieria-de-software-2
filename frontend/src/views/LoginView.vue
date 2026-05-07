@@ -1,0 +1,112 @@
+<script setup lang="ts">
+import { ref } from 'vue'  
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import AuthHeader from '@/components/auth/AuthHeader.vue'
+import LoginForm from '@/components/auth/LoginForm.vue'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const loading = ref(false) 
+
+const handleLogin = async (email: string, password: string) => {
+  loading.value = true
+  try {
+    await authStore.login(email, password)
+    router.push('/dashboard')
+  } catch (err: any) {
+    // Manejado en el store/componente
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="auth-page-wrapper">
+    <div class="auth-card">
+      <AuthHeader subtitle="Bienvenido de nuevo" />
+      
+      <LoginForm :loading="loading" @submit="handleLogin" />
+
+      <div class="auth-footer">
+        <router-link to="/forgot-password" class="link-secondary">
+          ¿Olvidaste tu contraseña?
+        </router-link>
+
+        <div class="divider"></div>
+
+        <div class="signup-prompt">
+          <span>¿No tienes cuenta?</span>
+          <router-link to="/register" class="link-accent">
+            Crea una aquí
+          </router-link>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.auth-page-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #dff8f2 0%, #cfeee6 50%, #e6f8f0 100%);
+  padding: 20px;
+}
+
+.auth-card {
+  background: white;
+  padding: 40px;
+  border-radius: 24px; /* Bordes más amplios para una estética moderna */
+  box-shadow: 0 15px 35px rgba(13, 110, 95, 0.1);
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-footer {
+  margin-top: 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.divider {
+  height: 1px;
+  background-color: #e0f2f1;
+  width: 100%;
+}
+
+.link-secondary {
+  color: #7f8c8d;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+.link-secondary:hover {
+  color: #00897b;
+}
+
+.signup-prompt {
+  font-size: 14px;
+  color: #2c3e50;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.link-accent {
+  color: #11a691;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.link-accent:hover {
+  text-decoration: underline;
+}
+</style>

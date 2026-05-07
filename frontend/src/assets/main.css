@@ -1,35 +1,38 @@
 @import './base.css';
 
+:root {
+  --primary: #00897b;
+  --accent: #11a691;
+  --bg-gradient: linear-gradient(135deg, #dff8f2 0%, #cfeee6 100%);
+  --card-bg: #ffffff;
+  --text-main: #2c3e50;
+  --text-muted: #7f8c8d;
+  --input-bg: #f8fbfb;
+  --border-color: #e0f2f1;
+  --radius: 16px;
+}
+
+/* Reset total para que la página sea fluida */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: block; /* IMPORTANTE: Quitamos el flex que centra todo horizontalmente */
+}
+
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  display: block; /* IMPORTANTE: Quitamos el grid de 2 columnas */
 }
 
-a,
-.green {
+/* Eliminamos TODAS las media queries que tengan display: grid o display: flex en el body o #app */
+/* Borra el bloque @media (min-width: 1024px) que tenías antes */
+
+a {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+  transition: 0.3s;
 }
