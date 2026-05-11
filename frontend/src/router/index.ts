@@ -84,6 +84,11 @@ const router = createRouter({
       path: '/class-selection',
       name: 'class-selection',
       component: () => import('../views/ClassSelectionView.vue'),
+    },
+    {
+      path: '/list',
+      name: 'list',
+      component: () => import('../views/ShowActivitisView.vue'),
     }
   ],
 })

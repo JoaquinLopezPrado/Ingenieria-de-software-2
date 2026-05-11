@@ -20,7 +20,7 @@
     <!-- Main -->
     <div class="main">
       <h1>Actividades disponibles</h1>
-      <p class="subtitle">Elegí tu actividad e inscribite en el turno que más te convenga.</p>
+      <p class="subtitle">Elegí tu actividad y reservá tu lugar en el turno que más te convenga.</p>
  
       <!-- Tabs -->
       <div class="tab-bar">
