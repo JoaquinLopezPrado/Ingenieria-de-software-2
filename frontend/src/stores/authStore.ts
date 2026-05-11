@@ -9,11 +9,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password)
-    token.value = response.access_token
+    token.value = response.data.access_token
     isAuthenticated.value = true
-    localStorage.setItem('token', response.access_token)
-    if (response.user) {
-      user.value = response.user
+    localStorage.setItem('token', response.data.access_token)
+    if (response.data.user) {
+      user.value = response.data.user
     }
   }
 
