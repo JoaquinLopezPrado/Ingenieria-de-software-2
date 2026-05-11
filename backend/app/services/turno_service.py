@@ -45,8 +45,9 @@ class TurnoService:
     async def create(
         self,
         activity_id: int,
-        name: str,
-        time: time,
+        description: str,
+        start_time: time,
+        end_time: time,
         capacity: int,
         month: int,
         year: int,
@@ -59,16 +60,18 @@ class TurnoService:
                 detail="Actividad no encontrada.",
             )
 
-        existing = await self._turno_repo.get_by_activity_month_year_name(
-            activity_id, month, year, name
+        existing = await self._turno_repo.get_by_activity_month_year_description(
+            activity_id, month, year, description
         )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un turno con ese nombre para esa actividad en ese mes.",
+                detail="Ya existe un turno con esa descripción para esa actividad en ese mes.",
             )
 
-        turno = await self._turno_repo.create(activity_id, name, time, capacity, month, year, days)
+        turno = await self._turno_repo.create(
+            activity_id, description, start_time, end_time, capacity, month, year, days
+        )
 
         dates = _generate_dates(month, year, days)
         await self._clase_repo.create_many(turno.id, dates, capacity)

@@ -10,8 +10,9 @@ class Turno(IDMixin, TimestampMixin, Base):
     __tablename__ = "turnos"
 
     activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
-    name = Column(String, nullable=False)
-    time = Column(Time(timezone=False), nullable=False)
+    description = Column(String, nullable=False)
+    start_time = Column(Time(timezone=False), nullable=False)
+    end_time = Column(Time(timezone=False), nullable=False)
     capacity = Column(Integer, nullable=False)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
@@ -22,7 +23,7 @@ class Turno(IDMixin, TimestampMixin, Base):
     clases = relationship("Clase", back_populates="turno", cascade="all, delete-orphan")
 
     __table_args__ = (
-        UniqueConstraint("activity_id", "month", "year", "name", name="uq_turno_actividad_mes_nombre"),
+        UniqueConstraint("activity_id", "month", "year", "description", name="uq_turno_actividad_mes_descripcion"),
     )
 
 

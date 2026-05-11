@@ -34,8 +34,9 @@ async def create_turno(
 ):
     return await service.create(
         activity_id=body.activity_id,
-        name=body.name,
-        time=body.time,
+        description=body.description,
+        start_time=body.start_time,
+        end_time=body.end_time,
         capacity=body.capacity,
         month=body.month,
         year=body.year,

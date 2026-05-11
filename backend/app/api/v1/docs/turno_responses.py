@@ -10,8 +10,9 @@ CREATE_TURNO_RESPONSES: _Responses = {
                 "example": {
                     "id": 1,
                     "activity_id": 1,
-                    "name": "Grupo A",
-                    "time": "09:00:00",
+                    "description": "Turno mañana avanzado",
+                    "start_time": "9:00",
+                    "end_time": "10:30",
                     "capacity": 20,
                     "month": 5,
                     "year": 2026,
@@ -46,10 +47,10 @@ CREATE_TURNO_RESPONSES: _Responses = {
         },
     },
     409: {
-        "description": "Ya existe un turno con ese nombre para esa actividad en ese mes.",
+        "description": "Ya existe un turno con esa descripción para esa actividad en ese mes.",
         "content": {
             "application/json": {
-                "example": {"errors": {"general": "Ya existe un turno con ese nombre para esa actividad en ese mes."}}
+                "example": {"errors": {"general": "Ya existe un turno con esa descripción para esa actividad en ese mes."}}
             }
         },
     },

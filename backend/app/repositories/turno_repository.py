@@ -13,8 +13,8 @@ from app.models.turno import Turno as TurnoORM, TurnoDia as TurnoDiaORM
 class AbstractTurnoRepository(ABC):
 
     @abstractmethod
-    async def get_by_activity_month_year_name(
-        self, activity_id: int, month: int, year: int, name: str
+    async def get_by_activity_month_year_description(
+        self, activity_id: int, month: int, year: int, description: str
     ) -> Optional[Turno]:
         raise NotImplementedError
 
@@ -22,8 +22,9 @@ class AbstractTurnoRepository(ABC):
     async def create(
         self,
         activity_id: int,
-        name: str,
-        time: time,
+        description: str,
+        start_time: time,
+        end_time: time,
         capacity: int,
         month: int,
         year: int,
@@ -37,8 +38,8 @@ class TurnoRepository(AbstractTurnoRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def get_by_activity_month_year_name(
-        self, activity_id: int, month: int, year: int, name: str
+    async def get_by_activity_month_year_description(
+        self, activity_id: int, month: int, year: int, description: str
     ) -> Optional[Turno]:
         result = await self._session.execute(
             select(TurnoORM)
@@ -47,7 +48,7 @@ class TurnoRepository(AbstractTurnoRepository):
                 TurnoORM.activity_id == activity_id,
                 TurnoORM.month == month,
                 TurnoORM.year == year,
-                TurnoORM.name == name,
+                TurnoORM.description == description,
                 TurnoORM.is_active == True,
             )
         )
@@ -57,8 +58,9 @@ class TurnoRepository(AbstractTurnoRepository):
     async def create(
         self,
         activity_id: int,
-        name: str,
-        time: time,
+        description: str,
+        start_time: time,
+        end_time: time,
         capacity: int,
         month: int,
         year: int,
@@ -66,8 +68,9 @@ class TurnoRepository(AbstractTurnoRepository):
     ) -> Turno:
         orm = TurnoORM(
             activity_id=activity_id,
-            name=name,
-            time=time,
+            description=description,
+            start_time=start_time,
+            end_time=end_time,
             capacity=capacity,
             month=month,
             year=year,
@@ -87,8 +90,9 @@ class TurnoRepository(AbstractTurnoRepository):
         return Turno(
             id=orm.id,
             activity_id=orm.activity_id,
-            name=orm.name,
-            time=orm.time,
+            description=orm.description,
+            start_time=orm.start_time,
+            end_time=orm.end_time,
             capacity=orm.capacity,
             month=orm.month,
             year=orm.year,
