@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -47,6 +47,9 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.db_user}:{self.db_password}@"
             f"{self.db_host}:{self.db_port}/{self.db_name}"
         )
+
+    # CORS
+    cors_origins: List[str] = ["http://localhost:3000"]
 
     # Security
     secret_key: str

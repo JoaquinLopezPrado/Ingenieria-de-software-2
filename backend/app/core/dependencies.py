@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
+from app.domain.user import User
 from app.repositories.user_repository import UserRepository
 from app.utils.security import decode_access_token
 
@@ -22,10 +23,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-async def get_current_user_id(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
     db: AsyncSession = Depends(get_db),
-) -> int:
+) -> User:
     try:
         user_id, token_version = decode_access_token(credentials.credentials)
     except (jwt.PyJWTError, ValueError):
@@ -39,4 +40,17 @@ async def get_current_user_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado.",
         )
-    return user_id
+    return user
+
+
+async def get_current_user_id(user: User = Depends(get_current_user)) -> int:
+    return user.id
+
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role.name != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tenés permisos para realizar esta acción.",
+        )
+    return user
