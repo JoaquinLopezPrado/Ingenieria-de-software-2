@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.docs.activity_responses import CREATE_ACTIVITY_RESPONSES
-from app.core.dependencies import get_db, require_admin
-from app.domain.user import User
+from app.core.dependencies import get_db, require_roles
 from app.repositories.activity_repository import ActivityRepository
 from app.schemas.activity import ActivityResponse, CreateActivityRequest
 from app.services.activity_service import ActivityService
@@ -23,7 +22,7 @@ def get_activity_service(db: AsyncSession = Depends(get_db)) -> ActivityService:
 )
 async def create_activity(
     body: CreateActivityRequest,
-    _: User = Depends(require_admin),
+    _=require_roles("admin"),
     service: ActivityService = Depends(get_activity_service),
 ):
     return await service.create(name=body.name, instructor=body.instructor)

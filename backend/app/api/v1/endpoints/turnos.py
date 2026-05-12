@@ -5,8 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.docs.turno_responses import CREATE_TURNO_RESPONSES, LIST_TURNOS_RESPONSES
-from app.core.dependencies import get_db, get_current_user, require_admin
-from app.domain.user import User
+from app.core.dependencies import get_db, require_roles
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
@@ -36,7 +35,7 @@ async def list_turnos(
     activity_id: Optional[int] = Query(None),
     has_availability: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
-    _: User = Depends(get_current_user),
+    _=require_roles("admin", "empleado", "cliente"),
     service: TurnoService = Depends(get_turno_service),
 ):
     items, total, page_size = await service.list(activity_id, has_availability, page)
@@ -57,7 +56,7 @@ async def list_turnos(
 )
 async def create_turno(
     body: CreateTurnoRequest,
-    _: User = Depends(require_admin),
+    _=require_roles("admin"),
     service: TurnoService = Depends(get_turno_service),
 ):
     return await service.create(
