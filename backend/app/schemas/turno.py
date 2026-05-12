@@ -1,7 +1,7 @@
 from datetime import time
 from typing import List
 
-from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from app.domain.turno import DiaSemana
 
@@ -51,7 +51,17 @@ class CreateTurnoRequest(BaseModel):
         return self
 
 
+class TurnoPageResponse(BaseModel):
+    items: List["TurnoResponse"]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
 class TurnoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     activity_id: int
     description: str
