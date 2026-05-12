@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateActivityRequest(BaseModel):
@@ -7,6 +7,8 @@ class CreateActivityRequest(BaseModel):
 
 
 class ActivityResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     instructor: str
