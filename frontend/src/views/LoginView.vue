@@ -7,16 +7,15 @@ import LoginForm from '@/components/auth/LoginForm.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
 const loading = ref(false) 
 
-const handleLogin = async (email: string, password: string) => {
+const handleLogin = async (email: string, pass: string) => {
   loading.value = true
   try {
-    await authStore.login(email, password)
-    router.push('/dashboard')
+    await authStore.login({ email, password: pass })
+    router.push('/') // O a tu dashboard
   } catch (err: any) {
-    // Manejado en el store/componente
+    alert('Email o contraseña incorrectos')
   } finally {
     loading.value = false
   }
@@ -27,21 +26,15 @@ const handleLogin = async (email: string, password: string) => {
   <div class="auth-page-wrapper">
     <div class="auth-card">
       <AuthHeader subtitle="Bienvenido de nuevo" />
-      
       <LoginForm :loading="loading" @submit="handleLogin" />
-
       <div class="auth-footer">
         <router-link to="/forgot-password" class="link-secondary">
           ¿Olvidaste tu contraseña?
         </router-link>
-
         <div class="divider"></div>
-
         <div class="signup-prompt">
           <span>¿No tienes cuenta?</span>
-          <router-link to="/register" class="link-accent">
-            Crea una aquí
-          </router-link>
+          <router-link to="/register" class="link-accent">Crea una aquí</router-link>
         </div>
       </div>
     </div>

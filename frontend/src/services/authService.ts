@@ -4,34 +4,19 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// Agregar token a las requests
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+  const token = localStorage.getItem('access_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
 export const authService = {
-  login: (email: string, password: string) => {
-    return apiClient.post('/auth/login', {
-      email,
-      password,
-    })
-  },
+  login: (credentials: any) => apiClient.post('/auth/login', credentials),
 
-  register: (email: string, password: string) => {
-    return apiClient.post('/auth/register', {
-      email,
-      password,
-    })
-  },
+  register: (userData: any) => apiClient.post('/auth/register', userData),
 
   forgotPassword: (email: string) => {
     return apiClient.post('/auth/forgot-password', {
@@ -39,7 +24,10 @@ export const authService = {
     })
   },
 
-  logout: () => {
-    return apiClient.post('/auth/logout')
-  },
+  logout: (refreshToken: string) => apiClient.post('/auth/logout', { refresh_token: refreshToken }),
+
+  getMe: () => apiClient.get('/users/me'),
+
+  refresh: (refreshToken: string) => apiClient.post('/auth/refresh', { refresh_token: refreshToken })
+  
 }
