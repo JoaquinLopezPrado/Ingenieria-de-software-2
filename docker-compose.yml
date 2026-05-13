@@ -19,11 +19,15 @@ services:
     environment:
       - UV_LINK_MODE=copy
       - UV_PROJECT_ENVIRONMENT=/app/.venv
+      - DB_HOST=db
+      - DB_NAME=centro_actividades
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8001"
     env_file:
       - ./backend/.env.local
     depends_on:
