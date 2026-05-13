@@ -19,4 +19,5 @@ RUN uv sync --frozen --no-install-project
 # 3. Copiamos el código fuente
 COPY . .
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+#CMD ["uv", "run", "alembic", "upgrade", "head", "&&", "uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+CMD ["/bin/sh", "-c", "uv run alembic upgrade head && uv run python -m app.seeds && uv run uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"]
