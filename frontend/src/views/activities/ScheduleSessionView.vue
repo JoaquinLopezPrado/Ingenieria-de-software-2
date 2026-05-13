@@ -1,45 +1,41 @@
 <script setup lang="ts">
 /**
- * ScheduleSessionView
- * -------------------
- * Vista de administración para programar un nuevo turno (ACT-06.01).
+ * ScheduleSessionView — Vista de programación de turno (ACT-06.01)
+ * ----------------------------------------------------------------
+ * Orquesta el flujo completo: formulario → servicio → feedback al admin.
  *
- * Flujo:
- *   1. SessionForm valida los datos en el cliente y emite "submit-session".
- *   2. Esta vista llama a createSession() del servicio.
- *   3. Si el servidor responde con éxito, muestra un banner verde.
- *   4. Si el servidor retorna un error (turno duplicado, superposición, etc.),
- *      muestra el mensaje de error del backend en un banner rojo.
+ * Errores cubiertos por el backend (ver turno_service.py):
+ *   - 404: La actividad no existe ("Actividad no encontrada.")
+ *   - 409: Turno duplicado ("Ya existe un turno con esa descripción...") → Escenario 4
+ *   - 422: Validación de campos (hora fin <= inicio, días repetidos, etc.)  → Escenario 2
+ *   - 401: No autenticado ("No autenticado.")
+ *   - 403: Sin permiso de admin ("Acceso denegado.")
  *
- * ┌─ CONEXIÓN CON BACKEND ─────────────────────────────────────────┐
- * │  Hoy createSession() es un mock. Ver sessionService.ts y       │
- * │  /docs/integracion-backend.md para migrar al endpoint real.    │
- * └────────────────────────────────────────────────────────────────┘
+ * El formato de error del backend es siempre:
+ *   { errors: { general: "mensaje" } }  ó  { errors: { campo: "mensaje" } }
+ * Ver app/api/exception_handlers.py
  */
 import { ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import SessionForm from '@/components/activities/SessionForm.vue'
-import { createSession, type SessionData } from '@/services/sessionService'
+import { createSession, extractBackendError, type SessionFormData } from '@/services/sessionService'
 
 const isSubmitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 
-const handleSaveSession = async (sessionData: SessionData) => {
+const handleSaveSession = async (formData: SessionFormData) => {
   isSubmitting.value = true
   successMessage.value = ''
   errorMessage.value = ''
 
   try {
-    const response = await createSession(sessionData)
-    successMessage.value = (response as any).message
-    // Desplazar al tope para que el banner de éxito sea visible
+    const result = await createSession(formData)
+    successMessage.value = result.message   // "Turno programado con éxito"
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  } catch (error: any) {
-    // Los errores del backend (duplicado, superposición) llegan como excepciones.
-    // El mensaje de error viene en error.message o en error.response.data.detail
-    // según cómo esté configurado el cliente HTTP. Ver integracion-backend.md.
-    errorMessage.value = error?.message ?? 'Ocurrió un error al programar el turno. Intentá de nuevo.'
+  } catch (error) {
+    // extractBackendError lee error.response.data.errors del formato de FastAPI
+    errorMessage.value = extractBackendError(error)
   } finally {
     isSubmitting.value = false
   }
@@ -50,7 +46,7 @@ const handleSaveSession = async (sessionData: SessionData) => {
   <AdminLayout>
     <div class="page-wrapper">
 
-      <!-- ── Encabezado de página ── -->
+      <!-- ── Encabezado ── -->
       <div class="page-header">
         <div>
           <h1 class="page-title">Programar nuevo turno</h1>
@@ -58,19 +54,19 @@ const handleSaveSession = async (sessionData: SessionData) => {
         </div>
       </div>
 
-      <!-- ── Banner de éxito ── -->
+      <!-- ── Banner de éxito (Escenario 1) ── -->
       <transition name="fade">
         <div v-if="successMessage" class="alert alert-success" role="alert">
-          <span class="alert-icon">✓</span>
+          <span class="alert-icon success-icon">✓</span>
           <span>{{ successMessage }}</span>
           <button class="alert-close" @click="successMessage = ''" aria-label="Cerrar">×</button>
         </div>
       </transition>
 
-      <!-- ── Banner de error del servidor (Escenarios 4 y 5) ── -->
+      <!-- ── Banner de error del servidor (Escenarios 4, 5 y otros) ── -->
       <transition name="fade">
         <div v-if="errorMessage" class="alert alert-error" role="alert">
-          <span class="alert-icon">!</span>
+          <span class="alert-icon error-icon">!</span>
           <span>{{ errorMessage }}</span>
           <button class="alert-close" @click="errorMessage = ''" aria-label="Cerrar">×</button>
         </div>
@@ -87,15 +83,11 @@ const handleSaveSession = async (sessionData: SessionData) => {
 </template>
 
 <style scoped>
-/* El wrapper ocupa todo el ancho disponible del main-content */
 .page-wrapper {
   width: 100%;
 }
 
 .page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
   margin-bottom: 2rem;
 }
 
@@ -138,28 +130,19 @@ const handleSaveSession = async (sessionData: SessionData) => {
 }
 
 .alert-icon {
-  font-size: 1rem;
-  font-weight: 700;
-  flex-shrink: 0;
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.alert-success .alert-icon {
-  background-color: #16a34a;
-  color: white;
   font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
-.alert-error .alert-icon {
-  background-color: #dc2626;
-  color: white;
-  font-size: 0.85rem;
-}
+.success-icon { background-color: #16a34a; color: white; }
+.error-icon   { background-color: #dc2626; color: white; }
 
 .alert-close {
   margin-left: auto;
@@ -175,11 +158,10 @@ const handleSaveSession = async (sessionData: SessionData) => {
   transition: opacity 0.15s;
 }
 
-.alert-close:hover {
-  opacity: 1;
-}
+.alert-close:hover { opacity: 1; }
 
-/* ── Animación de entrada/salida de alertas ── */
+/* ── Animación ── */
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.25s, transform 0.25s;

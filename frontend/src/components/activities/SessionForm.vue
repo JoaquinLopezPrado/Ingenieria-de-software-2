@@ -1,93 +1,113 @@
 <script setup lang="ts">
 /**
- * SessionForm
- * -----------
- * Formulario para programar un nuevo turno de actividad (ACT-06.01).
+ * SessionForm — Formulario de programación de turno (ACT-06.01)
+ * -------------------------------------------------------------
+ * Historial de cambios relevantes:
  *
- * Responsabilidades:
- *   - Renderizar todos los campos requeridos (actividad, instructor, días,
- *     horario, salón y cupo máximo).
- *   - Ejecutar las validaciones de negocio en el cliente antes de emitir.
- *   - Emitir el evento "submit-session" con los datos validados para que
- *     la vista padre llame al servicio correspondiente.
+ *  v1 (mock)        → campos básicos, sin integración real
+ *  v2 (integración) → activity_id, description, snake_case, días en minúscula
+ *  v3 (actual)      → agrega mes, año e is_active seleccionables por el admin
  *
- * ┌─ CONEXIÓN CON BACKEND ─────────────────────────────────────────┐
- * │  Las opciones del formulario (actividades, instructores,        │
- * │  salones) hoy vienen del mock en sessionService.ts.            │
- * │  Ver /docs/integracion-backend.md para detalles de migración.  │
- * └────────────────────────────────────────────────────────────────┘
+ * Nota sobre is_active: el frontend lo envía en el payload, pero el backend
+ * actualmente lo ignora (CreateTurnoRequest no tiene el campo todavía).
+ * El campo quedará operativo en cuanto se agregue al schema.
+ * Ver docs/integracion-backend.md 
  */
-import { ref, onMounted } from 'vue'
-import { getFormOptions, type SessionData } from '@/services/sessionService'
+import { ref, computed, onMounted } from 'vue'
+import { getFormOptions, type ActivityOption, type SessionFormData } from '@/services/sessionService'
 
-defineProps<{
-  isLoading: boolean
-}>()
+defineProps<{ isLoading: boolean }>()
 
 const emit = defineEmits<{
-  (e: 'submit-session', payload: SessionData): void
+  (e: 'submit-session', payload: SessionFormData): void
 }>()
+
+// ─── Opciones estáticas ───────────────────────────────────────────────────────
 
 const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
-const availableActivities = ref<string[]>([])
-const availableInstructors = ref<string[]>([])
-const availableRooms = ref<string[]>([])
+const MONTHS = [
+  { value: 1,  label: 'Enero'      },
+  { value: 2,  label: 'Febrero'    },
+  { value: 3,  label: 'Marzo'      },
+  { value: 4,  label: 'Abril'      },
+  { value: 5,  label: 'Mayo'       },
+  { value: 6,  label: 'Junio'      },
+  { value: 7,  label: 'Julio'      },
+  { value: 8,  label: 'Agosto'     },
+  { value: 9,  label: 'Septiembre' },
+  { value: 10, label: 'Octubre'    },
+  { value: 11, label: 'Noviembre'  },
+  { value: 12, label: 'Diciembre'  },
+]
 
-// Un error por campo — se limpian al volver a enviar
-const errors = ref<Record<string, string>>({})
+// Años disponibles: año actual y los dos siguientes
+const currentYear = new Date().getFullYear()
+const YEARS = [currentYear, currentYear + 1, currentYear + 2]
 
-const newSession = ref<SessionData>({
-  activity: '',
-  instructor: '',
-  days: [],
-  startTime: '',
-  endTime: '',
-  maxCapacity: null,
-  room: ''
-})
+// ─── Opciones del formulario (actividades) ────────────────────────────────────
+
+const availableActivities = ref<ActivityOption[]>([])
 
 onMounted(async () => {
   const options = await getFormOptions()
   availableActivities.value = options.activities
-  availableInstructors.value = options.instructors
-  availableRooms.value = options.rooms
 })
 
-/**
- * Valida todos los campos según las reglas de negocio de ACT-06.01.
- * Retorna true si el formulario es válido, false si hay errores.
- * Los mensajes de error coinciden exactamente con los Criterios de Aceptación.
- */
+// ─── Estado del formulario ────────────────────────────────────────────────────
+
+const now = new Date()
+
+const form = ref({
+  activity_id:  null as number | null,
+  description:  '',
+  days:         [] as string[],
+  startTime:    '',
+  endTime:      '',
+  maxCapacity:  null as number | null,
+  month:        now.getMonth() + 1,   // default: mes actual
+  year:         now.getFullYear(),    // default: año actual
+  is_active:    false,                // default: inactivo hasta que el admin lo confirme
+})
+
+// Instructor de solo lectura según la actividad elegida
+const selectedInstructor = computed(() =>
+  availableActivities.value.find(a => a.id === form.value.activity_id)?.instructor ?? ''
+)
+
+// Etiqueta del mes seleccionado para el badge de estado
+const selectedMonthLabel = computed(() =>
+  MONTHS.find(m => m.value === form.value.month)?.label ?? ''
+)
+
+// ─── Validación ───────────────────────────────────────────────────────────────
+
+const errors = ref<Record<string, string>>({})
+
 const validate = (): boolean => {
   errors.value = {}
 
-  if (!newSession.value.activity)
+  if (!form.value.activity_id)
     errors.value.activity = 'Seleccioná una actividad.'
 
-  if (!newSession.value.instructor)
-    errors.value.instructor = 'Seleccioná un instructor.'
+  if (!form.value.description.trim())
+    errors.value.description = 'Ingresá una descripción para el turno.'
 
-  if (newSession.value.days.length === 0)
+  if (form.value.days.length === 0)
     errors.value.days = 'Seleccioná al menos un día de la semana.'
 
-  if (!newSession.value.startTime)
+  if (!form.value.startTime)
     errors.value.startTime = 'Ingresá la hora de inicio.'
 
-  if (!newSession.value.endTime)
+  if (!form.value.endTime)
     errors.value.endTime = 'Ingresá la hora de fin.'
 
-  // Regla de negocio: inicio debe ser anterior a fin (Escenario 2)
-  if (newSession.value.startTime && newSession.value.endTime) {
-    if (newSession.value.startTime >= newSession.value.endTime)
+  if (form.value.startTime && form.value.endTime) {
+    if (form.value.startTime >= form.value.endTime)
       errors.value.timeRange = 'La hora de inicio debe ser anterior a la hora de fin.'
   }
 
-  if (!newSession.value.room)
-    errors.value.room = 'Seleccioná un salón.'
-
-  // Regla de negocio: cupo debe ser entero > 0 (Escenario 3)
-  const cap = newSession.value.maxCapacity
+  const cap = form.value.maxCapacity
   if (cap === null || !Number.isInteger(Number(cap)) || Number(cap) <= 0)
     errors.value.maxCapacity = 'El cupo máximo debe ser un número entero mayor a 0.'
 
@@ -96,7 +116,17 @@ const validate = (): boolean => {
 
 const handleSubmit = () => {
   if (!validate()) return
-  emit('submit-session', newSession.value)
+  emit('submit-session', {
+    activity_id:  form.value.activity_id!,
+    description:  form.value.description.trim(),
+    days:         form.value.days,
+    startTime:    form.value.startTime,
+    endTime:      form.value.endTime,
+    maxCapacity:  form.value.maxCapacity!,
+    month:        form.value.month,
+    year:         form.value.year,
+    is_active:    form.value.is_active,
+  })
 }
 </script>
 
@@ -108,20 +138,52 @@ const handleSubmit = () => {
       <div class="form-grid-2">
         <div class="input-group">
           <label>Actividad</label>
-          <select v-model="newSession.activity" :class="{ 'input-error': errors.activity }">
-            <option value="" disabled>Seleccioná una actividad...</option>
-            <option v-for="act in availableActivities" :key="act" :value="act">{{ act }}</option>
+          <select v-model="form.activity_id" :class="{ 'input-error': errors.activity }">
+            <option :value="null" disabled>Seleccioná una actividad...</option>
+            <option v-for="act in availableActivities" :key="act.id" :value="act.id">
+              {{ act.name }}
+            </option>
           </select>
           <span v-if="errors.activity" class="field-error">{{ errors.activity }}</span>
         </div>
 
         <div class="input-group">
           <label>Instructor</label>
-          <select v-model="newSession.instructor" :class="{ 'input-error': errors.instructor }">
-            <option value="" disabled>Seleccioná un instructor...</option>
-            <option v-for="prof in availableInstructors" :key="prof" :value="prof">{{ prof }}</option>
+          <div class="readonly-field" :class="{ placeholder: !selectedInstructor }">
+            {{ selectedInstructor || 'Se asigna al elegir la actividad' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Descripción ── -->
+      <div class="input-group">
+        <label>Descripción del turno</label>
+        <input
+          type="text"
+          v-model="form.description"
+          maxlength="200"
+          placeholder="Ej: Turno mañana, Turno tarde avanzado..."
+          :class="{ 'input-error': errors.description }"
+        >
+        <span v-if="errors.description" class="field-error">{{ errors.description }}</span>
+      </div>
+
+      <!-- ── Mes y Año ── -->
+      <div class="form-grid-2">
+        <div class="input-group">
+          <label>Mes</label>
+          <select v-model="form.month">
+            <option v-for="m in MONTHS" :key="m.value" :value="m.value">
+              {{ m.label }}
+            </option>
           </select>
-          <span v-if="errors.instructor" class="field-error">{{ errors.instructor }}</span>
+        </div>
+
+        <div class="input-group">
+          <label>Año</label>
+          <select v-model="form.year">
+            <option v-for="y in YEARS" :key="y" :value="y">{{ y }}</option>
+          </select>
         </div>
       </div>
 
@@ -130,20 +192,20 @@ const handleSubmit = () => {
         <label>Días</label>
         <div class="days-container" :class="{ 'days-error': errors.days }">
           <label v-for="day in daysOfWeek" :key="day" class="day-label">
-            <input type="checkbox" :value="day" v-model="newSession.days" class="hidden-checkbox" />
+            <input type="checkbox" :value="day" v-model="form.days" class="hidden-checkbox" />
             <span class="day-pill">{{ day }}</span>
           </label>
         </div>
         <span v-if="errors.days" class="field-error">{{ errors.days }}</span>
       </div>
 
-      <!-- ── Horarios & Salón ── -->
+      <!-- ── Horarios & Cupo ── -->
       <div class="form-grid-3">
         <div class="input-group">
           <label>Hora de inicio</label>
           <input
             type="time"
-            v-model="newSession.startTime"
+            v-model="form.startTime"
             :class="{ 'input-error': errors.startTime || errors.timeRange }"
           >
           <span v-if="errors.startTime" class="field-error">{{ errors.startTime }}</span>
@@ -153,42 +215,79 @@ const handleSubmit = () => {
           <label>Hora de fin</label>
           <input
             type="time"
-            v-model="newSession.endTime"
+            v-model="form.endTime"
             :class="{ 'input-error': errors.endTime || errors.timeRange }"
           >
           <span v-if="errors.endTime" class="field-error">{{ errors.endTime }}</span>
         </div>
 
         <div class="input-group">
-          <label>Salón</label>
-          <select v-model="newSession.room" :class="{ 'input-error': errors.room }">
-            <option value="" disabled>Seleccioná un salón...</option>
-            <option v-for="room in availableRooms" :key="room" :value="room">{{ room }}</option>
-          </select>
-          <span v-if="errors.room" class="field-error">{{ errors.room }}</span>
+          <label>Cupo máximo</label>
+          <input
+            type="number"
+            v-model.number="form.maxCapacity"
+            min="1"
+            step="1"
+            placeholder="Ej: 15"
+            :class="{ 'input-error': errors.maxCapacity }"
+          >
+          <span v-if="errors.maxCapacity" class="field-error">{{ errors.maxCapacity }}</span>
         </div>
       </div>
 
-      <!-- Error de rango horario (cubre ambos campos de hora) -->
+      <!-- Error rango horario -->
       <div v-if="errors.timeRange" class="alert alert-error">
         {{ errors.timeRange }}
       </div>
 
-      <!-- ── Cupo máximo ── -->
-      <div class="input-group capacity-group">
-        <label>Cupo máximo</label>
-        <input
-          type="number"
-          v-model.number="newSession.maxCapacity"
-          min="1"
-          step="1"
-          placeholder="Ej: 15"
-          :class="{ 'input-error': errors.maxCapacity }"
-        >
-        <span v-if="errors.maxCapacity" class="field-error">{{ errors.maxCapacity }}</span>
+      <!-- ── Estado del turno (is_active) ── -->
+      <div class="status-section">
+        <div class="status-header">
+          <span class="status-label-text">Estado del turno</span>
+          <span class="status-hint">
+            Los turnos se crean inactivos. Activalo cuando confirmes que se dictará.
+          </span>
+        </div>
+
+        <label class="toggle-row">
+          <div class="toggle-wrapper">
+            <input type="checkbox" v-model="form.is_active" class="toggle-input" />
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+          </div>
+          <div class="toggle-labels">
+            <span class="toggle-state" :class="form.is_active ? 'active' : 'inactive'">
+              {{ form.is_active ? 'Activo' : 'Inactivo' }}
+            </span>
+            <span class="toggle-description">
+              {{ form.is_active
+                ? 'El turno estará visible y disponible para reservas.'
+                : 'El turno se guardará pero no será visible para los socios.' }}
+            </span>
+          </div>
+        </label>
+
+        <!-- Aviso mientras el backend no soporte is_active -->
+        <p class="pending-note">
+          Nota: el campo "Estado" ya se envía al servidor pero no tiene efecto hasta que el equipo de backend lo implemente.
+        </p>
       </div>
 
-      <!-- ── Botón de envío ── -->
+      <!-- ── Resumen del período ── -->
+      <div class="period-badge">
+        <span>📅</span>
+        <span>
+          Programando para
+          <strong>{{ selectedMonthLabel }} {{ form.year }}</strong>
+          —
+          <span :class="form.is_active ? 'badge-active' : 'badge-inactive'">
+            {{ form.is_active ? 'Activo al guardar' : 'Inactivo al guardar' }}
+          </span>
+        </span>
+      </div>
+
+      <!-- ── Acciones ── -->
       <div class="form-actions">
         <button type="submit" :disabled="isLoading" class="btn-submit">
           {{ isLoading ? 'Guardando...' : 'Programar turno' }}
@@ -211,63 +310,37 @@ const handleSubmit = () => {
 
 /* ── Grillas responsive ── */
 
-.form-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-
+.form-grid-2,
 .form-grid-3 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
 }
 
-/* Tablet: 2 columnas */
 @media (min-width: 640px) {
-  .form-grid-2 {
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
-  .form-grid-3 {
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
+  .form-grid-2 { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .form-grid-3 { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 }
 
-/* Desktop: 3 columnas para la grilla de horarios/salón */
 @media (min-width: 1024px) {
-  .form-grid-3 {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
+  .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 }
 
-/* ── Campos ── */
+/* ── Campos base ── */
 
-.input-group {
-  margin-bottom: 1.5rem;
-}
-
-.capacity-group {
-  max-width: 100%;
-}
-
-@media (min-width: 640px) {
-  .capacity-group {
-    max-width: 35%;
-  }
-}
+.input-group { margin-bottom: 1.5rem; }
 
 label {
   display: block;
-  font-size: 0.83rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #4b5563;
   margin-bottom: 0.45rem;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
 }
 
+input[type="text"],
 input[type="time"],
 input[type="number"],
 select {
@@ -294,7 +367,6 @@ select:focus {
   border-color: #ef4444 !important;
   background-color: #fff5f5 !important;
 }
-
 .input-error:focus {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }
@@ -307,6 +379,25 @@ select:focus {
   font-weight: 500;
 }
 
+/* ── Solo lectura ── */
+
+.readonly-field {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #f3f4f6;
+  font-size: 0.95rem;
+  color: #1f2937;
+  box-sizing: border-box;
+  min-height: 2.6rem;
+}
+
+.readonly-field.placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 /* ── Pills de días ── */
 
 .days-container {
@@ -316,17 +407,10 @@ select:focus {
   padding: 0.25rem 0;
 }
 
-.days-error .day-pill {
-  border-color: #fca5a5;
-}
+.days-error .day-pill { border-color: #fca5a5; }
 
-.day-label {
-  cursor: pointer;
-}
-
-.hidden-checkbox {
-  display: none;
-}
+.day-label { cursor: pointer; }
+.hidden-checkbox { display: none; }
 
 .day-pill {
   display: inline-block;
@@ -341,10 +425,7 @@ select:focus {
   user-select: none;
 }
 
-.day-pill:hover {
-  border-color: #11998e;
-  color: #11998e;
-}
+.day-pill:hover { border-color: #11998e; color: #11998e; }
 
 .hidden-checkbox:checked + .day-pill {
   background-color: #11998e;
@@ -352,7 +433,7 @@ select:focus {
   border-color: #11998e;
 }
 
-/* ── Alertas inline ── */
+/* ── Alerta rango ── */
 
 .alert {
   padding: 0.75rem 1rem;
@@ -368,10 +449,129 @@ select:focus {
   border: 1px solid #fecaca;
 }
 
+/* ── Sección de estado (is_active) ── */
+
+.status-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  background-color: #fafafa;
+}
+
+.status-header {
+  margin-bottom: 1rem;
+}
+
+.status-label-text {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.2rem;
+}
+
+.status-hint {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+/* Toggle switch */
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  color: inherit;
+  margin-bottom: 0;
+}
+
+.toggle-wrapper { flex-shrink: 0; padding-top: 2px; }
+
+.toggle-input { display: none; }
+
+.toggle-track {
+  display: block;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: #d1d5db;
+  position: relative;
+  transition: background-color 0.2s;
+}
+
+.toggle-input:checked + .toggle-track {
+  background-color: #11998e;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.toggle-input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(20px);
+}
+
+.toggle-labels { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.toggle-state {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.toggle-state.active  { color: #0c8a70; }
+.toggle-state.inactive { color: #6b7280; }
+
+.toggle-description {
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+
+.pending-note {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.75rem;
+  color: #b45309;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+}
+
+/* ── Badge de período ── */
+
+.period-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.badge-active   { color: #0c8a70; font-weight: 600; }
+.badge-inactive { color: #6b7280; font-weight: 600; }
+
 /* ── Acciones ── */
 
 .form-actions {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid #f3f4f6;
   display: flex;
@@ -391,28 +591,13 @@ select:focus {
   min-width: 160px;
 }
 
-.btn-submit:hover:not(:disabled) {
-  background-color: #0c8a70;
-}
-
-.btn-submit:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.btn-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.btn-submit:hover:not(:disabled)  { background-color: #0c8a70; }
+.btn-submit:active:not(:disabled) { transform: scale(0.98); }
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 @media (max-width: 480px) {
-  .form-card {
-    padding: 1.5rem 1.25rem;
-  }
-  .btn-submit {
-    width: 100%;
-  }
-  .form-actions {
-    justify-content: stretch;
-  }
+  .form-card { padding: 1.5rem 1.25rem; }
+  .btn-submit { width: 100%; }
+  .form-actions { justify-content: stretch; }
 }
 </style>
