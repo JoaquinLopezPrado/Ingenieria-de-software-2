@@ -19,10 +19,12 @@ import { ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import SessionForm from '@/components/activities/SessionForm.vue'
 import { createSession, extractBackendError, type SessionFormData } from '@/services/sessionService'
+import { useRouter } from 'vue-router'
 
 const isSubmitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const router = useRouter()
 
 const handleSaveSession = async (formData: SessionFormData) => {
   isSubmitting.value = true
@@ -32,7 +34,9 @@ const handleSaveSession = async (formData: SessionFormData) => {
   try {
     const result = await createSession(formData)
     successMessage.value = result.message   // "Turno programado con éxito"
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setTimeout(() => {
+      router.push({ name: 'home' })  // Redirige a la lista de turnos después de un breve delay
+    }, 1500) //espera 1.5 seg para que el admin vea el banner de exito
   } catch (error) {
     // extractBackendError lee error.response.data.errors del formato de FastAPI
     errorMessage.value = extractBackendError(error)

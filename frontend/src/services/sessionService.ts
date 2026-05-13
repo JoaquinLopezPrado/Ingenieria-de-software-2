@@ -17,7 +17,6 @@ import api from './api'
 
 /**
  * Datos que el formulario emite al hacer submit.
- * Usan nombres amigables para el formulario (camelCase, días en español con mayúscula).
  */
 export interface SessionFormData {
   activity_id: number
@@ -28,23 +27,14 @@ export interface SessionFormData {
   maxCapacity: number
   month: number         // 1–12, seleccionado por el admin
   year: number          // >= 2024, seleccionado por el admin
-  // PENDIENTE BACKEND: el campo is_active se envía en el payload pero el backend
-  // lo ignora hasta que tu compañero lo agregue a CreateTurnoRequest.
-  // Ver docs/integracion-backend.md → "Qué hablar con tu compañero".
   is_active: boolean
 }
 
-/**
- * Opción de actividad para el select.
- * Incluye el instructor para mostrarlo en el formulario sin campo extra.
- *
- * PENDIENTE BACKEND: Reemplazar con datos reales cuando exista GET /api/v1/activities.
- * Ver docs/integracion-backend.md → Sección "Pendientes".
- */
 export interface ActivityOption {
   id: number
   name: string
   instructor: string
+  is_active: boolean
 }
 
 // ─── Mapeo de días ────────────────────────────────────────────────────────────
@@ -65,24 +55,15 @@ const DAY_TO_BACKEND: Record<string, string> = {
 // ─── Funciones ────────────────────────────────────────────────────────────────
 
 /**
- * Carga las opciones del formulario (actividades disponibles).
- *
- * ESTADO ACTUAL: Mock local — el backend no tiene GET /api/v1/activities todavía.
- * MIGRACIÓN: Cuando el backend implemente el endpoint, reemplazar por:
- *
- *   const res = await api.get('/activities')
- *   return { activities: res.data }
- *
- * El array `res.data` tendrá la forma ActivityResponse[]:
- *   { id: number, name: string, instructor: string, is_active: boolean }
+ * Carga las actividades activas desde GET /api/v1/activities.
+ * Requiere cualquier rol autenticado (admin | empleado | cliente).
+ * Response shape: ActivityResponse[] → { id, name, instructor, is_active }
+ * Solo se exponen en el select las actividades con is_active = true.
  */
 export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }> => {
+  const res = await api.get('/activities')
   return {
-    activities: [
-      { id: 1, name: 'Yoga',      instructor: 'Lic. Valentina Ríos'  },
-      { id: 2, name: 'Funcional', instructor: 'Prof. Martina Solís'  },
-      { id: 3, name: 'Pilates',   instructor: 'Prof. Lucas Méndez'   },
-    ],
+    activities: res.data.filter((a: ActivityOption) => a.is_active)
   }
 }
 
@@ -114,8 +95,6 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
     month:        formData.month,
     year:         formData.year,
     days:         formData.days.map(d => DAY_TO_BACKEND[d]),
-    // El backend ignora is_active hasta que tu compañero lo agregue al schema.
-    // Una vez que lo agregue, este campo ya estará llegando con el valor correcto.
     is_active:    formData.is_active,
   }
 

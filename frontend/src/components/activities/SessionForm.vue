@@ -13,7 +13,7 @@
  * El campo quedará operativo en cuanto se agregue al schema.
  * Ver docs/integracion-backend.md 
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { getFormOptions, type ActivityOption, type SessionFormData } from '@/services/sessionService'
 
 defineProps<{ isLoading: boolean }>()
@@ -45,13 +45,37 @@ const MONTHS = [
 const currentYear = new Date().getFullYear()
 const YEARS = [currentYear, currentYear + 1, currentYear + 2]
 
+// ─── Slots de horario (06:00 – 23:45, saltos de 15 minutos) ─────────────────
+// Genera: ["06:00", "06:15", "06:30", "06:45", "07:00", ..., "23:45"]
+const TIME_SLOTS: string[] = (() => {
+  const slots: string[] = []
+  for (let h = 6; h <= 23; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+    }
+  }
+  return slots
+})()
+
 // ─── Opciones del formulario (actividades) ────────────────────────────────────
 
 const availableActivities = ref<ActivityOption[]>([])
+const loadError = ref('')
 
 onMounted(async () => {
-  const options = await getFormOptions()
-  availableActivities.value = options.activities
+  try {
+    const options = await getFormOptions()
+    availableActivities.value = options.activities
+  } catch (e: any) {
+    // 401 → no hay sesión activa; 403 → rol insuficiente; otros → backend caído
+    const status = e?.response?.status
+    if (status === 401 || status === 403) {
+      loadError.value = 'Tu sesión expiró o no tenés permisos. Volvé a iniciar sesión.'
+    } else {
+      loadError.value = 'No se pudieron cargar las actividades. Verificá que el servidor esté corriendo.'
+    }
+    console.error('[SessionForm] Error al cargar actividades:', e)
+  }
 })
 
 // ─── Estado del formulario ────────────────────────────────────────────────────
@@ -62,12 +86,29 @@ const form = ref({
   activity_id:  null as number | null,
   description:  '',
   days:         [] as string[],
-  startTime:    '',
-  endTime:      '',
+  startTime:    '',   // "HH:MM" — valores de TIME_SLOTS
+  endTime:      '',   // "HH:MM" — siempre > startTime gracias a endTimeSlots
   maxCapacity:  null as number | null,
-  month:        now.getMonth() + 1,   // default: mes actual
-  year:         now.getFullYear(),    // default: año actual
-  is_active:    false,                // default: inactivo hasta que el admin lo confirme
+  month:        now.getMonth() + 1,
+  year:         now.getFullYear(),
+  is_active:    false,
+})
+
+// computed y watch que dependen de `form` — deben ir DESPUÉS de su declaración
+// para evitar el error "Cannot access 'form' before initialization" (TDZ).
+
+// El selector de fin solo muestra opciones estrictamente posteriores al inicio.
+const endTimeSlots = computed(() =>
+  form.value.startTime
+    ? TIME_SLOTS.filter(t => t > form.value.startTime)
+    : TIME_SLOTS
+)
+
+// Si el admin cambia el inicio a una hora igual o posterior al fin ya elegido,
+// se resetea el fin para forzar una nueva selección válida.
+watch(() => form.value.startTime, (newStart) => {
+  if (form.value.endTime && form.value.endTime <= newStart)
+    form.value.endTime = ''
 })
 
 // Instructor de solo lectura según la actividad elegida
@@ -97,11 +138,14 @@ const validate = (): boolean => {
     errors.value.days = 'Seleccioná al menos un día de la semana.'
 
   if (!form.value.startTime)
-    errors.value.startTime = 'Ingresá la hora de inicio.'
+    errors.value.startTime = 'Seleccioná la hora de inicio.'
 
   if (!form.value.endTime)
-    errors.value.endTime = 'Ingresá la hora de fin.'
+    errors.value.endTime = 'Seleccioná la hora de fin.'
 
+  // La validación inicio < fin es casi imposible de violar via UI (endTimeSlots
+  // solo muestra opciones posteriores), pero se mantiene como defensa ante
+  // ediciones programáticas o tests.
   if (form.value.startTime && form.value.endTime) {
     if (form.value.startTime >= form.value.endTime)
       errors.value.timeRange = 'La hora de inicio debe ser anterior a la hora de fin.'
@@ -133,6 +177,11 @@ const handleSubmit = () => {
 <template>
   <div class="form-card">
     <form @submit.prevent="handleSubmit" novalidate>
+
+      <!-- Aviso cuando se usan datos locales por falta del endpoint -->
+      <div v-if="loadError" class="alert alert-warning">
+        ⚠ {{ loadError }}
+      </div>
 
       <!-- ── Actividad & Instructor ── -->
       <div class="form-grid-2">
@@ -203,21 +252,29 @@ const handleSubmit = () => {
       <div class="form-grid-3">
         <div class="input-group">
           <label>Hora de inicio</label>
-          <input
-            type="time"
+          <select
             v-model="form.startTime"
             :class="{ 'input-error': errors.startTime || errors.timeRange }"
           >
+            <option value="" disabled>Seleccioná hora...</option>
+            <option v-for="t in TIME_SLOTS" :key="t" :value="t">{{ t }}</option>
+          </select>
           <span v-if="errors.startTime" class="field-error">{{ errors.startTime }}</span>
         </div>
 
         <div class="input-group">
           <label>Hora de fin</label>
-          <input
-            type="time"
+          <!-- endTimeSlots solo incluye opciones posteriores al inicio elegido -->
+          <select
             v-model="form.endTime"
             :class="{ 'input-error': errors.endTime || errors.timeRange }"
+            :disabled="!form.startTime"
           >
+            <option value="" disabled>
+              {{ form.startTime ? 'Seleccioná hora...' : 'Elegí primero la hora de inicio' }}
+            </option>
+            <option v-for="t in endTimeSlots" :key="t" :value="t">{{ t }}</option>
+          </select>
           <span v-if="errors.endTime" class="field-error">{{ errors.endTime }}</span>
         </div>
 
@@ -268,10 +325,7 @@ const handleSubmit = () => {
           </div>
         </label>
 
-        <!-- Aviso mientras el backend no soporte is_active -->
-        <p class="pending-note">
-          Nota: el campo "Estado" ya se envía al servidor pero no tiene efecto hasta que el equipo de backend lo implemente.
-        </p>
+        
       </div>
 
       <!-- ── Resumen del período ── -->
@@ -449,6 +503,12 @@ select:focus {
   border: 1px solid #fecaca;
 }
 
+.alert-warning {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
 /* ── Sección de estado (is_active) ── */
 
 .status-section {
@@ -599,5 +659,12 @@ select:focus {
   .form-card { padding: 1.5rem 1.25rem; }
   .btn-submit { width: 100%; }
   .form-actions { justify-content: stretch; }
+}
+
+/* El select de hora de fin muestra un cursor "no permitido" cuando está deshabilitado
+   (mientras no se haya elegido hora de inicio). */
+select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 </style>
