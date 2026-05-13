@@ -18,8 +18,9 @@ class Turno:
         self,
         id: int,
         activity_id: int,
-        name: str,
-        time: time,
+        description: str,
+        start_time: time,
+        end_time: time,
         capacity: int,
         month: int,
         year: int,
@@ -28,8 +29,9 @@ class Turno:
     ):
         self.id = id
         self.activity_id = activity_id
-        self.name = name
-        self.time = time
+        self.description = description
+        self.start_time = start_time
+        self.end_time = end_time
         self.capacity = capacity
         self.month = month
         self.year = year

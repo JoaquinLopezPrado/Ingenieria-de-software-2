@@ -9,6 +9,9 @@ class ActivityService:
     def __init__(self, activity_repo: AbstractActivityRepository):
         self._activity_repo = activity_repo
 
+    async def list(self) -> list[Activity]:
+        return await self._activity_repo.list_active()
+
     async def create(self, name: str, instructor: str) -> Activity:
         if await self._activity_repo.get_active_by_name(name):
             raise HTTPException(

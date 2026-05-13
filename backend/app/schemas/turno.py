@@ -1,7 +1,7 @@
 from datetime import time
 from typing import List
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from app.domain.turno import DiaSemana
 
@@ -24,16 +24,17 @@ def _format_time(value: time) -> str:
 
 class CreateTurnoRequest(BaseModel):
     activity_id: int
-    name: str = Field(min_length=1, max_length=100)
-    time: time
+    description: str = Field(min_length=1, max_length=200)
+    start_time: time
+    end_time: time
     capacity: int = Field(gt=0)
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=2024)
     days: List[DiaSemana] = Field(min_length=1)
 
-    @field_validator("time", mode="before")
+    @field_validator("start_time", "end_time", mode="before")
     @classmethod
-    def parse_time(cls, v: object) -> time:
+    def parse_time_fields(cls, v: object) -> time:
         return _parse_time(v)
 
     @field_validator("days")
@@ -43,18 +44,35 @@ class CreateTurnoRequest(BaseModel):
             raise ValueError("No puede haber días repetidos.")
         return v
 
+    @model_validator(mode="after")
+    def end_time_after_start_time(self) -> "CreateTurnoRequest":
+        if self.end_time <= self.start_time:
+            raise ValueError("La hora de fin debe ser posterior a la hora de inicio.")
+        return self
+
+
+class TurnoPageResponse(BaseModel):
+    items: List["TurnoResponse"]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
 
 class TurnoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     activity_id: int
-    name: str
-    time: time
+    description: str
+    start_time: time
+    end_time: time
     capacity: int
     month: int
     year: int
     is_active: bool
     days: List[DiaSemana]
 
-    @field_serializer("time")
+    @field_serializer("start_time", "end_time")
     def serialize_time(self, value: time) -> str:
         return _format_time(value)

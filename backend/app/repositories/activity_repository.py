@@ -22,6 +22,10 @@ class AbstractActivityRepository(ABC):
     async def create(self, name: str, instructor: str) -> Activity:
         raise NotImplementedError
 
+    @abstractmethod
+    async def list_active(self) -> list[Activity]:
+        raise NotImplementedError
+
 
 class ActivityRepository(AbstractActivityRepository):
 
@@ -54,6 +58,12 @@ class ActivityRepository(AbstractActivityRepository):
         await self._session.flush()
         await self._session.refresh(orm)
         return self._to_domain(orm)
+
+    async def list_active(self) -> list[Activity]:
+        result = await self._session.execute(
+            select(ActivityORM).where(ActivityORM.is_active == True)
+        )
+        return [self._to_domain(row) for row in result.scalars().all()]
 
     def _to_domain(self, orm: ActivityORM) -> Activity:
         return Activity(

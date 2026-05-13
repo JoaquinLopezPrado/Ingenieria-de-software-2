@@ -47,10 +47,12 @@ async def get_current_user_id(user: User = Depends(get_current_user)) -> int:
     return user.id
 
 
-async def require_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role.name != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tenés permisos para realizar esta acción.",
-        )
-    return user
+def require_roles(*role_names: str):
+    async def _check(user: User = Depends(get_current_user)) -> User:
+        if user.role.name not in role_names:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tenés permisos para realizar esta acción.",
+            )
+        return user
+    return Depends(_check)

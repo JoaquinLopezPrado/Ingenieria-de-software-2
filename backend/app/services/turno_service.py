@@ -1,13 +1,28 @@
 import calendar
 from datetime import date, time
-from typing import List
+from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 
 from app.domain.turno import DiaSemana, Turno
 from app.repositories.activity_repository import AbstractActivityRepository
 from app.repositories.clase_repository import AbstractClaseRepository
+from app.repositories.config_repository import AbstractConfigRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
+
+_DEFAULT_PAGE_SIZE = 20
+_DEFAULT_NEXT_MONTH_PREVIEW_DAYS = 10
+
+
+def _months_to_show(today: date, preview_days: int) -> List[Tuple[int, int]]:
+    _, days_in_month = calendar.monthrange(today.year, today.month)
+    days_remaining = days_in_month - today.day
+    months = [(today.month, today.year)]
+    if days_remaining <= preview_days:
+        next_month = today.month % 12 + 1
+        next_year = today.year + (1 if today.month == 12 else 0)
+        months.append((next_month, next_year))
+    return months
 
 _DIA_A_WEEKDAY = {
     DiaSemana.LUNES: 0,
@@ -37,16 +52,31 @@ class TurnoService:
         turno_repo: AbstractTurnoRepository,
         clase_repo: AbstractClaseRepository,
         activity_repo: AbstractActivityRepository,
+        config_repo: AbstractConfigRepository,
     ):
         self._turno_repo = turno_repo
         self._clase_repo = clase_repo
         self._activity_repo = activity_repo
+        self._config_repo = config_repo
+
+    async def list(
+        self,
+        activity_id: Optional[int],
+        has_availability: Optional[bool],
+        page: int,
+    ) -> Tuple[List[Turno], int, int]:
+        page_size = await self._config_repo.get_int("turnos_page_size", _DEFAULT_PAGE_SIZE)
+        preview_days = await self._config_repo.get_int("next_month_preview_days", _DEFAULT_NEXT_MONTH_PREVIEW_DAYS)
+        months = _months_to_show(date.today(), preview_days)
+        items, total = await self._turno_repo.list(activity_id, has_availability, months, page, page_size)
+        return items, total, page_size
 
     async def create(
         self,
         activity_id: int,
-        name: str,
-        time: time,
+        description: str,
+        start_time: time,
+        end_time: time,
         capacity: int,
         month: int,
         year: int,
@@ -59,16 +89,18 @@ class TurnoService:
                 detail="Actividad no encontrada.",
             )
 
-        existing = await self._turno_repo.get_by_activity_month_year_name(
-            activity_id, month, year, name
+        existing = await self._turno_repo.get_by_activity_month_year_description(
+            activity_id, month, year, description
         )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un turno con ese nombre para esa actividad en ese mes.",
+                detail="Ya existe un turno con esa descripción para esa actividad en ese mes.",
             )
 
-        turno = await self._turno_repo.create(activity_id, name, time, capacity, month, year, days)
+        turno = await self._turno_repo.create(
+            activity_id, description, start_time, end_time, capacity, month, year, days
+        )
 
         dates = _generate_dates(month, year, days)
         await self._clase_repo.create_many(turno.id, dates, capacity)
