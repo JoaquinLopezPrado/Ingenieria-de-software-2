@@ -47,8 +47,8 @@ import { RouterLink } from 'vue-router'
           <a href="#" class="nav-item">
             <span class="nav-icon">▦</span> Reportes
           </a>
-          <RouterLink to="/activities/schedule" class="nav-item" active-class="active">
-            <span class="nav-icon">◷</span> Programar Turnos
+          <RouterLink to="/activities/turnos" class="nav-item" active-class="active">
+            <span class="nav-icon">◷</span> Grilla de Turnos
           </RouterLink>
           <a href="#" class="nav-item">
             <span class="nav-icon">✓</span> Asistencia

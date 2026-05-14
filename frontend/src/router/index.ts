@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
+import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -57,9 +58,14 @@ const router = createRouter({
       component: () => import('../views/PaymentPendingView.vue'),
     },
     {
+      path: '/activities/turnos',
+      name: 'turnos-grilla',
+      component: GrillaTurnosView,
+    },
+    {
       path: '/activities/schedule',
       name: 'schedule-session',
-      component: ScheduleSessionView
+      component: ScheduleSessionView,
     },
   ],
 })

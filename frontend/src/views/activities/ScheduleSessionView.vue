@@ -35,8 +35,8 @@ const handleSaveSession = async (formData: SessionFormData) => {
     const result = await createSession(formData)
     successMessage.value = result.message   // "Turno programado con éxito"
     setTimeout(() => {
-      router.push({ name: 'home' })  // Redirige a la lista de turnos después de un breve delay
-    }, 1500) //espera 1.5 seg para que el admin vea el banner de exito
+      router.push({ name: 'turnos-grilla' })
+    }, 1500)
   } catch (error) {
     // extractBackendError lee error.response.data.errors del formato de FastAPI
     errorMessage.value = extractBackendError(error)

@@ -37,6 +37,27 @@ export interface ActivityOption {
   is_active: boolean
 }
 
+export interface Turno {
+  id: number
+  activity_id: number
+  description: string
+  days: string[]      // valores del backend: "lunes", "martes", etc.
+  start_time: string  // "H:MM" (sin zero-pad en la hora, ej: "9:00", "17:30")
+  end_time: string
+  capacity: number
+  month: number       // 1–12
+  year: number
+  is_active: boolean
+}
+
+export interface TurnoPageResponse {
+  items: Turno[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
 // ─── Mapeo de días ────────────────────────────────────────────────────────────
 
 /**
@@ -102,6 +123,20 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
   await api.post('/turnos', payload)
 
   return { message: 'Turno programado con éxito' }
+}
+
+/**
+ * Obtiene la primera página de turnos desde GET /api/v1/turnos.
+ * Requiere rol admin, empleado o cliente.
+ * Soporta filtros opcionales: activity_id, has_availability, page.
+ */
+export const getTurnos = async (params?: {
+  activity_id?: number
+  has_availability?: boolean
+  page?: number
+}): Promise<TurnoPageResponse> => {
+  const res = await api.get('/turnos', { params })
+  return res.data
 }
 
 /**
