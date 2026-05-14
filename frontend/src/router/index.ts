@@ -75,6 +75,11 @@ const router = createRouter({
       component: EditTurnoView,
       meta: { requiresAuth: true },
     },
+    {  
+      path: '/logout',
+      name: 'logout',
+      component: () => import('../views/LogoutView.vue'),
+    },
   ],
 })
 
