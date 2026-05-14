@@ -1,28 +1,41 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getTurnos, getFormOptions, extractBackendError, type Turno } from '@/services/sessionService'
+import {
+  getTurnos,
+  getAllActivities,
+  extractBackendError,
+  type Turno,
+  type ActivityOption,
+} from '@/services/sessionService'
 
-// ─── Estado ───────────────────────────────────────────────────────────────────
+// ─── Estado principal ──────────────────────────────────────────────────────────
 
-const turnos = ref<Turno[]>([])
+const allTurnos = ref<Turno[]>([])
+const allActivities = ref<ActivityOption[]>([])
 const activityMap = ref<Map<number, string>>(new Map())
+const instructorMap = ref<Map<number, string>>(new Map())
 const isLoading = ref(true)
 const errorMessage = ref('')
 const errorType = ref<'auth' | 'forbidden' | 'generic' | null>(null)
 
 const router = useRouter()
 
-// ─── Constantes de visualización ──────────────────────────────────────────────
+// ─── Constantes ────────────────────────────────────────────────────────────────
+
+const DAY_OPTIONS = [
+  { value: 'lunes',     label: 'Lun' },
+  { value: 'martes',    label: 'Mar' },
+  { value: 'miercoles', label: 'Mié' },
+  { value: 'jueves',    label: 'Jue' },
+  { value: 'viernes',   label: 'Vie' },
+  { value: 'sabado',    label: 'Sáb' },
+]
 
 const DAY_LABELS: Record<string, string> = {
-  lunes:      'Lun',
-  martes:     'Mar',
-  miercoles:  'Mié',
-  jueves:     'Jue',
-  viernes:    'Vie',
-  sabado:     'Sáb',
+  lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
+  jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
 }
 
 const MONTH_NAMES: Record<number, string> = {
@@ -31,12 +44,116 @@ const MONTH_NAMES: Record<number, string> = {
   9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic',
 }
 
-// ─── Computed ─────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 10
 
-const isEmpty = computed(() => !isLoading.value && !errorMessage.value && turnos.value.length === 0)
-const hasData = computed(() => !isLoading.value && !errorMessage.value && turnos.value.length > 0)
+// ─── Estado de filtros ─────────────────────────────────────────────────────────
 
-// ─── Helpers de display ───────────────────────────────────────────────────────
+const filterActivity = ref<number | ''>('')
+const filterDays = ref<string[]>([])
+const filterInstructor = ref('')
+const filterAvailability = ref<'' | 'active' | 'inactive'>('')
+
+// ─── Paginación ────────────────────────────────────────────────────────────────
+
+const currentPage = ref(1)
+
+// ─── Opciones para los selects de filtro ──────────────────────────────────────
+
+const instructorOptions = computed(() => {
+  const seen = new Set<string>()
+  const opts: string[] = []
+  allActivities.value.forEach(a => {
+    if (a.instructor && !seen.has(a.instructor)) {
+      seen.add(a.instructor)
+      opts.push(a.instructor)
+    }
+  })
+  return opts.sort()
+})
+
+// ─── Filtrado (client-side) ───────────────────────────────────────────────────
+
+const filteredTurnos = computed(() => {
+  let result = allTurnos.value
+
+  if (filterActivity.value !== '') {
+    result = result.filter(t => t.activity_id === filterActivity.value)
+  }
+
+  if (filterDays.value.length > 0) {
+    result = result.filter(t =>
+      filterDays.value.some(d => t.days.includes(d))
+    )
+  }
+
+  if (filterInstructor.value) {
+    const ids = allActivities.value
+      .filter(a => a.instructor === filterInstructor.value)
+      .map(a => a.id)
+    result = result.filter(t => ids.includes(t.activity_id))
+  }
+
+  if (filterAvailability.value === 'active') {
+    result = result.filter(t => t.is_active)
+  } else if (filterAvailability.value === 'inactive') {
+    result = result.filter(t => !t.is_active)
+  }
+
+  return result
+})
+
+// ─── Paginación (client-side) ─────────────────────────────────────────────────
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredTurnos.value.length / PAGE_SIZE))
+)
+
+const paginatedTurnos = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return filteredTurnos.value.slice(start, start + PAGE_SIZE)
+})
+
+const paginationRange = computed((): (number | '...')[] => {
+  const total = totalPages.value
+  const cur = currentPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  if (cur <= 4)        return [1, 2, 3, 4, 5, '...', total]
+  if (cur >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, '...', cur - 1, cur, cur + 1, '...', total]
+})
+
+const showingFrom = computed(() => (currentPage.value - 1) * PAGE_SIZE + 1)
+const showingTo   = computed(() => Math.min(currentPage.value * PAGE_SIZE, filteredTurnos.value.length))
+
+// ─── Flags de UI ──────────────────────────────────────────────────────────────
+
+const hasFilters = computed(() =>
+  filterActivity.value !== '' ||
+  filterDays.value.length > 0 ||
+  filterInstructor.value !== '' ||
+  filterAvailability.value !== ''
+)
+
+const isEmpty = computed(() =>
+  !isLoading.value && !errorMessage.value && allTurnos.value.length === 0
+)
+
+const noResults = computed(() =>
+  !isLoading.value && !errorMessage.value &&
+  allTurnos.value.length > 0 && filteredTurnos.value.length === 0
+)
+
+const hasData = computed(() =>
+  !isLoading.value && !errorMessage.value && filteredTurnos.value.length > 0
+)
+
+// ─── Watches ──────────────────────────────────────────────────────────────────
+
+watch([filterActivity, filterDays, filterInstructor, filterAvailability], () => {
+  currentPage.value = 1
+})
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatPeriod = (month: number, year: number) =>
   `${MONTH_NAMES[month] ?? month} ${year}`
@@ -44,31 +161,51 @@ const formatPeriod = (month: number, year: number) =>
 const activityName = (id: number) =>
   activityMap.value.get(id) ?? `Actividad #${id}`
 
-// ─── Carga inicial ────────────────────────────────────────────────────────────
+function toggleDay(day: string) {
+  const idx = filterDays.value.indexOf(day)
+  if (idx === -1) filterDays.value.push(day)
+  else            filterDays.value.splice(idx, 1)
+}
+
+function clearFilters() {
+  filterActivity.value = ''
+  filterDays.value = []
+  filterInstructor.value = ''
+  filterAvailability.value = ''
+  currentPage.value = 1
+}
+
+function goToPage(page: number | '...') {
+  if (typeof page === 'number') currentPage.value = page
+}
+
+// ─── Carga inicial ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
   try {
-    const [turnosRes, { activities }] = await Promise.all([
-      getTurnos(),
-      getFormOptions(),
+    const [turnosRes, activities] = await Promise.all([
+      getTurnos({ page_size: 500 }),
+      getAllActivities(),
     ])
-    turnos.value = turnosRes.items
-    activityMap.value = new Map(activities.map(a => [a.id, a.name]))
+    allTurnos.value = turnosRes.items
+    allActivities.value = activities
+    activityMap.value   = new Map(activities.map(a => [a.id, a.name]))
+    instructorMap.value = new Map(activities.map(a => [a.id, a.instructor]))
   } catch (error: unknown) {
     const axiosError = error as { response?: { status?: number }; request?: unknown }
     const status = axiosError?.response?.status
 
     if (!axiosError.response && axiosError.request) {
-      errorType.value = 'generic'
+      errorType.value    = 'generic'
       errorMessage.value = 'No se pudo conectar con el servidor. Verificá que el backend esté corriendo.'
     } else if (status === 401) {
-      errorType.value = 'auth'
+      errorType.value    = 'auth'
       errorMessage.value = 'Tu sesión expiró o no estás autenticado. Por favor, iniciá sesión nuevamente.'
     } else if (status === 403) {
-      errorType.value = 'forbidden'
+      errorType.value    = 'forbidden'
       errorMessage.value = 'No tenés permisos para ver la grilla de turnos. Esta sección es solo para administradores.'
     } else {
-      errorType.value = 'generic'
+      errorType.value    = 'generic'
       errorMessage.value = extractBackendError(error)
     }
   } finally {
@@ -97,9 +234,68 @@ onMounted(async () => {
         </RouterLink>
       </div>
 
+      <!-- ── Panel de filtros ── -->
+      <div v-if="!isLoading && !errorType" class="filters-card">
+        <div class="filters-grid">
+
+          <div class="filter-group">
+            <label class="filter-label">Actividad</label>
+            <select v-model="filterActivity" class="filter-select">
+              <option value="">Todas las actividades</option>
+              <option v-for="a in allActivities" :key="a.id" :value="a.id">
+                {{ a.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Profesor</label>
+            <select v-model="filterInstructor" class="filter-select">
+              <option value="">Todos los profesores</option>
+              <option v-for="inst in instructorOptions" :key="inst" :value="inst">
+                {{ inst }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Disponibilidad</label>
+            <select v-model="filterAvailability" class="filter-select">
+              <option value="">Todos los turnos</option>
+              <option value="active">Solo activos</option>
+              <option value="inactive">Solo inactivos</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="filters-days-row">
+          <span class="filter-label">Días</span>
+          <div class="day-filter-pills">
+            <button
+              v-for="day in DAY_OPTIONS"
+              :key="day.value"
+              type="button"
+              :class="['day-filter-pill', { 'pill-active': filterDays.includes(day.value) }]"
+              @click="toggleDay(day.value)"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+          <button
+            v-if="hasFilters"
+            type="button"
+            class="btn-clear"
+            @click="clearFilters"
+          >
+            ✕ Limpiar filtros
+          </button>
+        </div>
+      </div>
+
       <!-- ── Estado: cargando ── -->
       <div v-if="isLoading" class="skeleton-wrapper" aria-label="Cargando turnos...">
-        <div v-for="n in 4" :key="n" class="skeleton-row"></div>
+        <div v-for="n in 5" :key="n" class="skeleton-row"></div>
       </div>
 
       <!-- ── Estado: error de autenticación ── -->
@@ -129,7 +325,7 @@ onMounted(async () => {
         </button>
       </div>
 
-      <!-- ── Estado: sin turnos ── -->
+      <!-- ── Estado: sin turnos en el sistema ── -->
       <div v-else-if="isEmpty" class="state-card state-empty">
         <div class="state-icon">📅</div>
         <h2 class="state-title">No hay turnos programados</h2>
@@ -141,8 +337,21 @@ onMounted(async () => {
         </RouterLink>
       </div>
 
+      <!-- ── Estado: filtros sin resultados ── -->
+      <div v-else-if="noResults" class="state-card state-empty">
+        <div class="state-icon">🔍</div>
+        <h2 class="state-title">Sin resultados</h2>
+        <p class="state-desc">
+          Ningún turno coincide con los filtros aplicados.
+        </p>
+        <button class="btn-secondary" @click="clearFilters">
+          Limpiar filtros
+        </button>
+      </div>
+
       <!-- ── Tabla de turnos ── -->
       <div v-else-if="hasData" class="table-container">
+        <div class="table-scroll">
         <table class="turnos-table">
           <thead>
             <tr>
@@ -153,10 +362,11 @@ onMounted(async () => {
               <th>Cupo</th>
               <th>Período</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="turno in turnos" :key="turno.id">
+            <tr v-for="turno in paginatedTurnos" :key="turno.id">
               <td class="cell-activity">{{ activityName(turno.activity_id) }}</td>
               <td class="cell-desc">{{ turno.description || '—' }}</td>
               <td class="cell-days">
@@ -176,13 +386,58 @@ onMounted(async () => {
                   {{ turno.is_active ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
+              <td class="cell-actions">
+                <RouterLink
+                  :to="`/activities/turnos/${turno.id}/edit`"
+                  class="btn-edit"
+                >
+                  Editar
+                </RouterLink>
+              </td>
             </tr>
           </tbody>
         </table>
 
-        <p class="table-count">
-          {{ turnos.length }} turno{{ turnos.length !== 1 ? 's' : '' }} en total
-        </p>
+        </div><!-- /table-scroll -->
+
+        <!-- ── Footer: conteo + paginación ── -->
+        <div class="table-footer">
+          <span class="table-count">
+            Mostrando {{ showingFrom }}–{{ showingTo }} de
+            {{ filteredTurnos.length }} turno{{ filteredTurnos.length !== 1 ? 's' : '' }}
+          </span>
+
+          <div v-if="totalPages > 1" class="pagination">
+            <button
+              class="page-btn"
+              :disabled="currentPage === 1"
+              @click="currentPage--"
+              aria-label="Página anterior"
+            >
+              ←
+            </button>
+            <button
+              v-for="(page, idx) in paginationRange"
+              :key="idx"
+              :class="['page-btn', {
+                'page-btn-active': page === currentPage,
+                'page-btn-dots':   page === '...',
+              }]"
+              :disabled="page === '...'"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button
+              class="page-btn"
+              :disabled="currentPage === totalPages"
+              @click="currentPage++"
+              aria-label="Página siguiente"
+            >
+              →
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -201,7 +456,7 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
 }
 
@@ -218,7 +473,7 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* ── Botones ── */
+/* ── Botones globales ── */
 
 .btn-primary {
   display: inline-flex;
@@ -265,6 +520,112 @@ onMounted(async () => {
   font-size: 1.1rem;
   line-height: 1;
   margin-bottom: 1px;
+}
+
+/* ── Panel de filtros ── */
+
+.filters-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.filter-select {
+  appearance: none;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  color: #374151;
+  font-size: 0.875rem;
+  padding: 0.45rem 2rem 0.45rem 0.7rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #11998e;
+  box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.12);
+}
+
+.filters-days-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.day-filter-pills {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.day-filter-pill {
+  background: white;
+  border: 1.5px solid #d1d5db;
+  border-radius: 99px;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.day-filter-pill:hover {
+  border-color: #11998e;
+  color: #11998e;
+}
+
+.day-filter-pill.pill-active {
+  background-color: #11998e;
+  border-color: #11998e;
+  color: white;
+}
+
+.btn-clear {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.12s;
+  white-space: nowrap;
+}
+
+.btn-clear:hover {
+  color: #dc2626;
 }
 
 /* ── Skeleton loader ── */
@@ -344,8 +705,14 @@ onMounted(async () => {
   overflow: hidden;
 }
 
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .turnos-table {
   width: 100%;
+  min-width: 750px;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
@@ -444,24 +811,107 @@ onMounted(async () => {
   color: #6b7280;
 }
 
-.table-count {
+.cell-actions {
+  white-space: nowrap;
+}
+
+.btn-edit {
+  display: inline-flex;
+  align-items: center;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  text-decoration: none;
+  transition: background-color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.btn-edit:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* ── Footer de la tabla ── */
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 0.75rem 1rem;
+  border-top: 1px solid #f3f4f6;
+  flex-wrap: wrap;
+}
+
+.table-count {
   font-size: 0.8rem;
   color: #9ca3af;
-  margin: 0;
-  border-top: 1px solid #f3f4f6;
-  text-align: right;
+}
+
+/* ── Paginación ── */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.page-btn {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  min-width: 2rem;
+  padding: 0.3rem 0.5rem;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.page-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.page-btn-active {
+  background-color: #11998e;
+  border-color: #11998e;
+  color: white;
+  font-weight: 700;
+}
+
+.page-btn-active:hover:not(:disabled) {
+  background-color: #0c8a70;
+}
+
+.page-btn-dots {
+  border-color: transparent;
+  cursor: default;
 }
 
 /* ── Responsivo ── */
 
-@media (max-width: 900px) {
-  .cell-desc {
-    display: none;
+@media (max-width: 1024px) {
+  .filters-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 640px) {
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
   .page-header {
     flex-direction: column;
     align-items: flex-start;
@@ -472,9 +922,10 @@ onMounted(async () => {
     padding: 0.7rem 0.6rem;
   }
 
-  .cell-period,
-  .cell-capacity {
-    display: none;
+  .table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
 </style>

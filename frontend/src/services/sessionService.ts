@@ -126,16 +126,26 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
 }
 
 /**
- * Obtiene la primera página de turnos desde GET /api/v1/turnos.
+ * Obtiene turnos desde GET /api/v1/turnos.
  * Requiere rol admin, empleado o cliente.
- * Soporta filtros opcionales: activity_id, has_availability, page.
+ * Soporta filtros opcionales: activity_id, has_availability, page, page_size.
  */
 export const getTurnos = async (params?: {
   activity_id?: number
   has_availability?: boolean
   page?: number
+  page_size?: number
 }): Promise<TurnoPageResponse> => {
   const res = await api.get('/turnos', { params })
+  return res.data
+}
+
+/**
+ * Obtiene todas las actividades (activas e inactivas) desde GET /api/v1/activities.
+ * Usado para construir los mapas de nombre e instructor en la grilla.
+ */
+export const getAllActivities = async (): Promise<ActivityOption[]> => {
+  const res = await api.get('/activities')
   return res.data
 }
 

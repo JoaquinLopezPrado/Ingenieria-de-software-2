@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
+import EditTurnoView from '@/views/activities/EditTurnoView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -66,6 +67,11 @@ const router = createRouter({
       path: '/activities/schedule',
       name: 'schedule-session',
       component: ScheduleSessionView,
+    },
+    {
+      path: '/activities/turnos/:id/edit',
+      name: 'edit-turno',
+      component: EditTurnoView,
     },
   ],
 })
