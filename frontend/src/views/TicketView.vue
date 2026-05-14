@@ -1,0 +1,209 @@
+<template>
+  <div class="page">
+ 
+    <div class="header">
+      <div class="header-inner">
+        <span class="logo">SIEMPREGYM</span>
+      </div>
+    </div>
+ 
+    <div class="main">
+      <!-- Ícono de éxito -->
+      <div class="success-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+ 
+      <h1>¡Inscripción confirmada!</h1>
+      <p class="subtitle">Tu lugar está reservado. Te esperamos.</p>
+ 
+      <!-- Comprobante -->
+      <div class="comprobante">
+ 
+        <div class="comp-header">
+          <div>
+            <div class="comp-titulo">Comprobante de inscripción</div>
+            <div class="comp-numero">N° {{ route.query.numero }}</div>
+          </div>
+          <div class="comp-fecha">{{ fechaHoy }}</div>
+        </div>
+ 
+        <div class="divider"></div>
+ 
+        <div class="actividad-nombre">{{ route.query.actividad }}</div>
+ 
+        <div class="datos-grid">
+          <div class="dato">
+            <div class="dato-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <div class="dato-label">Días</div>
+              <div class="dato-valor">{{ route.query.dia }}</div>
+            </div>
+          </div>
+ 
+          <div class="dato">
+            <div class="dato-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <div class="dato-label">Horario</div>
+              <div class="dato-valor">{{ route.query.hora }} hs · {{ route.query.duracion }}</div>
+            </div>
+          </div>
+ 
+          <div class="dato">
+            <div class="dato-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div>
+              <div class="dato-label">Instructor/a</div>
+              <div class="dato-valor">{{ route.query.instructor }}</div>
+            </div>
+          </div>
+ 
+          <div class="dato">
+            <div class="dato-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </div>
+            <div>
+              <div class="dato-label">Nivel</div>
+              <div class="dato-valor">{{ route.query.nivel }}</div>
+            </div>
+          </div>
+        </div>
+ 
+        <div class="divider"></div>
+ 
+        <div class="aviso">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Presentarse 5 minutos antes del inicio de la clase.
+        </div>
+      </div>
+ 
+      <!-- Botones -->
+      <div class="botones">
+        <button class="btn-mp">
+            Pagar con Mercado Pago
+        </button>
+        <button class="btn-volver" @click="router.push({ name: 'list' })">
+          ← Volver a actividades
+        </button>
+        <button class="btn-inicio" @click="router.push({ name: 'home' })">
+          Ir al inicio
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+ 
+<script setup>
+import { useRoute, useRouter } from 'vue-router'
+ 
+const route  = useRoute()
+const router = useRouter()
+ 
+const fechaHoy = new Date().toLocaleDateString('es-AR', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+})
+</script>
+ 
+<style scoped>
+.btn-mp {
+  width: 100%; padding: 13px;
+  border-radius: 99px; border: none;
+  background: #009EE3; color: #fff;
+  font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s ease;
+  display: flex; align-items: center;
+  justify-content: center; gap: 10px;
+}
+.btn-mp:hover { background: #0080C0; }
+* { box-sizing: border-box; }
+.page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; }
+.header { background: #fff; border-bottom: 1px solid #E0F2F1; padding: 0 24px; box-shadow: 0 2px 12px rgba(0,137,123,0.08); }
+.header-inner { max-width: 600px; margin: 0 auto; display: flex; align-items: center; height: 60px; }
+.logo { font-size: 19px; font-weight: 900; color: #00695C; letter-spacing: 0.08em; }
+ 
+.main { max-width: 520px; margin: 0 auto; padding: 40px 16px 60px; display: flex; flex-direction: column; align-items: center; }
+ 
+.success-icon {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, #00897B, #00BFA5);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0,137,123,0.3);
+}
+ 
+h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-align: center; }
+.subtitle { font-size: 15px; color: #607D8B; margin: 0 0 32px; text-align: center; }
+ 
+.comprobante {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  border: 1px solid #E0F2F1;
+}
+ 
+.comp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.comp-titulo { font-size: 13px; color: #90A4AE; font-weight: 500; margin-bottom: 4px; }
+.comp-numero { font-size: 18px; font-weight: 800; color: #00695C; }
+.comp-fecha { font-size: 12px; color: #90A4AE; text-align: right; text-transform: capitalize; max-width: 130px; }
+ 
+.divider { height: 1px; background: #F0F4F8; margin: 0 0 20px; }
+ 
+.actividad-nombre {
+  font-size: 26px; font-weight: 900;
+  color: #00695C; letter-spacing: -0.5px;
+  margin-bottom: 20px;
+}
+ 
+.datos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+ 
+.dato { display: flex; align-items: flex-start; gap: 10px; }
+.dato-icon { width: 32px; height: 32px; border-radius: 8px; background: #E0F2F1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.dato-label { font-size: 11px; color: #90A4AE; margin-bottom: 2px; }
+.dato-valor { font-size: 14px; font-weight: 600; color: #37474F; }
+ 
+.aviso {
+  display: flex; align-items: center; gap: 8px;
+  background: #E0F2F1; border-radius: 10px;
+  padding: 12px 14px; font-size: 13px;
+  color: #00695C; font-weight: 500;
+}
+ 
+.botones { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 24px; }
+ 
+.btn-volver {
+  width: 100%; padding: 13px;
+  border-radius: 99px;
+  border: 2px solid #00897B;
+  background: #fff; color: #00897B;
+  font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s ease;
+}
+.btn-volver:hover { background: #E0F2F1; }
+ 
+.btn-inicio {
+  width: 100%; padding: 13px;
+  border-radius: 99px; border: none;
+  background: #00897B; color: #fff;
+  font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s ease;
+}
+.btn-inicio:hover { background: #00695C; }
+</style>
