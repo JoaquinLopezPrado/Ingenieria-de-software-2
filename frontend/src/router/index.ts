@@ -80,6 +80,11 @@ const router = createRouter({
       name: 'logout',
       component: () => import('../views/LogoutView.vue'),
     },
+    {
+      path: '/class-selection',
+      name: 'class-selection',
+      component: () => import('../views/ClassSelectionView.vue'),
+    }
   ],
 })
 

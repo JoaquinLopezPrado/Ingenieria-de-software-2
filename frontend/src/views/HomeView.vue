@@ -143,7 +143,7 @@ const clientActions = [
     title: 'Reservar clase individual',
     description: 'Solicitá una clase individual de forma rápida.',
     icon: '🎯',
-    path: '/clase-individual',
+    path: '/class-selection',
   },
 ]
 
