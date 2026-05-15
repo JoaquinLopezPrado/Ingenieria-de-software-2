@@ -19,7 +19,7 @@ class AbstractActivityRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create(self, name: str, instructor: str) -> Activity:
+    async def create(self, name: str, description: str) -> Activity:
         raise NotImplementedError
 
     @abstractmethod
@@ -52,8 +52,8 @@ class ActivityRepository(AbstractActivityRepository):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def create(self, name: str, instructor: str) -> Activity:
-        orm = ActivityORM(name=name, instructor=instructor, is_active=True)
+    async def create(self, name: str, description: str) -> Activity:
+        orm = ActivityORM(name=name, description=description, is_active=True)
         self._session.add(orm)
         await self._session.flush()
         await self._session.refresh(orm)
@@ -69,6 +69,6 @@ class ActivityRepository(AbstractActivityRepository):
         return Activity(
             id=orm.id,
             name=orm.name,
-            instructor=orm.instructor,
+            description=orm.description,
             is_active=orm.is_active,
         )

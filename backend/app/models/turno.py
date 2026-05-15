@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, String, Time, UniqueConstraint
+from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, Numeric, String, Time, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -11,12 +11,14 @@ class Turno(IDMixin, TimestampMixin, Base):
 
     activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
     description = Column(String, nullable=False)
+    instructor = Column(String, nullable=False)
     start_time = Column(Time(timezone=False), nullable=False)
     end_time = Column(Time(timezone=False), nullable=False)
     capacity = Column(Integer, nullable=False)
+    price = Column(Numeric(10, 2), nullable=False)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=False, nullable=False)
 
     activity = relationship("Activity", back_populates="turnos")
     days = relationship("TurnoDia", back_populates="turno", cascade="all, delete-orphan")

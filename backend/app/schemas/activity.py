@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class CreateActivityRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    instructor: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=500)
 
 
 class ActivityResponse(BaseModel):
@@ -11,5 +11,5 @@ class ActivityResponse(BaseModel):
 
     id: int
     name: str
-    instructor: str
+    description: str
     is_active: bool

@@ -1,4 +1,5 @@
 from datetime import time
+from decimal import Decimal
 from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
@@ -25,9 +26,11 @@ def _format_time(value: time) -> str:
 class CreateTurnoRequest(BaseModel):
     activity_id: int
     description: str = Field(min_length=1, max_length=200)
+    instructor: str = Field(min_length=1, max_length=200)
     start_time: time
     end_time: time
     capacity: int = Field(gt=0)
+    price: Decimal = Field(gt=0)
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=2024)
     days: List[DiaSemana] = Field(min_length=1)
@@ -65,9 +68,11 @@ class TurnoResponse(BaseModel):
     id: int
     activity_id: int
     description: str
+    instructor: str
     start_time: time
     end_time: time
     capacity: int
+    price: Decimal
     month: int
     year: int
     is_active: bool

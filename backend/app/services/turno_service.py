@@ -1,5 +1,6 @@
 import calendar
 from datetime import date, time
+from decimal import Decimal
 from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -75,9 +76,11 @@ class TurnoService:
         self,
         activity_id: int,
         description: str,
+        instructor: str,
         start_time: time,
         end_time: time,
         capacity: int,
+        price: Decimal,
         month: int,
         year: int,
         days: List[DiaSemana],
@@ -99,7 +102,7 @@ class TurnoService:
             )
 
         turno = await self._turno_repo.create(
-            activity_id, description, start_time, end_time, capacity, month, year, days
+            activity_id, description, instructor, start_time, end_time, capacity, price, month, year, days
         )
 
         dates = _generate_dates(month, year, days)

@@ -9,7 +9,7 @@ class Activity(IDMixin, TimestampMixin, Base):
     __tablename__ = "activities"
 
     name = Column(String, nullable=False)
-    instructor = Column(String, nullable=False)
+    description = Column(String, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
     turnos = relationship("Turno", back_populates="activity")

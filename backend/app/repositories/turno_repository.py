@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import time
+from decimal import Decimal
 from typing import List, Optional, Tuple
 
 from sqlalchemy import exists, func, select, tuple_
@@ -35,9 +36,11 @@ class AbstractTurnoRepository(ABC):
         self,
         activity_id: int,
         description: str,
+        instructor: str,
         start_time: time,
         end_time: time,
         capacity: int,
+        price: Decimal,
         month: int,
         year: int,
         days: List[DiaSemana],
@@ -107,9 +110,11 @@ class TurnoRepository(AbstractTurnoRepository):
         self,
         activity_id: int,
         description: str,
+        instructor: str,
         start_time: time,
         end_time: time,
         capacity: int,
+        price: Decimal,
         month: int,
         year: int,
         days: List[DiaSemana],
@@ -117,12 +122,13 @@ class TurnoRepository(AbstractTurnoRepository):
         orm = TurnoORM(
             activity_id=activity_id,
             description=description,
+            instructor=instructor,
             start_time=start_time,
             end_time=end_time,
             capacity=capacity,
+            price=price,
             month=month,
             year=year,
-            is_active=True,
         )
         self._session.add(orm)
         await self._session.flush()
@@ -139,9 +145,11 @@ class TurnoRepository(AbstractTurnoRepository):
             id=orm.id,
             activity_id=orm.activity_id,
             description=orm.description,
+            instructor=orm.instructor,
             start_time=orm.start_time,
             end_time=orm.end_time,
             capacity=orm.capacity,
+            price=orm.price,
             month=orm.month,
             year=orm.year,
             is_active=orm.is_active,

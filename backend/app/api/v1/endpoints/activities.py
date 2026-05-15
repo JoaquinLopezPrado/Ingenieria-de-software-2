@@ -38,4 +38,4 @@ async def create_activity(
     _=require_roles("admin"),
     service: ActivityService = Depends(get_activity_service),
 ):
-    return await service.create(name=body.name, instructor=body.instructor)
+    return await service.create(name=body.name, description=body.description)
