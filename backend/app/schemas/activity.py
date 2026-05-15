@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -12,4 +14,14 @@ class ActivityResponse(BaseModel):
     id: int
     name: str
     description: str
+    is_active: bool
+
+
+class ClaseDiaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    turno_id: int
+    date: date
+    capacity: int
     is_active: bool
