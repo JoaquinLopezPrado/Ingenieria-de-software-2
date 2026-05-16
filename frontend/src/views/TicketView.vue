@@ -85,6 +85,18 @@
  
         <div class="divider"></div>
  
+        <div class="monto-row">
+          <span class="monto-label">Total a pagar</span>
+          <span class="monto-valor">$ {{ Number(route.query.amount ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 }) }}</span>
+        </div>
+
+        <div v-if="Number(route.query.clases_excluidas) > 0" class="aviso aviso-alerta">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F57F17" stroke-width="2" stroke-linecap="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          {{ route.query.clases_excluidas }} clase{{ Number(route.query.clases_excluidas) !== 1 ? 's' : '' }} sin cupo fueron excluidas del monto.
+        </div>
+
         <div class="aviso">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -95,8 +107,8 @@
  
       <!-- Botones -->
       <div class="botones">
-        <button class="btn-mp">
-            Pagar con Mercado Pago
+        <button class="btn-mp" :disabled="pagando" @click="pagar">
+          {{ pagando ? 'Redirigiendo...' : 'Pagar con Mercado Pago' }}
         </button>
         <button class="btn-volver" @click="router.push({ name: 'list' })">
           ← Volver a actividades
@@ -110,14 +122,32 @@
 </template>
  
 <script setup>
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
- 
+import { enrollmentService } from '@/services/enrollmentService'
+
 const route  = useRoute()
 const router = useRouter()
- 
+
+const pagando = ref(false)
+
 const fechaHoy = new Date().toLocaleDateString('es-AR', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
 })
+
+const pagar = async () => {
+  const enrollmentId = Number(route.query.enrollment_id)
+  if (!enrollmentId) return
+
+  pagando.value = true
+  try {
+    const { data } = await enrollmentService.createPaymentPreference(enrollmentId)
+    window.location.href = data.init_point
+  } catch {
+    pagando.value = false
+    alert('No se pudo iniciar el pago. Intentá de nuevo.')
+  }
+}
 </script>
  
 <style scoped>
@@ -179,11 +209,23 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 .dato-label { font-size: 11px; color: #90A4AE; margin-bottom: 2px; }
 .dato-valor { font-size: 14px; font-weight: 600; color: #37474F; }
  
+.monto-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #F0FAF8; border-radius: 10px;
+  padding: 12px 16px; margin-bottom: 12px;
+}
+.monto-label { font-size: 13px; color: #607D8B; font-weight: 500; }
+.monto-valor { font-size: 18px; font-weight: 800; color: #00695C; }
+
 .aviso {
   display: flex; align-items: center; gap: 8px;
   background: #E0F2F1; border-radius: 10px;
   padding: 12px 14px; font-size: 13px;
   color: #00695C; font-weight: 500;
+  margin-bottom: 8px;
+}
+.aviso-alerta {
+  background: #FFF8E1; color: #F57F17;
 }
  
 .botones { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 24px; }

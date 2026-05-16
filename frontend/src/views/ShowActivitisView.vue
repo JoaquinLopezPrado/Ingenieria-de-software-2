@@ -106,14 +106,22 @@
               lleno: turno.ocup >= turno.total && !inscriptos.has(turno.id),
               inscripto: inscriptos.has(turno.id)
             }"
+            :disabled="loadingTurno === turno.id"
             @click="handleInscripcion(turno)"
           >
-            {{ turno.ocup >= turno.total && !inscriptos.has(turno.id)
+            {{ loadingTurno === turno.id
+              ? 'Procesando...'
+              : turno.ocup >= turno.total && !inscriptos.has(turno.id)
               ? 'Sin disponibilidad'
               : inscriptos.has(turno.id)
               ? 'Cancelar inscripción'
               : 'Inscribirse' }}
           </button>
+
+          <div v-if="avisoLleno === turno.id" class="aviso-lleno">
+            {{ errorMensaje ?? 'No hay cupos disponibles para este turno' }}
+          </div>
+ 
         </div>
       </div>
     </div>
@@ -123,11 +131,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
- 
+import { enrollmentService } from '@/services/enrollmentService'
+
 const router = useRouter()
 const tabs = ['Pilates', 'Yoga', 'Funcional']
 const currentTab = ref('Pilates')
 const inscriptos = ref(new Set())
+const avisoLleno = ref(null)
+const errorMensaje = ref(null)
+const loadingTurno = ref(null)
  
 const tabIcons = {
   Pilates: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l-3 3m3-3 3 3M8 21l1.5-4M16 21l-1.5-4"/></svg>`,
@@ -173,30 +185,48 @@ const barColor = (t) => {
   return p >= 100 ? '#E53935' : p >= 75 ? '#FB8C00' : '#00897B'
 }
  
-const handleInscripcion = (turno) => {
-  const s = new Set(inscriptos.value)
- 
-  if (s.has(turno.id)) {
-    s.delete(turno.id)
-    turno.ocup--
-    inscriptos.value = s
-  } else {
+const handleInscripcion = async (turno) => {
+  if (inscriptos.value.has(turno.id) || turno.ocup >= turno.total) return
+
+  loadingTurno.value = turno.id
+  errorMensaje.value = null
+
+  try {
+    const { data } = await enrollmentService.createMonthly(turno.id)
+
+    const s = new Set(inscriptos.value)
     s.add(turno.id)
     turno.ocup++
     inscriptos.value = s
- 
+
     router.push({
       name: 'ticket',
       query: {
-        actividad:  turno.actividad,
-        dia:        turno.dia,
-        hora:       turno.hora,
-        duracion:   turno.dur,
-        instructor: turno.inst,
-        nivel:      turno.nivel,
-        numero:     Math.floor(Math.random() * 90000) + 10000,
-      }
+        enrollment_id:      data.id,
+        actividad:          turno.actividad,
+        dia:                turno.dia,
+        hora:               turno.hora,
+        duracion:           turno.dur,
+        instructor:         turno.inst,
+        nivel:              turno.nivel,
+        numero:             data.id,
+        amount:             data.amount,
+        clases_excluidas:   data.excluded_clase_ids?.length ?? 0,
+      },
     })
+  } catch (err) {
+    const detail = err.response?.data?.errors?.general
+    if (err.response?.status === 409) {
+      errorMensaje.value = detail ?? 'No hay lugares disponibles.'
+    } else if (err.response?.status === 404) {
+      errorMensaje.value = 'El turno no está disponible.'
+    } else {
+      errorMensaje.value = 'Ocurrió un error. Intentá de nuevo.'
+    }
+    avisoLleno.value = turno.id
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 3000)
+  } finally {
+    loadingTurno.value = null
   }
 }
 </script>
