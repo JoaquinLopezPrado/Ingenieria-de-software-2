@@ -5,12 +5,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
+      path: '/login',
       name: 'home',
       component: HomeView,
     },
     {
-      path: '/login',
+      path: '/',
       name: 'login',
       component: () => import('../views/LoginView.vue'),
     },
@@ -38,6 +38,21 @@ const router = createRouter({
       path: '/ticket',
       name: 'ticket',
       component: () => import('../views/TicketView.vue'),
+    },
+    {
+      path: '/payment/success',
+      name: 'payment-success',
+      component: () => import('../views/PaymentSuccessView.vue'),
+    },
+    {
+      path: '/payment/failure',
+      name: 'payment-failure',
+      component: () => import('../views/PaymentFailureView.vue'),
+    },
+    {
+      path: '/payment/pending',
+      name: 'payment-pending',
+      component: () => import('../views/PaymentPendingView.vue'),
     },
   ],
 })
