@@ -20,6 +20,7 @@ defineProps<{ isLoading: boolean }>()
 
 const emit = defineEmits<{
   (e: 'submit-session', payload: SessionFormData): void
+  (e: 'auth-error', status: number): void
 }>()
 
 // ─── Opciones estáticas ───────────────────────────────────────────────────────
@@ -48,10 +49,10 @@ onMounted(async () => {
     const options = await getFormOptions()
     availableActivities.value = options.activities
   } catch (e: any) {
-    // 401 → no hay sesión activa; 403 → rol insuficiente; otros → backend caído
     const status = e?.response?.status
     if (status === 401 || status === 403) {
-      loadError.value = 'Tu sesión expiró o no tenés permisos. Volvé a iniciar sesión.'
+      // La vista padre maneja estos casos mostrando un panel dedicado
+      emit('auth-error', status)
     } else {
       loadError.value = 'No se pudieron cargar las actividades. Verificá que el servidor esté corriendo.'
     }
@@ -66,7 +67,7 @@ const todayISO = new Date().toISOString().slice(0, 10)
 const form = ref({
   activity_id:  null as number | null,
   description:  '',
-  instructor:   '',
+  instructor:   '', // solo lectura, se muestra según la actividad elegida
   days:         [] as string[],
   startTime:    '',   // "HH:MM" — valores de TIME_SLOTS
   endTime:      '',   // "HH:MM" — siempre > startTime gracias a endTimeSlots

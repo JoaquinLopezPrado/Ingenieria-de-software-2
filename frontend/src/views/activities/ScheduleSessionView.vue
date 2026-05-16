@@ -26,6 +26,17 @@ const successMessage = ref('')
 const errorMessage = ref('')
 const router = useRouter()
 
+// null = sin error de auth | 'session' = 401 | 'forbidden' = 403
+const authError = ref<null | 'session' | 'forbidden'>(null)
+
+/**
+ * Emitido por SessionForm cuando getFormOptions() devuelve 401 o 403.
+ * En ambos casos ocultamos el formulario y mostramos el panel correspondiente.
+ */
+const handleAuthError = (status: number) => {
+  authError.value = status === 403 ? 'forbidden' : 'session'
+}
+
 const handleSaveSession = async (formData: SessionFormData) => {
   isSubmitting.value = true
   successMessage.value = ''
@@ -38,8 +49,14 @@ const handleSaveSession = async (formData: SessionFormData) => {
       router.push({ name: 'turnos-grilla' })
     }, 1500)
   } catch (error) {
-    // extractBackendError lee error.response.data.errors del formato de FastAPI
-    errorMessage.value = extractBackendError(error)
+    const status = (error as { response?: { status?: number } })?.response?.status
+    if (status === 401) {
+      authError.value = 'session'
+    } else if (status === 403) {
+      authError.value = 'forbidden'
+    } else {
+      errorMessage.value = extractBackendError(error)
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -58,29 +75,59 @@ const handleSaveSession = async (formData: SessionFormData) => {
         </div>
       </div>
 
-      <!-- ── Banner de éxito (Escenario 1) ── -->
-      <transition name="fade">
-        <div v-if="successMessage" class="alert alert-success" role="alert">
-          <span class="alert-icon success-icon">✓</span>
-          <span>{{ successMessage }}</span>
-          <button class="alert-close" @click="successMessage = ''" aria-label="Cerrar">×</button>
-        </div>
-      </transition>
+      <!-- ── Panel: sesión expirada (401) ── -->
+      <div v-if="authError === 'session'" class="auth-panel">
+        <div class="auth-icon">🔒</div>
+        <h2 class="auth-title">Tu sesión expiró</h2>
+        <p class="auth-desc">
+          No podemos verificar tu identidad. Iniciá sesión nuevamente para continuar.
+        </p>
+        <button class="btn-login" @click="router.push({ name: 'login' })">
+          Iniciar sesión
+        </button>
+      </div>
 
-      <!-- ── Banner de error del servidor (Escenarios 4, 5 y otros) ── -->
-      <transition name="fade">
-        <div v-if="errorMessage" class="alert alert-error" role="alert">
-          <span class="alert-icon error-icon">!</span>
-          <span>{{ errorMessage }}</span>
-          <button class="alert-close" @click="errorMessage = ''" aria-label="Cerrar">×</button>
-        </div>
-      </transition>
+      <!-- ── Panel: sin permisos (403) ── -->
+      <div v-else-if="authError === 'forbidden'" class="auth-panel auth-panel--forbidden">
+        <div class="auth-icon">⛔</div>
+        <h2 class="auth-title">Acceso denegado</h2>
+        <p class="auth-desc">
+          Solo los administradores pueden programar turnos. Contactá a tu administrador si creés que esto es un error.
+        </p>
+        <button class="btn-secondary" @click="router.push({ name: 'home' })">
+          Volver al inicio
+        </button>
+      </div>
 
-      <!-- ── Formulario ── -->
-      <SessionForm
-        :is-loading="isSubmitting"
-        @submit-session="handleSaveSession"
-      />
+      <!-- ── Contenido normal (sin error de auth) ── -->
+      <template v-else>
+
+        <!-- ── Banner de éxito (Escenario 1) ── -->
+        <transition name="fade">
+          <div v-if="successMessage" class="alert alert-success" role="alert">
+            <span class="alert-icon success-icon">✓</span>
+            <span>{{ successMessage }}</span>
+            <button class="alert-close" @click="successMessage = ''" aria-label="Cerrar">×</button>
+          </div>
+        </transition>
+
+        <!-- ── Banner de error del servidor (Escenarios 4, 5 y otros) ── -->
+        <transition name="fade">
+          <div v-if="errorMessage" class="alert alert-error" role="alert">
+            <span class="alert-icon error-icon">!</span>
+            <span>{{ errorMessage }}</span>
+            <button class="alert-close" @click="errorMessage = ''" aria-label="Cerrar">×</button>
+          </div>
+        </transition>
+
+        <!-- ── Formulario ── -->
+        <SessionForm
+          :is-loading="isSubmitting"
+          @submit-session="handleSaveSession"
+          @auth-error="handleAuthError"
+        />
+
+      </template>
 
     </div>
   </AdminLayout>
@@ -163,6 +210,88 @@ const handleSaveSession = async (formData: SessionFormData) => {
 }
 
 .alert-close:hover { opacity: 1; }
+
+/* ── Paneles de error de autenticación ── */
+
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 4rem 2rem;
+  border-radius: 12px;
+  text-align: center;
+  background-color: #fff5f5;
+  border: 1px solid #fecaca;
+}
+
+.auth-panel--forbidden {
+  background-color: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.auth-icon {
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.auth-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0;
+}
+
+.auth-panel--forbidden .auth-title {
+  color: #9a3412;
+}
+
+.auth-desc {
+  font-size: 0.9rem;
+  color: #7f1d1d;
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.55;
+}
+
+.auth-panel--forbidden .auth-desc {
+  color: #7c2d12;
+}
+
+.btn-login {
+  margin-top: 0.5rem;
+  background-color: #11998e;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.65rem 1.75rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-login:hover {
+  background-color: #0c8a70;
+}
+
+.btn-secondary {
+  margin-top: 0.5rem;
+  background-color: #f3f4f6;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.65rem 1.75rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-secondary:hover {
+  background-color: #e5e7eb;
+}
 
 /* ── Animación ── */
 
