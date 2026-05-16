@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import SideMenu from '@/components/SideMenu.vue'
 </script>
 
 <template>
-  <RouterView />
+  <div class="app-layout">
+    <SideMenu />
+
+    <main class="main-content">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
-<style>
-/* Estilos globales mínimos para asegurar que el contenido ocupe todo */
-#app {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  max-width: none; /* Quitamos el límite de 1280px */
+<style scoped>
+.app-layout {
+  position: relative;
+  min-height: 100vh;
 }
+
+.main-content {
+  width: 100%;
+}
+
 </style>

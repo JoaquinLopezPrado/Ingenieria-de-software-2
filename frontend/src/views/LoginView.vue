@@ -13,9 +13,20 @@ const handleLogin = async (email: string, pass: string) => {
   loading.value = true
   try {
     await authStore.login({ email, password: pass })
-    router.push('/') // O a tu dashboard
+    router.push('/')
   } catch (err: any) {
     alert('Email o contraseña incorrectos')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleGoogleLogin = async () => {
+  loading.value = true
+  try {
+    console.log('Iniciando flujo de OAuth con Google...')
+  } catch (err: any) {
+    alert('Hubo un problema al iniciar sesión con Google')
   } finally {
     loading.value = false
   }
@@ -26,7 +37,13 @@ const handleLogin = async (email: string, pass: string) => {
   <div class="auth-page-wrapper">
     <div class="auth-card">
       <AuthHeader subtitle="Bienvenido de nuevo" />
-      <LoginForm :loading="loading" @submit="handleLogin" />
+      
+      <LoginForm 
+        :loading="loading" 
+        @submit="handleLogin" 
+        @google-login="handleGoogleLogin" 
+      />
+      
       <div class="auth-footer">
         <router-link to="/forgot-password" class="link-secondary">
           ¿Olvidaste tu contraseña?
@@ -42,26 +59,26 @@ const handleLogin = async (email: string, pass: string) => {
 </template>
 
 <style scoped>
+/* ESTILOS BASE: Celulares (<768px) */
 .auth-page-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   background: linear-gradient(135deg, #dff8f2 0%, #cfeee6 50%, #e6f8f0 100%);
-  padding: 20px;
+  padding: 16px;
 }
 
 .auth-card {
   background: white;
-  padding: 40px;
-  border-radius: 24px; /* Bordes más amplios para una estética moderna */
+  padding: 24px;
+  border-radius: 24px;
   box-shadow: 0 15px 35px rgba(13, 110, 95, 0.1);
   width: 100%;
-  max-width: 420px;
 }
 
 .auth-footer {
-  margin-top: 32px;
+  margin-top: 24px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -89,8 +106,9 @@ const handleLogin = async (email: string, pass: string) => {
   font-size: 14px;
   color: #2c3e50;
   display: flex;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .link-accent {
@@ -101,5 +119,27 @@ const handleLogin = async (email: string, pass: string) => {
 
 .link-accent:hover {
   text-decoration: underline;
+}
+
+/* RESPONSIVE: Escritorios y Tablets (>=768px) */
+@media (min-width: 768px) {
+  .auth-page-wrapper {
+    padding: 20px;
+  }
+
+  .auth-card {
+    padding: 40px;
+    max-width: 420px;
+  }
+
+  .auth-footer {
+    margin-top: 32px;
+  }
+
+  .signup-prompt {
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+  }
 }
 </style>
