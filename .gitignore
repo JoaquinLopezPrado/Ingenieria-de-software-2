@@ -224,4 +224,4 @@ __marimo__/
 # Caché de Alembic y migraciones
 alembic/__pycache__/
 alembic/versions/__pycache__/
-*.pyc
+*.pyc.ngrok.env.local
