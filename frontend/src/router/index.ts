@@ -67,11 +67,13 @@ const router = createRouter({
       path: '/activities/schedule',
       name: 'schedule-session',
       component: ScheduleSessionView,
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/activities/turnos/:id/edit',
       name: 'edit-turno',
       component: EditTurnoView,
+      meta: { requiresAuth: true },
     },
   ],
 })

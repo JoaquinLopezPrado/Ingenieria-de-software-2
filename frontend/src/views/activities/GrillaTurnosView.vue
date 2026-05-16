@@ -304,7 +304,7 @@ onMounted(async () => {
         <h2 class="state-title">Sesión no válida</h2>
         <p class="state-desc">{{ errorMessage }}</p>
         <button class="btn-primary" @click="router.push({ name: 'login' })">
-          Ir al login
+          Iniciar sesion
         </button>
       </div>
 
