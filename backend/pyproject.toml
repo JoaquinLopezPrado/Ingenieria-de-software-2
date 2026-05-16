@@ -15,6 +15,7 @@ dependencies = [
     "uvicorn>=0.42.0",
     "bcrypt>=4.3.0",
     "pyjwt>=2.12.1",
+    "mercadopago>=2.3.0",
 ]
 
 [dependency-groups]

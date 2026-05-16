@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    # MercadoPago
+    mp_access_token: str = ""
+    mp_frontend_url: str = "http://localhost:5173"
+    mp_notification_url: Optional[str] = None
+
     @property
     def short_sha(self) -> str:
         """Deriva el hash corto de 7 caracteres."""
