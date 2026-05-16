@@ -34,9 +34,11 @@ const handleLogout = async () => {
       :class="{ 'is-active': isMenuOpen }"
       aria-label="Abrir menú"
     >
-      <span class="bar"></span>
-      <span class="bar"></span>
-      <span class="bar"></span>
+      <div class="burger-container">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </div>
     </button>
 
     <div 
@@ -59,13 +61,18 @@ const handleLogout = async () => {
           <button type="button" @click="closeMenu">Vincular mi cuenta con Google</button>
         </li>
         <li>
-          <button type="button" @click="closeMenu">Mis clases</button>
+          <button type="button" @click="closeMenu">Mis asistencias</button>
         </li>
         <li>
           <button type="button" @click="closeMenu">Mis pagos</button>
         </li>
         <li class="logout-item">
-          <button type="button" @click="handleLogout">Cerrar sesión</button>
+          <button type="button" @click="handleLogout" class="btn-logout">
+            <svg class="logout-icon" viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 17v-3H9v-4h7V7l5 5-5 5M14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z" fill="currentColor"/>
+            </svg>
+            <span>Cerrar sesión</span>
+          </button>
         </li>
       </ul>
     </nav>
@@ -78,27 +85,43 @@ const handleLogout = async () => {
   top: 16px;
   right: 16px;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 30px;
-  height: 21px;
-  background: transparent;
-  border: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: #ffffff;
+  border: 2px solid #e0f2f1;
+  border-radius: 50%;
   cursor: pointer;
   z-index: 1001;
   padding: 0;
+  box-shadow: 0 4px 12px rgba(17, 166, 145, 0.12);
+  transition: all 0.2s ease;
+}
+
+.menu-toggle:hover {
+  border-color: #11a691;
+  background-color: #f8fbfb;
+}
+
+.burger-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 20px;
+  height: 14px;
 }
 
 .bar {
   width: 100%;
-  height: 3px;
+  height: 2px;
   background-color: #11a691;
   border-radius: 2px;
   transition: all 0.3s ease;
 }
 
 .menu-toggle.is-active .bar:nth-child(1) {
-  transform: translateY(9px) rotate(45deg);
+  transform: translateY(6px) rotate(45deg);
 }
 
 .menu-toggle.is-active .bar:nth-child(2) {
@@ -106,7 +129,7 @@ const handleLogout = async () => {
 }
 
 .menu-toggle.is-active .bar:nth-child(3) {
-  transform: translateY(-9px) rotate(-45deg);
+  transform: translateY(-6px) rotate(-45deg);
 }
 
 .menu-backdrop {
@@ -180,21 +203,42 @@ const handleLogout = async () => {
 .logout-item {
   margin-top: auto;
   margin-bottom: 32px;
+  padding: 0 8px;
 }
 
-.logout-item button {
-  color: #e53935;
+.btn-logout {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background-color: #fff5f5 !important;
+  color: #e53935 !important;
+  border: 2px solid #ffcdd2 !important;
+  border-radius: 30px !important;
+  padding: 14px 20px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(229, 57, 53, 0.08);
+  transition: all 0.2s ease !important;
 }
 
-.logout-item button:hover {
-  background-color: #fff5f5;
-  color: #e53935;
+.btn-logout:hover {
+  background-color: #e53935 !important;
+  color: #ffffff !important;
+  border-color: #e53935 !important;
+  box-shadow: 0 6px 15px rgba(229, 57, 53, 0.2);
+}
+
+.logout-icon {
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
   .menu-toggle {
     top: 24px;
     right: 24px;
+    width: 50px;
+    height: 50px;
   }
   
   .side-menu {
