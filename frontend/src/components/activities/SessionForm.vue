@@ -89,6 +89,7 @@ const form = ref({
   startTime:    '',   // "HH:MM" — valores de TIME_SLOTS
   endTime:      '',   // "HH:MM" — siempre > startTime gracias a endTimeSlots
   maxCapacity:  null as number | null,
+  price:        null as number | null,
   month:        now.getMonth() + 1,
   year:         now.getFullYear(),
   is_active:    false,
@@ -155,6 +156,10 @@ const validate = (): boolean => {
   if (cap === null || !Number.isInteger(Number(cap)) || Number(cap) <= 0)
     errors.value.maxCapacity = 'El cupo máximo debe ser un número entero mayor a 0.'
 
+  const price = form.value.price
+  if (price === null || isNaN(Number(price)) || Number(price) < 0)
+    errors.value.price = 'El precio debe ser un número mayor o igual a 0.'
+
   return Object.keys(errors.value).length === 0
 }
 
@@ -167,6 +172,7 @@ const handleSubmit = () => {
     startTime:    form.value.startTime,
     endTime:      form.value.endTime,
     maxCapacity:  form.value.maxCapacity!,
+    price:        form.value.price!,
     month:        form.value.month,
     year:         form.value.year,
     is_active:    form.value.is_active,
@@ -290,6 +296,20 @@ const handleSubmit = () => {
           >
           <span v-if="errors.maxCapacity" class="field-error">{{ errors.maxCapacity }}</span>
         </div>
+      </div>
+
+      <!-- Monto -->
+      <div class="input-group">
+        <label>Monto</label>
+        <input
+          type="number"
+          v-model.number="form.price"
+          min="0"
+          step="0.01"
+          placeholder="Ej: 150.00"
+          :class="{ 'input-error': errors.price }"
+        >
+        <span v-if="errors.price" class="field-error">{{ errors.price }}</span>
       </div>
 
       <!-- Error rango horario -->
