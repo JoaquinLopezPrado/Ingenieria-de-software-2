@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+import uuid
 
 from app.core.config import settings
 
@@ -22,21 +23,31 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(user_id: int, token_version: int) -> str:
+    now = datetime.now(timezone.utc)
+
     payload = {
         "sub": str(user_id),
         "type": "access",
         "ver": token_version,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes),
+        "iat": now,
+        "jti": str(uuid.uuid4()),
+        "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
     }
+
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 
 
 def create_refresh_token(user_id: int) -> str:
+    now = datetime.now(timezone.utc)
+
     payload = {
         "sub": str(user_id),
         "type": "refresh",
-        "exp": datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
+        "iat": now,
+        "jti": str(uuid.uuid4()),
+        "exp": now + timedelta(days=settings.refresh_token_expire_days),
     }
+
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 
 

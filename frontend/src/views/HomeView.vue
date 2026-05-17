@@ -1,73 +1,53 @@
 <template>
   <div class="home-page" :class="{ leaving: isLeaving }">
     <header class="topbar">
-      <div class="brand-block">
-        <h1 class="logo">SIEMPREGYM</h1>
-        <p class="role-chip">
-          {{ roleLabel }}
-        </p>
-      </div>
+      <div class="topbar-inner">
+        <div class="brand-block">
+          <h1 class="logo">SIEMPREGYM</h1>
+          <p class="role-chip">
+            {{ roleLabel }}
+          </p>
+        </div>
 
-      <button class="logout-btn" @click="goToLogout" :disabled="isLeaving">
-        {{ isLeaving ? 'Saliendo...' : 'Cerrar sesión' }}
-      </button>
+        <button class="logout-btn" @click="goToLogout" :disabled="isLeaving">
+          {{ isLeaving ? 'Saliendo...' : 'Cerrar sesión' }}
+        </button>
+      </div>
     </header>
 
     <main class="home-content">
       <section class="hero-card">
         <div class="hero-text">
           <p class="eyebrow">Panel principal</p>
-          <h2>Bienvenido/a{{ displayName ? `, ${displayName}` : '' }}</h2>
+
+          <h2>
+            Bienvenido/a{{ displayName ? `, ${displayName}` : '' }}
+          </h2>
+
           <p class="hero-description">
-            Desde acá podés gestionar tus clases y reservas de forma simple.
+            Desde acá podés consultar los turnos disponibles para tus actividades.
           </p>
         </div>
       </section>
 
-      <section v-if="isClient" class="section-block">
-        <div class="section-header">
-          <h3>Acciones rápidas</h3>
-          <p>Estas son las funciones principales disponibles para clientes en este sprint.</p>
-        </div>
+      <section v-if="isClient" class="section-block centered-section">
 
-        <div class="actions-grid">
+        <div class="actions-grid centered-grid">
           <article
             v-for="action in clientActions"
             :key="action.title"
             class="action-card"
             @click="goTo(action.path)"
           >
-            <div class="card-icon">{{ action.icon }}</div>
+            <div class="card-icon">
+              {{ action.icon }}
+            </div>
+
             <h4>{{ action.title }}</h4>
+
             <p>{{ action.description }}</p>
+
             <span class="card-link">Ir a la sección</span>
-          </article>
-        </div>
-      </section>
-
-      <section v-if="isClient" class="section-block">
-        <div class="section-header">
-          <h3>Resumen rápido</h3>
-          <p>Un acceso simple para que el cliente entienda qué puede hacer dentro del sistema.</p>
-        </div>
-
-        <div class="summary-grid">
-          <article class="summary-card">
-            <span class="summary-label">Turnos</span>
-            <strong>Consultar disponibles</strong>
-            <p>Visualizá los turnos y elegí el que mejor te convenga.</p>
-          </article>
-
-          <article class="summary-card">
-            <span class="summary-label">Reserva</span>
-            <strong>Inscribite a una actividad</strong>
-            <p>Elegí un turno y avanzá con tu inscripción desde la app.</p>
-          </article>
-
-          <article class="summary-card">
-            <span class="summary-label">Clase individual</span>
-            <strong>Reservá una clase</strong>
-            <p>Solicitá tu clase individual desde un acceso directo.</p>
           </article>
         </div>
       </section>
@@ -75,9 +55,11 @@
       <section v-else class="section-block">
         <div class="empty-role-card">
           <h3>Vista en construcción</h3>
+
           <p>
-            Por ahora esta home está enfocada en la experiencia del cliente. Más adelante
-            podés agregar la vista de administrador y empleado en este mismo archivo.
+            Por ahora esta home está enfocada en la experiencia del cliente.
+            Más adelante podés agregar la vista de administrador y empleado
+            en este mismo archivo.
           </p>
         </div>
       </section>
@@ -92,6 +74,7 @@ import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
 const isLeaving = ref(false)
 
 function normalizeRole(user: any): string {
@@ -111,17 +94,33 @@ const isClient = computed(() => {
 })
 
 const roleLabel = computed(() => {
-  if (roleName.value === 'cliente' || roleName.value === 'client') return 'Cliente'
-  if (roleName.value === 'admin' || roleName.value === 'administrador') return 'Administrador'
-  if (roleName.value === 'empleado' || roleName.value === 'employee') return 'Empleado'
+  if (roleName.value === 'cliente' || roleName.value === 'client') {
+    return 'Cliente'
+  }
+
+  if (roleName.value === 'admin' || roleName.value === 'administrador') {
+    return 'Administrador'
+  }
+
+  if (roleName.value === 'empleado' || roleName.value === 'employee') {
+    return 'Empleado'
+  }
+
   return 'Usuario'
 })
 
 const displayName = computed(() => {
+  const firstName = authStore.user?.first_name ?? ''
+  const lastName = authStore.user?.last_name ?? ''
+
+  const fullName = `${firstName} ${lastName}`.trim()
+
   return (
-    authStore.user?.first_name ??
-    authStore.user?.name ??
-    authStore.user?.email ??
+    fullName ||
+    firstName ||
+    authStore.user?.name ||
+    authStore.user?.username ||
+    authStore.user?.email ||
     ''
   )
 })
@@ -129,21 +128,10 @@ const displayName = computed(() => {
 const clientActions = [
   {
     title: 'Ver turnos disponibles',
-    description: 'Consultá los turnos de actividad disponibles para inscribirte.',
-    icon: '📅',
-    path: '/turnos',
-  },
-  {
-    title: 'Inscribirme a un turno',
-    description: 'Reservá un turno de actividad desde tu cuenta.',
-    icon: '✅',
-    path: '/inscripciones/nueva',
-  },
-  {
-    title: 'Reservar clase individual',
-    description: 'Solicitá una clase individual de forma rápida.',
-    icon: '🎯',
-    path: '/class-selection',
+    description:
+      'Consultá los turnos de actividad disponibles para inscribirte.',
+    icon: '🗓️',
+    path: '/list',
   },
 ]
 
@@ -166,7 +154,9 @@ function goToLogout() {
   background: #d9eeea;
   display: flex;
   flex-direction: column;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
   opacity: 1;
 }
 
@@ -176,23 +166,30 @@ function goToLogout() {
 }
 
 .topbar {
+  width: 100%;
+  padding: 28px 20px 12px;
+}
+
+.topbar-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 24px 20px 12px;
 }
 
 .brand-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .logo {
   margin: 0;
   color: #0d9b8a;
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: 0.5px;
 }
@@ -200,28 +197,32 @@ function goToLogout() {
 .role-chip {
   width: fit-content;
   margin: 0;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 999px;
   background: rgba(13, 155, 138, 0.12);
   color: #0d9b8a;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 700;
 }
 
 .logout-btn {
   border: none;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   background: #20b2a6;
   color: white;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(32, 178, 166, 0.22);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
 }
 
 .logout-btn:hover {
   background: #189c92;
+  transform: translateY(-1px);
 }
 
 .logout-btn:disabled {
@@ -231,34 +232,44 @@ function goToLogout() {
 
 .home-content {
   width: 100%;
-  max-width: 1120px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 12px 20px 32px;
+  padding: 20px 20px 48px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 36px;
 }
 
 .hero-card {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   background: white;
   border-radius: 28px;
-  padding: 28px 24px;
+  padding: 32px 36px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .eyebrow {
-  margin: 0 0 8px;
+  margin: 0;
   color: #0d9b8a;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .hero-text h2 {
-  margin: 0 0 10px;
+  margin: 0;
   color: #1f2937;
-  font-size: 1.8rem;
+  font-size: 2rem;
+  line-height: 1.15;
 }
 
 .hero-description {
@@ -266,18 +277,28 @@ function goToLogout() {
   color: #6b7280;
   font-size: 1rem;
   line-height: 1.5;
+  max-width: 540px;
 }
 
 .section-block {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
+}
+
+.centered-section {
+  align-items: center;
+}
+
+.centered-header {
+  text-align: center;
+  max-width: 700px;
 }
 
 .section-header h3 {
   margin: 0 0 6px;
   color: #1f2937;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
 }
 
 .section-header p {
@@ -289,16 +310,26 @@ function goToLogout() {
 .actions-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 16px;
+}
+
+.centered-grid {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .action-card {
+  width: 100%;
+  max-width: 360px;
   background: white;
   border-radius: 24px;
-  padding: 22px 20px;
+  padding: 24px 20px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .action-card:hover {
@@ -307,8 +338,8 @@ function goToLogout() {
 }
 
 .card-icon {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -336,31 +367,13 @@ function goToLogout() {
   font-size: 0.95rem;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-}
-
-.summary-card,
 .empty-role-card {
   background: white;
   border-radius: 24px;
-  padding: 22px 20px;
+  padding: 24px 20px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
 }
 
-.summary-label {
-  display: inline-block;
-  margin-bottom: 8px;
-  color: #0d9b8a;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.summary-card strong,
 .empty-role-card h3 {
   display: block;
   margin-bottom: 8px;
@@ -368,26 +381,29 @@ function goToLogout() {
   font-size: 1.02rem;
 }
 
-.summary-card p,
 .empty-role-card p {
   margin: 0;
   color: #6b7280;
   line-height: 1.45;
 }
 
-@media (min-width: 768px) {
-  .topbar {
-    padding: 28px 32px 16px;
-    align-items: center;
+@media (max-width: 768px) {
+  .topbar-inner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .home-content {
-    padding: 16px 32px 40px;
+  .hero-card {
+    padding: 26px 22px;
+    border-radius: 22px;
   }
 
-  .actions-grid,
-  .summary-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .hero-text h2 {
+    font-size: 1.65rem;
+  }
+
+  .logout-btn {
+    width: 100%;
   }
 }
 </style>

@@ -1,10 +1,10 @@
 <template>
   <div class="page">
- 
-    <!-- Header -->
+
     <div class="header">
       <div class="header-inner">
         <span class="logo">SIEMPREGYM</span>
+
         <div class="account">
           <div class="avatar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
@@ -12,12 +12,12 @@
               <circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
+
           <span class="account-label">Mi cuenta</span>
         </div>
       </div>
     </div>
- 
-    <!-- Main -->
+
     <div class="main">
       <h1>Actividades disponibles</h1>
       <p class="subtitle">Elegí tu actividad y reservá tu lugar en el turno que más te convenga.</p>
@@ -35,20 +35,33 @@
           {{ tab }}
         </button>
       </div>
- 
-      <!-- Badges -->
-      <div class="badges">
+
+      <div v-if="loading">
+        Cargando turnos...
+      </div>
+
+      <div v-else class="badges">
         <div class="badge">
-          <span class="badge-num" style="color: #00897B">{{ disponibles }}</span>
-          <span class="badge-label">Turnos disponibles</span>
+          <span class="badge-num" style="color: #00897B">
+            {{ disponibles }}
+          </span>
+
+          <span class="badge-label">
+            Turnos disponibles
+          </span>
         </div>
+
         <div class="badge">
-          <span class="badge-num" style="color: #E53935">{{ completos }}</span>
-          <span class="badge-label">Turnos completos</span>
+          <span class="badge-num" style="color: #E53935">
+            {{ completos }}
+          </span>
+
+          <span class="badge-label">
+            Turnos completos
+          </span>
         </div>
       </div>
- 
-      <!-- Grid -->
+
       <div class="grid">
         <div
           v-for="turno in currentTurnos"
@@ -56,22 +69,42 @@
           class="card"
           :class="{ inscripto: inscriptos.has(turno.id) }"
         >
-          <div v-if="inscriptos.has(turno.id)" class="inscripto-badge">INSCRIPTO ✓</div>
- 
+
+          <div
+            v-if="inscriptos.has(turno.id)"
+            class="inscripto-badge"
+          >
+            INSCRIPTO ✓
+          </div>
+
           <div class="card-top">
             <div>
               <div class="hora-row">
-                <span class="hora">{{ turno.hora }}</span>
-                <span class="duracion">hs · {{ turno.dur }}</span>
+                <span class="hora">
+                  {{ turno.hora }}
+                </span>
+
+                <span class="duracion">
+                  hs · {{ turno.dur }}
+                </span>
               </div>
-              <div class="dia">{{ turno.dia }}</div>
+
+              <div class="dia">
+                {{ turno.dia }}
+              </div>
             </div>
+
             <span
               class="nivel-badge"
-              :style="{ background: nivelColors[turno.nivel].bg, color: nivelColors[turno.nivel].text }"
-            >{{ turno.nivel }}</span>
+              :style="{
+                background: nivelColors[turno.nivel].bg,
+                color: nivelColors[turno.nivel].text
+              }"
+            >
+              {{ turno.nivel }}
+            </span>
           </div>
- 
+
           <div class="instructor-row">
             <div class="inst-icon">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
@@ -79,12 +112,18 @@
                 <circle cx="12" cy="7" r="4"/>
               </svg>
             </div>
+
             <div>
-              <div class="inst-label">Instructor/a</div>
-              <div class="inst-name">{{ turno.inst }}</div>
+              <div class="inst-label">
+                Instructor/a
+              </div>
+
+              <div class="inst-name">
+                {{ turno.inst }}
+              </div>
             </div>
           </div>
- 
+
           <div>
             <div class="cap-row">
               <span class="cap-text">
@@ -92,10 +131,23 @@
                   ? 'Sin lugares disponibles'
                   : `${turno.total - turno.ocup} lugar${turno.total - turno.ocup !== 1 ? 'es' : ''} disponible${turno.total - turno.ocup !== 1 ? 's' : ''}` }}
               </span>
-              <span class="cap-num" :style="{ color: barColor(turno) }">{{ turno.ocup }}/{{ turno.total }}</span>
+
+              <span
+                class="cap-num"
+                :style="{ color: barColor(turno) }"
+              >
+                {{ turno.ocup }}/{{ turno.total }}
+              </span>
             </div>
+
             <div class="bar-bg">
-              <div class="bar-fill" :style="{ width: pct(turno) + '%', background: barColor(turno) }"></div>
+              <div
+                class="bar-fill"
+                :style="{
+                  width: pct(turno) + '%',
+                  background: barColor(turno)
+                }"
+              ></div>
             </div>
           </div>
  
@@ -121,18 +173,47 @@
             {{ errorMensaje ?? 'No hay cupos disponibles para este turno' }}
           </div>
  
+
+          <div class="acciones-card">
+            <button
+              class="accion-btn"
+              :disabled="turno.ocup >= turno.total && !inscriptos.has(turno.id)"
+              :class="{
+                lleno: turno.ocup >= turno.total && !inscriptos.has(turno.id),
+                inscripto: inscriptos.has(turno.id)
+              }"
+              @click="handleInscripcion(turno)"
+            >
+              {{ turno.ocup >= turno.total && !inscriptos.has(turno.id)
+                ? 'Sin disponibilidad'
+                : inscriptos.has(turno.id)
+                ? 'Cancelar inscripción'
+                : 'Inscribirse' }}
+            </button>
+
+            <button
+              class="secondary-btn"
+              type="button"
+              @click="goToClassSelection(turno)"
+            >
+              Ver clases de prueba individual
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
   </div>
 </template>
- 
+
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { enrollmentService } from '@/services/enrollmentService'
+import { turnoService } from '@/services/turnoService'
 
 const router = useRouter()
+
 const tabs = ['Pilates', 'Yoga', 'Funcional']
 const currentTab = ref('Pilates')
 const inscriptos = ref(new Set())
@@ -140,48 +221,112 @@ const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
  
+const loading = ref(false)
+const turnos = ref([])
+
 const tabIcons = {
   Pilates: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l-3 3m3-3 3 3M8 21l1.5-4M16 21l-1.5-4"/></svg>`,
   Yoga: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v4M9 10c-2 2-3 4-2 6M15 10c2 2 3 4 2 6M7 16c2 2 5 3 5 3s3-1 5-3"/></svg>`,
   Funcional: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/></svg>`,
 }
- 
+
 const nivelColors = {
-  'Principiante':      { bg: '#E8F5E9', text: '#2E7D32' },
-  'Intermedio':        { bg: '#FFF8E1', text: '#F57F17' },
-  'Avanzado':          { bg: '#FCE4EC', text: '#880E4F' },
-  'Todos los niveles': { bg: '#E0F2F1', text: '#00695C' },
+  Principiante: {
+    bg: '#E8F5E9',
+    text: '#2E7D32',
+  },
+  Intermedio: {
+    bg: '#FFF8E1',
+    text: '#F57F17',
+  },
+  Avanzado: {
+    bg: '#FCE4EC',
+    text: '#880E4F',
+  },
+  'Todos los niveles': {
+    bg: '#E0F2F1',
+    text: '#00695C',
+  },
 }
- 
-const data = ref({
-  Pilates: [
-    { id:1,  actividad:'Pilates',   dia:'Lun / Mié / Vie', hora:'07:00', dur:'60 min', inst:'Laura Gómez',   total:12, ocup:8,  nivel:'Intermedio' },
-    { id:2,  actividad:'Pilates',   dia:'Mar / Jue',        hora:'09:00', dur:'60 min', inst:'Laura Gómez',   total:12, ocup:12, nivel:'Avanzado' },
-    { id:3,  actividad:'Pilates',   dia:'Lun / Mié',        hora:'18:00', dur:'60 min', inst:'Carla Torres',  total:12, ocup:3,  nivel:'Principiante' },
-    { id:4,  actividad:'Pilates',   dia:'Sábado',           hora:'10:00', dur:'75 min', inst:'Carla Torres',  total:10, ocup:7,  nivel:'Todos los niveles' },
-  ],
-  Yoga: [
-    { id:5,  actividad:'Yoga',      dia:'Lun / Mié / Vie', hora:'08:00', dur:'60 min', inst:'Sofía Martín',  total:15, ocup:5,  nivel:'Principiante' },
-    { id:6,  actividad:'Yoga',      dia:'Mar / Jue',        hora:'19:00', dur:'75 min', inst:'Sofía Martín',  total:15, ocup:11, nivel:'Intermedio' },
-    { id:7,  actividad:'Yoga',      dia:'Sábado',           hora:'09:00', dur:'90 min', inst:'Diego Ruiz',    total:10, ocup:2,  nivel:'Todos los niveles' },
-    { id:8,  actividad:'Yoga',      dia:'Domingo',          hora:'10:00', dur:'60 min', inst:'Diego Ruiz',    total:12, ocup:9,  nivel:'Avanzado' },
-  ],
-  Funcional: [
-    { id:9,  actividad:'Funcional', dia:'Lun a Vie',        hora:'06:00', dur:'45 min', inst:'Marcos Díaz',   total:20, ocup:15, nivel:'Intermedio' },
-    { id:10, actividad:'Funcional', dia:'Lun / Mié / Vie', hora:'12:00', dur:'45 min', inst:'Marcos Díaz',   total:20, ocup:8,  nivel:'Todos los niveles' },
-    { id:11, actividad:'Funcional', dia:'Mar / Jue',        hora:'19:00', dur:'60 min', inst:'Ana Rodríguez', total:20, ocup:18, nivel:'Avanzado' },
-    { id:12, actividad:'Funcional', dia:'Sábado',           hora:'08:00', dur:'60 min', inst:'Ana Rodríguez', total:15, ocup:6,  nivel:'Principiante' },
-  ],
+
+const getActividad = (activityId) => {
+  switch (activityId) {
+    case 1:
+      return 'Pilates'
+    case 2:
+      return 'Yoga'
+    case 3:
+      return 'Funcional'
+    default:
+      return 'Actividad'
+  }
+}
+
+const fetchTurnos = async () => {
+  try {
+    loading.value = true
+
+    const response = await turnoService.getTurnos()
+    const items = response.data.items || []
+
+    turnos.value = items.map((turno) => ({
+      id: turno.id,
+      activityId: turno.activity_id,
+      actividad: getActividad(turno.activity_id),
+      dia: turno.days?.join(' / ') || 'Sin días',
+      hora: turno.start_time,
+      horaFin: turno.end_time,
+      dur: `${turno.start_time} - ${turno.end_time}`,
+      inst: turno.instructor_name || turno.instructor || 'Instructor',
+      total: turno.capacity,
+      ocup: turno.occupied ?? 0,
+      nivel: turno.level || 'Todos los niveles',
+      sala: turno.room_number ?? turno.room ?? 'Sin sala',
+    }))
+  } catch (error) {
+    console.error('Error al obtener turnos', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchTurnos()
 })
- 
-const currentTurnos = computed(() => data.value[currentTab.value])
-const disponibles   = computed(() => currentTurnos.value.filter(t => t.ocup < t.total).length)
-const completos     = computed(() => currentTurnos.value.filter(t => t.ocup >= t.total).length)
- 
-const pct      = (t) => Math.min(Math.round((t.ocup / t.total) * 100), 100)
+
+const currentTurnos = computed(() => {
+  return turnos.value.filter(
+    (t) => t.actividad === currentTab.value
+  )
+})
+
+const disponibles = computed(() => {
+  return currentTurnos.value.filter(
+    (t) => t.ocup < t.total
+  ).length
+})
+
+const completos = computed(() => {
+  return currentTurnos.value.filter(
+    (t) => t.ocup >= t.total
+  ).length
+})
+
+const pct = (t) => {
+  return Math.min(
+    Math.round((t.ocup / t.total) * 100),
+    100
+  )
+}
+
 const barColor = (t) => {
   const p = pct(t)
-  return p >= 100 ? '#E53935' : p >= 75 ? '#FB8C00' : '#00897B'
+
+  return p >= 100
+    ? '#E53935'
+    : p >= 75
+    ? '#FB8C00'
+    : '#00897B'
 }
  
 const handleInscripcion = async (turno) => {
@@ -228,8 +373,25 @@ const handleInscripcion = async (turno) => {
     loadingTurno.value = null
   }
 }
+
+const goToClassSelection = (turno) => {
+  router.push({
+    name: 'class-selection',
+    query: {
+      turnoId: String(turno.id),
+      activityId: String(turno.activityId),
+      actividad: turno.actividad,
+      horaInicio: turno.hora,
+      horaFin: turno.horaFin,
+      dias: turno.dia,
+      sala: String(turno.sala),
+      instructor: turno.inst,
+      nivel: turno.nivel,
+    },
+  })
+}
 </script>
- 
+
 <style scoped>
 * { box-sizing: border-box; }
 .page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; }
@@ -286,5 +448,454 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+* {
+  box-sizing: border-box;
+}
+
+.page {
+  min-height: 100vh;
+  background: linear-gradient(
+    135deg,
+    #e4f3f0 0%,
+    #edf7f5 50%,
+    #f3faf8 100%
+  );
+  font-family:
+    'Inter',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+}
+
+/* HEADER */
+
+.header {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 137, 123, 0.08);
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #00695c;
+  letter-spacing: 0.08em;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.account:hover {
+  background: rgba(0, 137, 123, 0.06);
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e0f2f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-label {
+  font-size: 14px;
+  color: #546e7a;
+  font-weight: 600;
+}
+
+/* MAIN */
+
+.main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 42px 24px 70px;
+}
+
+/* HERO */
+
+h1 {
+  font-size: 2.35rem;
+  font-weight: 900;
+  color: #00695c;
+  margin: 0 0 10px;
+  letter-spacing: -1px;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #607d8b;
+  margin: 0 0 32px;
+  max-width: 620px;
+  line-height: 1.5;
+}
+
+/* TABS */
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(10px);
+  padding: 6px;
+  border-radius: 999px;
+  width: fit-content;
+  margin-bottom: 28px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #78909c;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(0, 137, 123, 0.08);
+}
+
+.tab-btn.active {
+  background: #00897b;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(0, 137, 123, 0.25);
+}
+
+.tab-icon {
+  display: flex;
+  align-items: center;
+}
+
+/* BADGES */
+
+.badges {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  min-width: 190px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(0, 137, 123, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.badge-num {
+  font-size: 1.9rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.badge-label {
+  font-size: 0.92rem;
+  color: #78909c;
+  font-weight: 600;
+}
+
+/* GRID */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+/* CARD */
+
+.card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-radius: 28px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 137, 123, 0.08);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.card.inscripto {
+  border: 2px solid #00897b;
+}
+
+.inscripto-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #00897b;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 0 24px 0 16px;
+  letter-spacing: 0.05em;
+}
+
+/* CARD TOP */
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.hora-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hora {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #00695c;
+  letter-spacing: -1px;
+}
+
+.duracion {
+  font-size: 13px;
+  color: #90a4ae;
+  font-weight: 600;
+}
+
+.dia {
+  font-size: 14px;
+  color: #455a64;
+  font-weight: 600;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.nivel-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* INSTRUCTOR */
+
+.instructor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inst-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e0f2f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.inst-label {
+  font-size: 11px;
+  color: #90a4ae;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.inst-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #37474f;
+}
+
+/* CAPACIDAD */
+
+.cap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cap-text {
+  font-size: 13px;
+  color: #607d8b;
+  font-weight: 500;
+}
+
+.cap-num {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bar-bg {
+  background: #e0e0e0;
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* BOTONES */
+
+.acciones-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.accion-btn {
+  width: 100%;
+  padding: 13px 0;
+  border-radius: 999px;
+  border: none;
+  background: #00897b;
+  color: white;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+  box-shadow: 0 10px 18px rgba(0, 137, 123, 0.18);
+}
+
+.accion-btn:hover:not(:disabled) {
+  background: #00695c;
+  transform: translateY(-1px);
+}
+
+.accion-btn.inscripto {
+  background: white;
+  color: #00897b;
+  border: 2px solid #00897b;
+  box-shadow: none;
+}
+
+.accion-btn.lleno {
+  background: #eceff1;
+  color: #90a4ae;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.secondary-btn {
+  width: 100%;
+  padding: 13px 0;
+  border-radius: 999px;
+  border: 1.5px solid #00897b;
+  background: transparent;
+  color: #00897b;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.secondary-btn:hover {
+  background: rgba(0, 137, 123, 0.08);
+  transform: translateY(-1px);
+}
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 18px;
+  }
+
+  .header-inner {
+    height: 64px;
+  }
+
+  .main {
+    padding: 28px 18px 50px;
+  }
+
+  h1 {
+    font-size: 1.9rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .badge {
+    width: 100%;
+  }
+
+  .tab-bar {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+    white-space: nowrap;
+  }
 }
 </style>

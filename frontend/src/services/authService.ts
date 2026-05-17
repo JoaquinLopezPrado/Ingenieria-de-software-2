@@ -4,9 +4,11 @@ import api from './api'
 const apiClient = api
 
 export const authService = {
-  login: (credentials: any) => apiClient.post('/auth/login', credentials),
+  login: (credentials: any) =>
+    apiClient.post('/auth/login', credentials),
 
-  register: (userData: any) => apiClient.post('/auth/register', userData),
+  register: (userData: any) =>
+    apiClient.post('/auth/register', userData),
 
   forgotPassword: (email: string) => {
     return apiClient.post('/auth/forgot-password', {
@@ -14,10 +16,16 @@ export const authService = {
     })
   },
 
-  logout: (refreshToken: string) => apiClient.post('/auth/logout', { refresh_token: refreshToken }),
+  logout: (refreshToken: string) =>
+    apiClient.post('/auth/logout', {
+      refresh_token: refreshToken,
+    }),
 
-  getMe: () => apiClient.get('/users/me'),
+  getMe: () =>
+    apiClient.get('/users/me'),
 
-  refresh: (refreshToken: string) => apiClient.post('/auth/refresh', { refresh_token: refreshToken })
-  
+  refresh: (refreshToken: string) =>
+    apiClient.post('/auth/refresh', {
+      refresh_token: refreshToken,
+    }),
 }
