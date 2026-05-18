@@ -101,12 +101,11 @@
  
           <button
             class="accion-btn"
-            :disabled="turno.ocup >= turno.total && !inscriptos.has(turno.id)"
+            :disabled="(turno.ocup >= turno.total && !inscriptos.has(turno.id)) || loadingTurno === turno.id"
             :class="{
               lleno: turno.ocup >= turno.total && !inscriptos.has(turno.id),
               inscripto: inscriptos.has(turno.id)
             }"
-            :disabled="loadingTurno === turno.id"
             @click="handleInscripcion(turno)"
           >
             {{ loadingTurno === turno.id
@@ -274,4 +273,18 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-
 .accion-btn:hover:not(:disabled) { background: #00695C; }
 .accion-btn.inscripto { background: #fff; color: #00897B; outline: 2px solid #00897B; }
 .accion-btn.lleno { background: #ECEFF1; color: #90A4AE; cursor: not-allowed; }
+.aviso-lleno {
+  background: #FFEBEE;
+  color: #C62828;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 </style>
