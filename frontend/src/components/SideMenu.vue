@@ -17,6 +17,11 @@ const closeMenu = () => {
   isMenuOpen.value = false
 }
 
+const navigateTo = (path: string) => {
+  closeMenu()
+  router.push(path)
+}
+
 const handleLogout = async () => {
   closeMenu()
   await authStore.logout()
@@ -61,10 +66,10 @@ const handleLogout = async () => {
           <button type="button" @click="closeMenu">Vincular mi cuenta con Google</button>
         </li>
         <li>
-          <button type="button" @click="closeMenu">Mis asistencias</button>
+          <button type="button" @click="navigateTo('/asistencias')">Mis asistencias</button>
         </li>
         <li>
-          <button type="button" @click="closeMenu">Mis pagos</button>
+          <button type="button" @click="navigateTo('/pagos')">Mis pagos</button>
         </li>
         <li class="logout-item">
           <button type="button" @click="handleLogout" class="btn-logout">
