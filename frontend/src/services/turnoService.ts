@@ -1,4 +1,7 @@
-import { apiClient } from './authService'
+import api from './api'
+
+const apiClient = api
+
 
 export const turnoService = {
   getTurnos: (params?: {

@@ -13,7 +13,7 @@ const handleLogin = async (email: string, pass: string) => {
   loading.value = true
   try {
     await authStore.login({ email, password: pass })
-    router.push('/')
+    router.push('/home')
   } catch (err: any) {
     alert('Email o contraseña incorrectos')
   } finally {

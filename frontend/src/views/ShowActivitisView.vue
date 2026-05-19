@@ -151,29 +151,6 @@
             </div>
           </div>
  
-          <button
-            class="accion-btn"
-            :disabled="(turno.ocup >= turno.total && !inscriptos.has(turno.id)) || loadingTurno === turno.id"
-            :class="{
-              lleno: turno.ocup >= turno.total && !inscriptos.has(turno.id),
-              inscripto: inscriptos.has(turno.id)
-            }"
-            @click="handleInscripcion(turno)"
-          >
-            {{ loadingTurno === turno.id
-              ? 'Procesando...'
-              : turno.ocup >= turno.total && !inscriptos.has(turno.id)
-              ? 'Sin disponibilidad'
-              : inscriptos.has(turno.id)
-              ? 'Cancelar inscripción'
-              : 'Inscribirse' }}
-          </button>
-
-          <div v-if="avisoLleno === turno.id" class="aviso-lleno">
-            {{ errorMensaje ?? 'No hay cupos disponibles para este turno' }}
-          </div>
- 
-
           <div class="acciones-card">
             <button
               class="accion-btn"
@@ -448,6 +425,8 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
 * {
   box-sizing: border-box;
 }
