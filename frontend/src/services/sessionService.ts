@@ -67,28 +67,6 @@ export interface TurnoPageResponse {
   pages: number
 }
 
-export interface Clase {
-  id: number
-  turno_id: number
-  fecha: string       // "YYYY-MM-DD"
-  start_time: string  // "HH:MM"
-  end_time: string    // "HH:MM"
-  capacity: number
-  inscriptos: number
-  is_active: boolean  // false = suspendida
-}
-
-// ─── Mock de clases (HU ACT-10.01) ───────────────────────────────────────────
-// Reemplazar por la llamada real cuando GET /api/v1/turnos/:id/clases esté disponible.
-// Los datos reflejan los escenarios 1-5 de la especificación:
-// turno Yoga, Mayo 2026, Lunes 18:00-19:00, cap 20.
-const MOCK_CLASES: Clase[] = [
-  { id: 1, turno_id: 1, fecha: '2026-05-04', start_time: '18:00', end_time: '19:00', capacity: 20, inscriptos: 8,  is_active: true  },
-  { id: 2, turno_id: 1, fecha: '2026-05-11', start_time: '18:00', end_time: '19:00', capacity: 20, inscriptos: 5,  is_active: false },
-  { id: 3, turno_id: 1, fecha: '2026-05-18', start_time: '18:00', end_time: '19:00', capacity: 20, inscriptos: 3,  is_active: true  },
-  { id: 4, turno_id: 1, fecha: '2026-05-25', start_time: '18:00', end_time: '19:00', capacity: 20, inscriptos: 12, is_active: true  },
-]
-
 // ─── Mapeo de días ────────────────────────────────────────────────────────────
 
 /**

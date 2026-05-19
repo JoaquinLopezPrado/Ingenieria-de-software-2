@@ -90,24 +90,25 @@ const router = createRouter({
       path: '/activities/turnos',
       name: 'turnos-grilla',
       component: GrillaTurnosView,
-      meta: { requiresAuth: true }
+      meta: { adminLayout: true },
     },
     {
       path: '/activities/turnos/:id/clases',
       name: 'turno-clases',
       component: CalendarioClasesView,
+      meta: { adminLayout: true },
     },
     {
       path: '/activities/schedule',
       name: 'schedule-session',
       component: ScheduleSessionView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {
       path: '/activities/turnos/:id/edit',
       name: 'edit-turno',
       component: EditTurnoView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, adminLayout: true },
     },
     {
       path: '/activities/turnos/:id/clases',
@@ -227,6 +228,13 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
     if (isAdmin) return { name: 'admin-home' }
     if (isEmployee) return { name: 'employee-home' }
     return { name: 'list' }
+  }
+})
+
+// Guard: redirige al login si la ruta requiere auth y no hay token
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth && !localStorage.getItem('access_token')) {
+    return { name: 'login' }
   }
 })
 

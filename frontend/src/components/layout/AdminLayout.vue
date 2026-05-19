@@ -10,8 +10,13 @@ const authStore = useAuthStore()
 
 const showLogoutConfirm = ref(false)
 const isLoggingOut = ref(false)
+const collapsed = ref(false)
 
 const adminEmail = computed(() => authStore.user?.email ?? authStore.user?.username ?? 'Sin correo')
+
+const toggleSidebar = () => {
+  collapsed.value = !collapsed.value
+}
 
 const openLogoutConfirm = () => {
   showLogoutConfirm.value = true
@@ -51,6 +56,16 @@ const confirmLogout = async () => {
           <RouterLink to="/admin" class="nav-item" active-class="active" exact>
             <span class="nav-icon">⊞</span> Inicio
           </RouterLink>
+
+          <RouterLink to="/activities/turnos" class="nav-item" active-class="active">
+            <span class="nav-icon">◷</span>
+            <span class="nav-text">Grilla de Turnos</span>
+          </RouterLink>
+
+          <RouterLink to="/activities/schedule" class="nav-item" active-class="active">
+            <span class="nav-icon">⊕</span>
+            <span class="nav-text">Programar Turno</span>
+          </RouterLink>
           <a href="#" class="nav-item">
             <span class="nav-icon">☰</span> Inscripciones
           </a>
@@ -77,6 +92,16 @@ const confirmLogout = async () => {
             <span class="nav-icon">⚙</span> Configuración
           </RouterLink>
         </div>
+
+        <!-- Botón colapsar (al fondo del nav) -->
+        <div class="nav-group nav-group--toggle">
+          <button class="nav-item nav-toggle-btn" @click="toggleSidebar"
+            :title="collapsed ? 'Expandir menú' : 'Colapsar menú'">
+            <span class="nav-icon toggle-arrow">{{ collapsed ? '›' : '‹' }}</span>
+            <span class="nav-text">Colapsar menú</span>
+          </button>
+        </div>
+
       </nav>
 
       <div class="user-footer">
@@ -122,6 +147,8 @@ const confirmLogout = async () => {
   background-color: #f3f4f6;
 }
 
+/* ── SIDEBAR ── */
+
 .sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -133,63 +160,157 @@ const confirmLogout = async () => {
   height: 100vh;
   left: 0;
   top: 0;
+  overflow-x: hidden;   /* clave para ocultar texto al colapsar */
   overflow-y: auto;
+  transition: width 0.25s ease;
+  z-index: 100;
 }
+
+/* ── Estado colapsado ── */
+
+.admin-wrapper.sidebar-collapsed .sidebar {
+  width: 64px;
+}
+
+.admin-wrapper.sidebar-collapsed .main-content {
+  margin-left: 64px;
+}
+
+/* Los elementos con .nav-text desaparecen al colapsar */
+.nav-text {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  max-width: 200px;
+  transition: opacity 0.15s ease, max-width 0.25s ease;
+}
+
+.admin-wrapper.sidebar-collapsed .nav-text {
+  opacity: 0;
+  max-width: 0;
+}
+
+/* Labels de grupo también se ocultan */
+.nav-label {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  max-height: 2rem;
+  margin-bottom: 0.6rem;
+  transition: opacity 0.15s ease, max-height 0.25s ease, margin 0.25s ease;
+}
+
+.admin-wrapper.sidebar-collapsed .nav-label {
+  opacity: 0;
+  max-height: 0;
+  margin-bottom: 0;
+}
+
+/* ── Brand header ── */
 
 .brand-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem 1.5rem;
+  gap: 0.9rem;
+  padding: 1.75rem 1.25rem 1.5rem;
+  transition: justify-content 0.25s;
+  min-width: 0;
+}
+
+.admin-wrapper.sidebar-collapsed .brand-header {
+  justify-content: center;
+  padding: 1.75rem 0 1.5rem;
+}
+
+.logo-circle {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid #11998e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #11998e;
+}
+
+.logo-circle.small {
+  width: 34px;
+  height: 34px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  min-width: 0;
 }
 
 .brand-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 .brand-subtitle {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: #8fa8a2;
-  white-space: nowrap;
 }
+
+/* ── Navegación ── */
 
 .sidebar-nav {
   flex-grow: 1;
-  padding: 0.5rem 1rem;
+  padding: 0 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-group--toggle {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .nav-label {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  color: #8fa8a2;
-  letter-spacing: 1.2px;
-  margin: 0 0 0.6rem 0;
-  padding-left: 0.75rem;
+  color: #6a8a80;
+  letter-spacing: 1.1px;
+  padding-left: 0.6rem;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  color: #d1dadd;
+  gap: 0.7rem;
+  color: #c8d8d4;
   text-decoration: none;
-  padding: 0.7rem 0.75rem;
+  padding: 0.65rem 0.6rem;
   border-radius: 8px;
-  font-size: 0.9rem;
-  margin-bottom: 0.15rem;
-  transition: background-color 0.15s, color 0.15s;
+  font-size: 0.875rem;
+  margin-bottom: 0.1rem;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, padding 0.25s, justify-content 0.1s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
 }
 
 .nav-item:hover {
-  background-color: rgba(17, 153, 142, 0.15);
+  background-color: rgba(17, 153, 142, 0.18);
   color: white;
 }
 
@@ -199,26 +320,57 @@ const confirmLogout = async () => {
   font-weight: 600;
 }
 
+.admin-wrapper.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 0.65rem 0;
+}
+
 .nav-icon {
-  font-size: 0.95rem;
-  width: 1.2rem;
+  font-size: 1rem;
+  width: 1.1rem;
   text-align: center;
   flex-shrink: 0;
 }
 
-.user-footer {
-  padding: 1.25rem 1.5rem;
-  background-color: #0a251e;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+/* Flecha del toggle rota al colapsar */
+.toggle-arrow {
+  font-size: 1.15rem;
+  font-weight: 700;
+  transition: transform 0.25s;
 }
 
-.user-meta {
+/* ── User footer ── */
+
+.user-footer {
+  padding: 1rem 1.25rem;
+  background-color: #0a251e;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  transition: justify-content 0.25s, padding 0.25s;
+}
+
+.admin-wrapper.sidebar-collapsed .user-footer {
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.user-info {
   min-width: 0;
 }
 
-.user-email {
+.user-name {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2eeeb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role {
   margin: 0;
   font-size: 0.78rem;
   color: #d1dadd;
@@ -333,8 +485,13 @@ const confirmLogout = async () => {
 @media (max-width: 768px) {
   .sidebar {
     width: 220px;
+    transition: margin-left 0.25s ease;
   }
+}
 
+/* ── Responsive: tablet ── */
+
+@media (max-width: 768px) {
   .main-content {
     margin-left: 220px;
     padding: 1.5rem;

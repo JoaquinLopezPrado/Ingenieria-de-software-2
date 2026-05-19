@@ -24,7 +24,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import type { CalendarOptions, EventClickArg } from '@fullcalendar/core'
 import esLocale from '@fullcalendar/core/locales/es'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getClasesByTurno, type Clase } from '@/services/sessionService'
+import type { Clase } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 
 // ─── Ruta y parámetros ────────────────────────────────────────────────────────
