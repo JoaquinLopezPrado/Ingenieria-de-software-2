@@ -1,85 +1,5 @@
-<template>
-  <div class="home-page">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="brand-block">
-          <h1 class="logo">SIEMPREGYM</h1>
-          <p class="role-chip">
-            {{ roleLabel }}
-          </p>
-        </div>
-      </div>
-    </header>
-
-    <main class="home-content">
-      <div v-if="googleLinked" class="banner banner-success">
-        Tu cuenta de Google fue vinculada correctamente.
-      </div>
-      <div v-if="googleAlreadyInUse" class="banner banner-error">
-        Esta cuenta de Google ya está asociada a otro usuario. Por favor, utilizá una cuenta diferente.
-      </div>
-      <div v-if="googleUnlinked" class="banner banner-success">
-        Tu cuenta de Google fue desvinculada correctamente.
-      </div>
-      <div v-if="googleLinkError" class="banner banner-error">
-        No se pudo vincular la cuenta de Google. Intentá de nuevo.
-      </div>
-      <div v-if="googleUnlinkError" class="banner banner-error">
-        No se pudo desvincular la cuenta de Google. Intentá de nuevo.
-      </div>
-      <section class="hero-card">
-        <div class="hero-text">
-          <p class="eyebrow">Panel principal</p>
-
-          <h2>
-            Bienvenido/a{{ displayName ? `, ${displayName}` : '' }}
-          </h2>
-
-          <p class="hero-description">
-            Desde acá podés consultar los turnos disponibles para tus actividades.
-          </p>
-        </div>
-      </section>
-
-      <section v-if="isClient" class="section-block centered-section">
-
-        <div class="actions-grid centered-grid">
-          <article
-            v-for="action in clientActions"
-            :key="action.title"
-            class="action-card"
-            @click="goTo(action.path)"
-          >
-            <div class="card-icon">
-              {{ action.icon }}
-            </div>
-
-            <h4>{{ action.title }}</h4>
-
-            <p>{{ action.description }}</p>
-
-            <span class="card-link">Ir a la sección</span>
-          </article>
-        </div>
-      </section>
-
-      <section v-else class="section-block">
-        <div class="empty-role-card">
-          <h3>Vista en construcción</h3>
-
-          <p>
-            Por ahora esta home está enfocada en la experiencia del cliente.
-            Más adelante podés agregar la vista de administrador y empleado
-            en este mismo archivo.
-          </p>
-        </div>
-      </section>
-    </main>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -105,6 +25,8 @@ function normalizeRole(user: any): string {
     user?.role_name ??
     user?.role ??
     ''
+  return rawRole
+}
 
 const turnos     = ref<Turno[]>([])
 const activities = ref<ActivityOption[]>([])

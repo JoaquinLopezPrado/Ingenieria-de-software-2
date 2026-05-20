@@ -67,6 +67,17 @@ export interface TurnoPageResponse {
   pages: number
 }
 
+export interface Clase {
+  id: number
+  turno_id: number
+  date: string        // "YYYY-MM-DD" — campo "date" en el backend (ClaseDetalleResponse)
+  start_time: string  // "H:MM"
+  end_time: string    // "H:MM"
+  capacity: number
+  enrolled: number    // campo "enrolled" en el backend (inscriptos activos)
+  is_active: boolean  // false = suspendida
+}
+
 // ─── Mapeo de días ────────────────────────────────────────────────────────────
 
 /**
@@ -232,6 +243,11 @@ export const createActivity = async (
   payload: CreateActivityPayload
 ): Promise<{ message?: string }> => {
   const res = await api.post('/activities', payload)
+  return res.data
+}
+
+export const getClasesByTurno = async (turnoId: number): Promise<Clase[]> => {
+  const res = await api.get(`/turnos/${turnoId}/clases`)
   return res.data
 }
 

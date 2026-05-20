@@ -12,8 +12,7 @@
  *   5. Modal con detalle de clase suspendida (sin botón suspender)
  *   6. Acceso denegado por rol no autorizado
  *
- * Mock: usa datos locales hasta que GET /api/v1/turnos/:id/clases esté disponible.
- * Para activar el endpoint real, ver getClasesByTurno() en sessionService.ts.
+ * Endpoint real: GET /api/v1/turnos/:id/clases — ya integrado con el backend.
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -72,6 +71,16 @@ const MESES_ES = [
 const COLOR_ACTIVA     = '#7AC45C'
 const COLOR_SUSPENDIDA = '#9ca3af'
 
+/**
+ * El backend serializa la hora como "H:MM" (sin zero-pad en la hora, ej: "8:00").
+ * FullCalendar necesita ISO 8601 estricto: "08:00". Sin esto, new Date("...T8:00:00")
+ * devuelve Invalid Date y el evento se descarta silenciosamente.
+ */
+function padTime(t: string): string {
+  const [h, m] = t.split(':')
+  return `${String(h).padStart(2, '0')}:${m ?? '00'}`
+}
+
 /** "2026-05-04" → "Lunes 4 de Mayo de 2026" */
 function formatFechaLarga(fecha: string): string {
   const [y, m, d] = fecha.split('-').map(Number)
@@ -94,8 +103,8 @@ const fcEvents = computed(() =>
   clases.value.map(c => ({
     id:          String(c.id),
     title:       `${c.start_time} – ${c.end_time}`,
-    start:       `${c.fecha}T${c.start_time}:00`,
-    end:         `${c.fecha}T${c.end_time}:00`,
+    start:       `${c.date}T${padTime(c.start_time)}:00`,
+    end:         `${c.date}T${padTime(c.end_time)}:00`,
     backgroundColor: c.is_active ? COLOR_ACTIVA : COLOR_SUSPENDIDA,
     borderColor:     c.is_active ? COLOR_ACTIVA : COLOR_SUSPENDIDA,
     textColor:   '#ffffff',
@@ -254,7 +263,7 @@ onMounted(async () => {
 
                 <div class="detail-row">
                   <dt>Fecha</dt>
-                  <dd>{{ formatFechaLarga(selectedClase.fecha) }}</dd>
+                  <dd>{{ formatFechaLarga(selectedClase.date) }}</dd>
                 </div>
 
                 <div class="detail-row">
@@ -270,11 +279,11 @@ onMounted(async () => {
                 <div class="detail-row">
                   <dt>Inscriptos</dt>
                   <dd>
-                    {{ selectedClase.inscriptos }}
+                    {{ selectedClase.enrolled }}
                     <span class="inscriptos-bar">
                       <span
                         class="inscriptos-fill"
-                        :style="{ width: Math.min(100, (selectedClase.inscriptos / selectedClase.capacity) * 100) + '%' }"
+                        :style="{ width: Math.min(100, (selectedClase.enrolled / selectedClase.capacity) * 100) + '%' }"
                       ></span>
                     </span>
                   </dd>
