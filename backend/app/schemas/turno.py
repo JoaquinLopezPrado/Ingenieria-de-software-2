@@ -34,6 +34,7 @@ class CreateTurnoRequest(BaseModel):
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=2024)
     days: List[DiaSemana] = Field(min_length=1)
+    is_active: bool = False
 
     @field_validator("start_time", "end_time", mode="before")
     @classmethod

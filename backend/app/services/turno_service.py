@@ -85,6 +85,7 @@ class TurnoService:
         month: int,
         year: int,
         days: List[DiaSemana],
+        is_active: bool = False,
     ) -> Turno:
         activity = await self._activity_repo.get_active_by_id(activity_id)
         if not activity:
@@ -103,7 +104,7 @@ class TurnoService:
             )
 
         turno = await self._turno_repo.create(
-            activity_id, description, instructor, start_time, end_time, capacity, price, month, year, days
+            activity_id, description, instructor, start_time, end_time, capacity, price, month, year, days, is_active
         )
 
         dates = _generate_dates(month, year, days)

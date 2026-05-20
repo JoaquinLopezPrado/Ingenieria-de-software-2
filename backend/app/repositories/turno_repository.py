@@ -44,6 +44,7 @@ class AbstractTurnoRepository(ABC):
         month: int,
         year: int,
         days: List[DiaSemana],
+        is_active: bool = False,
     ) -> Turno:
         raise NotImplementedError
 
@@ -118,6 +119,7 @@ class TurnoRepository(AbstractTurnoRepository):
         month: int,
         year: int,
         days: List[DiaSemana],
+        is_active: bool = False,
     ) -> Turno:
         orm = TurnoORM(
             activity_id=activity_id,
@@ -129,6 +131,7 @@ class TurnoRepository(AbstractTurnoRepository):
             price=price,
             month=month,
             year=year,
+            is_active=is_active,
         )
         self._session.add(orm)
         await self._session.flush()

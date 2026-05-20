@@ -40,7 +40,7 @@ async def list_turnos(
 ):
     items, total, page_size = await service.list(activity_id, has_availability, page)
     return TurnoPageResponse(
-        items=items,
+        items=[TurnoResponse.model_validate(t) for t in items],
         total=total,
         page=page,
         page_size=page_size,
@@ -70,4 +70,5 @@ async def create_turno(
         month=body.month,
         year=body.year,
         days=body.days,
+        is_active=body.is_active,
     )
