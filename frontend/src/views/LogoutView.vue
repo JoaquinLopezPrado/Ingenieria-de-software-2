@@ -68,7 +68,7 @@ async function confirmLogout() {
   setTimeout(async () => {
     try {
       await authStore.logout()
-      router.push('/login')
+      router.push('/')
     } catch (error) {
       console.error('ERROR en confirmLogout:', error)
       errorMessage.value = 'No se pudo cerrar sesión. Intentá nuevamente.'

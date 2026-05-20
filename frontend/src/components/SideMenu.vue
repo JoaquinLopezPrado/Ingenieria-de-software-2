@@ -20,7 +20,7 @@ const closeMenu = () => {
 const handleLogout = async () => {
   closeMenu()
   await authStore.logout()
-  router.push('/login')
+  router.push('/')
 }
 </script>
 

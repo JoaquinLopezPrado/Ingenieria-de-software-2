@@ -13,7 +13,7 @@ const handleRegister = async (userData: any) => {
   loading.value = true
   try {
     await authStore.register(userData)
-    router.push('/login')
+    router.push('/')
   } catch (err: any) {
     const message = err.response?.data?.errors?.general || 'Error en el registro'
     alert(message)
@@ -48,7 +48,7 @@ const handleGoogleRegister = async () => {
       <div class="auth-footer">
         <div class="signup-prompt">
           <span>¿Ya tienes cuenta?</span>
-          <router-link to="/login" class="link-accent">Inicia sesión</router-link>
+          <router-link to="/" class="link-accent">Inicia sesión</router-link>
         </div>
       </div>
     </div>

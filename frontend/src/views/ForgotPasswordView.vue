@@ -18,7 +18,7 @@ const handleForgotPassword = async (email: string) => {
     success.value = true
     // Redirigir a login después de 3 segundos
     setTimeout(() => {
-      router.push('/login')
+      router.push('/')
     }, 3000)
   } catch (err: any) {
     // El error se maneja en ForgotPasswordForm
