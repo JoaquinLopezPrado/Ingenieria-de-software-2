@@ -34,6 +34,7 @@ export interface SessionFormData {
 export interface ActivityOption {
   id: number
   name: string
+  description: string
   instructor: string
   is_active: boolean
 }

@@ -37,9 +37,9 @@ import { RouterLink } from 'vue-router'
           <a href="#" class="nav-item">
             <span class="nav-icon">◎</span> Alumnos
           </a>
-          <a href="#" class="nav-item">
+          <RouterLink to="/activities" class="nav-item" active-class="active">
             <span class="nav-icon">◈</span> Actividades
-          </a>
+          </RouterLink>
         </div>
 
         <div class="nav-group">

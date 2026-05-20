@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
 import EditTurnoView from '@/views/activities/EditTurnoView.vue'
+import ListaActividadesView from '@/views/activities/ListaActividadesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -57,6 +58,12 @@ const router = createRouter({
       path: '/payment/pending',
       name: 'payment-pending',
       component: () => import('../views/PaymentPendingView.vue'),
+    },
+    {
+      path: '/activities',
+      name: 'lista-actividades',
+      component: ListaActividadesView,
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/activities/turnos',
