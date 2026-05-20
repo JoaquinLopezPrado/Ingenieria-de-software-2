@@ -107,7 +107,7 @@ const router = createRouter({
       name: 'pagos',
       component: () => import('../views/PagosView.vue'),
     }
-  ],
+  ]
 })
 
 const publicRouteNames = new Set(['login', 'register', 'forgot-password'])
