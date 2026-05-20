@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # Enrollment
     enrollment_ttl_minutes: int = 2
 
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+
     @property
     def short_sha(self) -> str:
         """Deriva el hash corto de 7 caracteres."""

@@ -69,3 +69,50 @@ def decode_refresh_token(token: str) -> int:
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError) as e:
         raise ValueError from e
+
+
+def create_google_state_token() -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "type": "oauth_state",
+        "jti": str(uuid.uuid4()),
+        "iat": now,
+        "exp": now + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
+
+
+def verify_google_state_token(token: str) -> bool:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
+        return payload.get("type") == "oauth_state"
+    except jwt.PyJWTError:
+        return False
+
+
+def create_google_pending_token(google_id: str, email: str, first_name: str, last_name: str) -> str:
+    """Token de corta vida para completar el registro de un usuario nuevo de Google."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "type": "google_pending",
+        "google_id": google_id,
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "jti": str(uuid.uuid4()),
+        "iat": now,
+        "exp": now + timedelta(minutes=15),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
+
+
+def decode_google_pending_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
+    if payload.get("type") != "google_pending":
+        raise ValueError("Token type inválido")
+    return {
+        "google_id": payload["google_id"],
+        "email": payload["email"],
+        "first_name": payload["first_name"],
+        "last_name": payload["last_name"],
+    }

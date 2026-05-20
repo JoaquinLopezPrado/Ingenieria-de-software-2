@@ -4,6 +4,7 @@ from datetime import date
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 
 from app.domain.profile import Gender
+from app.domain.user import AuthProvider
 
 
 class Token(BaseModel):
@@ -79,6 +80,42 @@ class RegisterClientRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_document_number(self) -> "RegisterClientRequest":
+        if self.doc_type_name == "DNI":
+            if not self.doc_number.isdigit():
+                raise ValueError("El número de DNI ingresado no es válido.")
+        elif self.doc_type_name == "PASAPORTE":
+            if not re.search(r"[A-Za-z]", self.doc_number) or not self.doc_number.isalnum():
+                raise ValueError("El número de PASAPORTE ingresado no es válido.")
+        return self
+
+
+class GoogleCompleteRequest(BaseModel):
+    """Completa el registro de un usuario que inició con Google y aún le faltan datos."""
+    pending_token: str
+    phone: str
+    birth_date: date
+    gender: Gender
+    doc_type_name: str
+    doc_number: str
+
+    @field_validator("doc_type_name")
+    @classmethod
+    def validate_doc_type_name(cls, v: str) -> str:
+        if v not in ("DNI", "PASAPORTE"):
+            raise ValueError("El tipo de documento debe ser 'DNI' o 'PASAPORTE'.")
+        return v
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_age(cls, v: date) -> date:
+        today = date.today()
+        age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
+        if age < 18:
+            raise ValueError("Debe ser mayor de edad para registrarse.")
+        return v
+
+    @model_validator(mode="after")
+    def validate_document_number(self) -> "GoogleCompleteRequest":
         if self.doc_type_name == "DNI":
             if not self.doc_number.isdigit():
                 raise ValueError("El número de DNI ingresado no es válido.")

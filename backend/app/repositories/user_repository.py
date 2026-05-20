@@ -29,6 +29,10 @@ class AbstractUserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_by_google_id(self, google_id: str) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def increment_token_version(self, user_id: int) -> None:
         raise NotImplementedError
 
@@ -61,6 +65,15 @@ class UserRepository(AbstractUserRepository):
         await self._session.flush()
         await self._session.refresh(user, ["role", "client_profile"])
         return self._to_domain(user)
+
+    async def get_by_google_id(self, google_id: str) -> Optional[User]:
+        result = await self._session.execute(
+            select(UserORM)
+            .options(selectinload(UserORM.role))
+            .where(UserORM.google_id == google_id)
+        )
+        orm_user = result.scalar_one_or_none()
+        return self._to_domain(orm_user) if orm_user else None
 
     async def get_role_by_name(self, name: str) -> Optional[Role]:
         result = await self._session.execute(
