@@ -10,7 +10,7 @@ from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
 from app.repositories.turno_repository import TurnoRepository
-from app.schemas.turno import CreateTurnoRequest, TurnoPageResponse, TurnoResponse
+from app.schemas.turno import ClaseDetalleResponse, CreateTurnoRequest, TurnoPageResponse, TurnoResponse
 from app.services.turno_service import TurnoService
 
 router = APIRouter()
@@ -46,6 +46,19 @@ async def list_turnos(
         page_size=page_size,
         pages=math.ceil(total / page_size) if total > 0 else 1,
     )
+
+
+@router.get(
+    "/{turno_id}/clases",
+    response_model=list[ClaseDetalleResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_clases_by_turno(
+    turno_id: int,
+    _=require_roles("admin", "empleado", "cliente"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    return await service.list_clases_by_turno(turno_id)
 
 
 @router.post(

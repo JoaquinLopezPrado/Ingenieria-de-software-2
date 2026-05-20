@@ -15,6 +15,10 @@ from app.models.turno import Turno as TurnoORM, TurnoDia as TurnoDiaORM
 class AbstractTurnoRepository(ABC):
 
     @abstractmethod
+    async def get_by_id(self, turno_id: int) -> Optional[Turno]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_by_activity_month_year_description(
         self, activity_id: int, month: int, year: int, description: str
     ) -> Optional[Turno]:
@@ -88,6 +92,15 @@ class TurnoRepository(AbstractTurnoRepository):
             query.offset((page - 1) * page_size).limit(page_size)
         )
         return [self._to_domain(orm) for orm in result.scalars()], total
+
+    async def get_by_id(self, turno_id: int) -> Optional[Turno]:
+        result = await self._session.execute(
+            select(TurnoORM)
+            .options(selectinload(TurnoORM.days))
+            .where(TurnoORM.id == turno_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
 
     async def get_by_activity_month_year_description(
         self, activity_id: int, month: int, year: int, description: str

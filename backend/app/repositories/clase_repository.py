@@ -2,11 +2,13 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import List, Tuple
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.clase import Clase
+from app.domain.clase import Clase, ClaseDetalle
+from app.domain.enrollment import EnrollmentStatus
 from app.models.clase import Clase as ClaseORM
+from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as EnrollmentSlotORM
 from app.models.turno import Turno as TurnoORM
 
 
@@ -20,6 +22,10 @@ class AbstractClaseRepository(ABC):
     async def list_by_activity_and_months(
         self, activity_id: int, months: List[Tuple[int, int]]
     ) -> List[Clase]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
         raise NotImplementedError
 
 
@@ -51,6 +57,40 @@ class ClaseRepository(AbstractClaseRepository):
             .order_by(ClaseORM.date)
         )
         return [self._to_domain(orm) for orm in result.scalars()]
+
+    async def list_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
+        enrolled_subquery = (
+            select(func.count())
+            .select_from(EnrollmentSlotORM)
+            .join(EnrollmentORM, EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
+            .where(
+                EnrollmentSlotORM.clase_id == ClaseORM.id,
+                EnrollmentORM.status.in_([EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]),
+            )
+            .scalar_subquery()
+        )
+        result = await self._session.execute(
+            select(ClaseORM, TurnoORM.start_time, TurnoORM.end_time, enrolled_subquery.label("enrolled"))
+            .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+            )
+            .order_by(ClaseORM.date)
+        )
+        return [
+            ClaseDetalle(
+                id=row.Clase.id,
+                turno_id=row.Clase.turno_id,
+                date=row.Clase.date,
+                start_time=row.start_time,
+                end_time=row.end_time,
+                capacity=row.Clase.capacity,
+                enrolled=row.enrolled,
+                is_active=row.Clase.is_active,
+            )
+            for row in result
+        ]
 
     def _to_domain(self, orm: ClaseORM) -> Clase:
         return Clase(

@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import date, time
 from decimal import Decimal
 from typing import List
 
@@ -53,6 +53,23 @@ class CreateTurnoRequest(BaseModel):
         if self.end_time <= self.start_time:
             raise ValueError("La hora de fin debe ser posterior a la hora de inicio.")
         return self
+
+
+class ClaseDetalleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    turno_id: int
+    date: date
+    start_time: time
+    end_time: time
+    capacity: int
+    enrolled: int
+    is_active: bool
+
+    @field_serializer("start_time", "end_time")
+    def serialize_time(self, value: time) -> str:
+        return _format_time(value)
 
 
 class TurnoPageResponse(BaseModel):

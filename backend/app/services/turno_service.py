@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 
-from app.domain.clase import Clase
+from app.domain.clase import Clase, ClaseDetalle
 from app.domain.turno import DiaSemana, Turno
 from app.repositories.activity_repository import AbstractActivityRepository
 from app.repositories.clase_repository import AbstractClaseRepository
@@ -111,6 +111,15 @@ class TurnoService:
         await self._clase_repo.create_many(turno.id, dates, capacity)
 
         return turno
+
+    async def list_clases_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Turno no encontrado.",
+            )
+        return await self._clase_repo.list_by_turno(turno_id)
 
     async def list_clases_by_activity(self, activity_id: int) -> List[Clase]:
         activity = await self._activity_repo.get_active_by_id(activity_id)
