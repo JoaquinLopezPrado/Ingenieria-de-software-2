@@ -8,6 +8,8 @@ from app.schemas.enrollment import (
     CreateMonthlyEnrollmentRequest,
     CreateSingleEnrollmentRequest,
     EnrollmentResponse,
+    MyMonthlyEnrollmentResponse,
+    MySingleEnrollmentResponse,
 )
 from app.services.enrollment_service import EnrollmentService
 
@@ -44,3 +46,29 @@ async def create_single_enrollment(
 ):
     enrollment = await service.create_single(clase_id=body.clase_id, user_id=current_user.id)
     return EnrollmentResponse.model_validate(enrollment.__dict__)
+
+
+@router.get(
+    "/my/monthly",
+    response_model=list[MyMonthlyEnrollmentResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_my_monthly_enrollments(
+    current_user: User = Depends(get_current_user),
+    service: EnrollmentService = Depends(get_enrollment_service),
+):
+    items = await service.get_monthly_by_user(user_id=current_user.id)
+    return [MyMonthlyEnrollmentResponse.model_validate(e.__dict__) for e in items]
+
+
+@router.get(
+    "/my/single",
+    response_model=list[MySingleEnrollmentResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_my_single_enrollments(
+    current_user: User = Depends(get_current_user),
+    service: EnrollmentService = Depends(get_enrollment_service),
+):
+    items = await service.get_single_by_user(user_id=current_user.id)
+    return [MySingleEnrollmentResponse.model_validate(e.__dict__) for e in items]

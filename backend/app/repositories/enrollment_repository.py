@@ -5,9 +5,10 @@ from decimal import Decimal, ROUND_HALF_UP
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.domain.enrollment import Enrollment, EnrollmentStatus, EnrollmentType
+from app.domain.enrollment import Enrollment, EnrollmentStatus, EnrollmentType, MyMonthlyEnrollment, MySingleEnrollment
 from app.domain.payment import EnrollmentPaymentDetails
 from app.models.activity import Activity as ActivityORM
 from app.models.clase import Clase as ClaseORM
@@ -33,6 +34,14 @@ class AbstractEnrollmentRepository(ABC):
 
     @abstractmethod
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_monthly_by_user(self, user_id: int) -> list[MyMonthlyEnrollment]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_single_by_user(self, user_id: int) -> list[MySingleEnrollment]:
         raise NotImplementedError
 
 
@@ -73,6 +82,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 clases_con_cupo.append(clase)
             else:
                 clases_sin_cupo.append(clase)
+
+        if not clases_con_cupo:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Todas las clases futuras de este turno tienen el cupo completo.",
+            )
 
         precio_por_clase = Decimal(turno.price) / len(all_clases)
         amount = (precio_por_clase * len(clases_con_cupo)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -164,6 +179,77 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             .where(EnrollmentORM.id == enrollment_id)
             .values(status=new_status, payment_id=payment_id)
         )
+
+    # ------------------------------------------------------------------ #
+    # Consultas por usuario                                                #
+    # ------------------------------------------------------------------ #
+
+    async def get_monthly_by_user(self, user_id: int) -> list[MyMonthlyEnrollment]:
+        result = await self._session.execute(
+            select(EnrollmentORM)
+            .options(
+                selectinload(EnrollmentORM.turno).selectinload(TurnoORM.activity),
+                selectinload(EnrollmentORM.turno).selectinload(TurnoORM.days),
+            )
+            .where(
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.enrollment_type == EnrollmentType.MONTHLY,
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+            )
+            .order_by(EnrollmentORM.created_at.desc())
+        )
+        return [
+            MyMonthlyEnrollment(
+                enrollment_id=e.id,
+                status=e.status,
+                amount=e.amount,
+                expires_at=e.expires_at,
+                created_at=e.created_at,
+                turno_id=e.turno.id,
+                turno_description=e.turno.description,
+                month=e.turno.month,
+                year=e.turno.year,
+                start_time=e.turno.start_time,
+                end_time=e.turno.end_time,
+                instructor=e.turno.instructor,
+                activity_name=e.turno.activity.name,
+                days=[d.dia for d in e.turno.days],
+            )
+            for e in result.scalars()
+        ]
+
+    async def get_single_by_user(self, user_id: int) -> list[MySingleEnrollment]:
+        result = await self._session.execute(
+            select(EnrollmentORM)
+            .options(
+                selectinload(EnrollmentORM.slots).selectinload(EnrollmentSlotORM.clase),
+                selectinload(EnrollmentORM.turno).selectinload(TurnoORM.activity),
+            )
+            .where(
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.enrollment_type == EnrollmentType.SINGLE,
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+            )
+            .order_by(EnrollmentORM.created_at.desc())
+        )
+        enrollments = []
+        for e in result.scalars():
+            clase = e.slots[0].clase
+            enrollments.append(MySingleEnrollment(
+                enrollment_id=e.id,
+                status=e.status,
+                amount=e.amount,
+                expires_at=e.expires_at,
+                created_at=e.created_at,
+                clase_id=clase.id,
+                clase_date=clase.date,
+                start_time=e.turno.start_time,
+                end_time=e.turno.end_time,
+                turno_description=e.turno.description,
+                instructor=e.turno.instructor,
+                activity_name=e.turno.activity.name,
+            ))
+        return enrollments
 
     # ------------------------------------------------------------------ #
     # Helpers de lock y validación                                         #

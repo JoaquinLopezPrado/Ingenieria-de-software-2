@@ -29,6 +29,7 @@ class Turno:
         year: int,
         is_active: bool,
         days: List[DiaSemana],
+        enrolled: int = 0,
     ):
         self.id = id
         self.activity_id = activity_id
@@ -42,3 +43,4 @@ class Turno:
         self.year = year
         self.is_active = is_active
         self.days = days
+        self.enrolled = enrolled

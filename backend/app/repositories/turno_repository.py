@@ -7,9 +7,13 @@ from sqlalchemy import exists, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.domain.enrollment import EnrollmentStatus, EnrollmentType
 from app.domain.turno import DiaSemana, Turno
 from app.models.clase import Clase as ClaseORM
+from app.models.enrollment import Enrollment as EnrollmentORM
 from app.models.turno import Turno as TurnoORM, TurnoDia as TurnoDiaORM
+
+_MONTHLY_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
 
 
 class AbstractTurnoRepository(ABC):
@@ -66,32 +70,46 @@ class TurnoRepository(AbstractTurnoRepository):
         page: int,
         page_size: int,
     ) -> Tuple[List[Turno], int]:
-        query = (
+        base = (
             select(TurnoORM)
-            .options(selectinload(TurnoORM.days))
             .where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
             .order_by(TurnoORM.year, TurnoORM.month)
         )
 
         if activity_id is not None:
-            query = query.where(TurnoORM.activity_id == activity_id)
+            base = base.where(TurnoORM.activity_id == activity_id)
 
         if has_availability is not None:
             clase_exists = exists().where(
                 ClaseORM.turno_id == TurnoORM.id,
                 ClaseORM.is_active == True,
             )
-            query = query.where(clase_exists if has_availability else ~clase_exists)
+            base = base.where(clase_exists if has_availability else ~clase_exists)
 
-        count_result = await self._session.execute(
-            select(func.count()).select_from(query.subquery())
-        )
-        total = count_result.scalar_one()
+        total = (await self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        )).scalar_one()
 
-        result = await self._session.execute(
-            query.offset((page - 1) * page_size).limit(page_size)
+        enrolled_subq = (
+            select(func.count(EnrollmentORM.id))
+            .where(
+                EnrollmentORM.turno_id == TurnoORM.id,
+                EnrollmentORM.enrollment_type == EnrollmentType.MONTHLY,
+                EnrollmentORM.status.in_(_MONTHLY_ACTIVE_STATUSES),
+            )
+            .correlate(TurnoORM)
+            .scalar_subquery()
         )
-        return [self._to_domain(orm) for orm in result.scalars()], total
+
+        rows = (await self._session.execute(
+            base
+            .options(selectinload(TurnoORM.days))
+            .add_columns(enrolled_subq.label("enrolled"))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )).all()
+
+        return [self._to_domain(orm, enrolled) for orm, enrolled in rows], total
 
     async def get_by_id(self, turno_id: int) -> Optional[Turno]:
         result = await self._session.execute(
@@ -155,7 +173,7 @@ class TurnoRepository(AbstractTurnoRepository):
         await self._session.refresh(orm, ["days"])
         return self._to_domain(orm)
 
-    def _to_domain(self, orm: TurnoORM) -> Turno:
+    def _to_domain(self, orm: TurnoORM, enrolled: int = 0) -> Turno:
         return Turno(
             id=orm.id,
             activity_id=orm.activity_id,
@@ -169,4 +187,5 @@ class TurnoRepository(AbstractTurnoRepository):
             year=orm.year,
             is_active=orm.is_active,
             days=[DiaSemana(dia_orm.dia) for dia_orm in orm.days],
+            enrolled=enrolled,
         )
