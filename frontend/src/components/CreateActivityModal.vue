@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 
 type CreateActivityPayload = {
   name: string
-  instructor: string
+  description: string
 }
 
 const props = defineProps<{
@@ -18,13 +18,13 @@ const emit = defineEmits<{
 
 const form = ref<CreateActivityPayload>({
   name: '',
-  instructor: '',
+  description: '',
 })
 
 const error = ref('')
 
 const resetForm = () => {
-  form.value = { name: '', instructor: '' }
+  form.value = { name: '', description: '' }
   error.value = ''
 }
 
@@ -37,10 +37,10 @@ watch(
 
 const handleSubmit = () => {
   const name = form.value.name.trim()
-  const instructor = form.value.instructor.trim()
+  const description = form.value.description.trim()
 
-  if (!name || !instructor) {
-    error.value = 'Completa nombre e instructor'
+  if (!name || !description) {
+    error.value = 'Completa nombre y descripción'
     return
   }
 
@@ -49,13 +49,13 @@ const handleSubmit = () => {
     return
   }
 
-  if (instructor.length > 200) {
-    error.value = 'El instructor no puede superar 200 caracteres'
+  if (description.length > 500) {
+    error.value = 'La descripción no puede superar 500 caracteres'
     return
   }
 
   error.value = ''
-  emit('submit', { name, instructor })
+  emit('submit', { name, description })
 }
 
 const closeModal = () => {
@@ -85,15 +85,15 @@ const closeModal = () => {
         </div>
 
         <div class="form-group">
-          <label class="custom-label" for="activity-instructor">Instructor</label>
-          <input
-            id="activity-instructor"
-            v-model="form.instructor"
-            type="text"
-            class="input-field"
-            placeholder="Ej: Juan Perez"
+          <label class="custom-label" for="activity-description">Descripción</label>
+          <textarea
+            id="activity-description"
+            v-model="form.description"
+            class="input-field input-textarea"
+            placeholder="Ej: Actividad funcional enfocada en fuerza y cardio"
             :disabled="loading"
-          />
+            rows="4"
+          ></textarea>
         </div>
 
         <div v-if="error" class="error-message">
@@ -183,6 +183,12 @@ const closeModal = () => {
   border-radius: 12px;
   font-size: 14px;
   transition: all 0.2s ease;
+}
+
+.input-textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
 }
 
 .input-field:focus {

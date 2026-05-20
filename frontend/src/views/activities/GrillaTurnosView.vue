@@ -2,12 +2,15 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
+import CreateActivityModal from '@/components/CreateActivityModal.vue'
 import {
+  createActivity,
   getTurnos,
   getAllActivities,
   extractBackendError,
   type Turno,
   type ActivityOption,
+  type CreateActivityPayload,
 } from '@/services/sessionService'
 
 // ─── Estado principal ──────────────────────────────────────────────────────────
@@ -17,6 +20,8 @@ const allActivities = ref<ActivityOption[]>([])
 const activityMap = ref<Map<number, string>>(new Map())
 const instructorMap = ref<Map<number, string>>(new Map())
 const isLoading = ref(true)
+const isCreateActivityVisible = ref(false)
+const isCreatingActivity = ref(false)
 const errorMessage = ref('')
 const errorType = ref<'auth' | 'forbidden' | 'generic' | null>(null)
 
@@ -62,7 +67,7 @@ const currentPage = ref(1)
 const instructorOptions = computed(() => {
   const seen = new Set<string>()
   const opts: string[] = []
-  allActivities.value.forEach(a => {
+  allActivities.value.forEach((a: ActivityOption) => {
     if (a.instructor && !seen.has(a.instructor)) {
       seen.add(a.instructor)
       opts.push(a.instructor)
@@ -74,29 +79,29 @@ const instructorOptions = computed(() => {
 // ─── Filtrado (client-side) ───────────────────────────────────────────────────
 
 const filteredTurnos = computed(() => {
-  let result = allTurnos.value
+  let result: Turno[] = allTurnos.value
 
   if (filterActivity.value !== '') {
-    result = result.filter(t => t.activity_id === filterActivity.value)
+    result = result.filter((t: Turno) => t.activity_id === filterActivity.value)
   }
 
   if (filterDays.value.length > 0) {
-    result = result.filter(t =>
-      filterDays.value.some(d => t.days.includes(d))
+    result = result.filter((t: Turno) =>
+      filterDays.value.some((d: string) => t.days.includes(d))
     )
   }
 
   if (filterInstructor.value) {
     const ids = allActivities.value
-      .filter(a => a.instructor === filterInstructor.value)
-      .map(a => a.id)
-    result = result.filter(t => ids.includes(t.activity_id))
+      .filter((a: ActivityOption) => a.instructor === filterInstructor.value)
+      .map((a: ActivityOption) => a.id)
+    result = result.filter((t: Turno) => ids.includes(t.activity_id))
   }
 
   if (filterAvailability.value === 'active') {
-    result = result.filter(t => t.is_active)
+    result = result.filter((t: Turno) => t.is_active)
   } else if (filterAvailability.value === 'inactive') {
-    result = result.filter(t => !t.is_active)
+    result = result.filter((t: Turno) => !t.is_active)
   }
 
   return result
@@ -175,6 +180,38 @@ function clearFilters() {
   currentPage.value = 1
 }
 
+function clearErrorMessage() {
+  errorMessage.value = ''
+}
+
+function openCreateActivityModal() {
+  isCreateActivityVisible.value = true
+}
+
+function closeCreateActivityModal() {
+  isCreateActivityVisible.value = false
+}
+
+async function refreshActivities() {
+  const activities = await getAllActivities()
+  allActivities.value = activities
+  activityMap.value = new Map(activities.map(a => [a.id, a.name]))
+  instructorMap.value = new Map(activities.map(a => [a.id, a.instructor]))
+}
+
+async function handleCreateActivity(payload: CreateActivityPayload) {
+  isCreatingActivity.value = true
+  try {
+    await createActivity(payload)
+    await refreshActivities()
+    closeCreateActivityModal()
+  } catch (error) {
+    errorMessage.value = extractBackendError(error)
+  } finally {
+    isCreatingActivity.value = false
+  }
+}
+
 function goToPage(page: number | '...') {
   if (typeof page === 'number') currentPage.value = page
 }
@@ -232,6 +269,24 @@ onMounted(async () => {
           <span class="btn-icon">+</span>
           Programar nuevo turno
         </RouterLink>
+      </div>
+
+      <transition name="fade">
+        <div v-if="errorMessage && !errorType" class="alert alert-error" role="alert">
+          <span class="alert-icon error-icon">!</span>
+          <span>{{ errorMessage }}</span>
+          <button class="alert-close" @click="clearErrorMessage" aria-label="Cerrar">×</button>
+        </div>
+      </transition>
+
+      <div v-if="!errorType" class="page-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          @click="openCreateActivityModal"
+        >
+          + Nueva actividad
+        </button>
       </div>
 
       <!-- ── Panel de filtros ── -->
@@ -442,6 +497,13 @@ onMounted(async () => {
         </div>
       </div>
 
+      <CreateActivityModal
+        :visible="isCreateActivityVisible"
+        :loading="isCreatingActivity"
+        @close="closeCreateActivityModal"
+        @submit="handleCreateActivity"
+      />
+
     </div>
   </AdminLayout>
 </template>
@@ -473,6 +535,66 @@ onMounted(async () => {
   color: #6b7280;
   font-size: 0.88rem;
   margin: 0;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+/* ── Alertas ── */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.alert-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.error-icon {
+  background-color: #dc2626;
+  color: white;
+}
+
+.alert-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.5;
+  padding: 0 0.2rem;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.alert-close:hover {
+  opacity: 1;
 }
 
 /* ── Botones globales ── */

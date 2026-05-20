@@ -39,6 +39,11 @@ export interface ActivityOption {
   is_active: boolean
 }
 
+export interface CreateActivityPayload {
+  name: string
+  description: string
+}
+
 export interface Turno {
   id: number
   activity_id: number
@@ -68,12 +73,12 @@ export interface TurnoPageResponse {
  * Backend: app/domain/turno.py → DiaSemana (lowercase, sin tildes)
  */
 const DAY_TO_BACKEND: Record<string, string> = {
-  'Lunes':     'lunes',
-  'Martes':    'martes',
+  'Lunes': 'lunes',
+  'Martes': 'martes',
   'Miércoles': 'miercoles',
-  'Jueves':    'jueves',
-  'Viernes':   'viernes',
-  'Sábado':    'sabado',
+  'Jueves': 'jueves',
+  'Viernes': 'viernes',
+  'Sábado': 'sabado',
 }
 
 // ─── Funciones ────────────────────────────────────────────────────────────────
@@ -111,16 +116,16 @@ export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }
  */
 export const createSession = async (formData: SessionFormData): Promise<{ message: string }> => {
   const payload = {
-    activity_id:  formData.activity_id,
-    description:  formData.description,
-    start_time:   formData.startTime,
-    end_time:     formData.endTime,
-    capacity:     formData.maxCapacity,
-    month:        formData.month,
-    year:         formData.year,
-    days:         formData.days.map(d => DAY_TO_BACKEND[d]),
-    is_active:    formData.is_active,
-    price:        formData.price,
+    activity_id: formData.activity_id,
+    description: formData.description,
+    start_time: formData.startTime,
+    end_time: formData.endTime,
+    capacity: formData.maxCapacity,
+    month: formData.month,
+    year: formData.year,
+    days: formData.days.map(d => DAY_TO_BACKEND[d]),
+    is_active: formData.is_active,
+    price: formData.price,
     instructor: 'A', // temporal hasta que el back lo resuelva
   }
 
@@ -151,6 +156,17 @@ export const getTurnos = async (params?: {
  */
 export const getAllActivities = async (): Promise<ActivityOption[]> => {
   const res = await api.get('/activities')
+  return res.data
+}
+
+/**
+ * Crea una nueva actividad desde POST /api/v1/activities.
+ * Requiere rol admin.
+ */
+export const createActivity = async (
+  payload: CreateActivityPayload
+): Promise<{ message?: string }> => {
+  const res = await api.post('/activities', payload)
   return res.data
 }
 
