@@ -321,6 +321,7 @@ const handleInscripcion = async (turno) => {
         numero:             data.id,
         amount:             data.amount,
         clases_excluidas:   data.excluded_clase_ids?.length ?? 0,
+        expires_at:         data.expires_at,
       },
     })
   } catch (err) {

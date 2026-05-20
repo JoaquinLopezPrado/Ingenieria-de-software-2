@@ -136,6 +136,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 EnrollmentORM.amount,
                 ActivityORM.name,
                 TurnoORM.description,
+                EnrollmentORM.expires_at,
             )
             .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
             .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
@@ -154,6 +155,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             price=row[3],
             activity_name=row[4],
             turno_description=row[5],
+            expires_at=row[6],
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> None:

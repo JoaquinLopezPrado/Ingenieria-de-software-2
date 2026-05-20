@@ -48,6 +48,7 @@ class PaymentService:
             "external_reference": str(enrollment_id),
             # auto_return requiere URL pública; se activa solo en producción
             **({"auto_return": "approved"} if not settings.debug else {}),
+            **({"expiration_date_to": details.expires_at.isoformat()} if details.expires_at else {}),
         }
         if settings.mp_notification_url:
             preference_data["notification_url"] = settings.mp_notification_url

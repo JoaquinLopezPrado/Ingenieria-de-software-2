@@ -105,9 +105,23 @@
         </div>
       </div>
  
+      <!-- Contador de tiempo -->
+      <div v-if="route.query.expires_at && !expirado" :class="['countdown', { urgente: countdownUrgente }]">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Tiempo para pagar: <strong>{{ countdown }}</strong>
+      </div>
+      <div v-else-if="expirado" class="countdown expirado">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        El tiempo para pagar expiró. Tu reserva fue liberada.
+      </div>
+
       <!-- Botones -->
       <div class="botones">
-        <button class="btn-mp" :disabled="pagando" @click="pagar">
+        <button class="btn-mp" :disabled="pagando || expirado" @click="pagar">
           {{ pagando ? 'Redirigiendo...' : 'Pagar con Mercado Pago' }}
         </button>
         <button class="btn-volver" @click="router.push({ name: 'list' })">
@@ -122,20 +136,54 @@
 </template>
  
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { enrollmentService } from '@/services/enrollmentService'
 
 const route  = useRoute()
 const router = useRouter()
 
-const pagando = ref(false)
+const pagando  = ref(false)
+const expirado = ref(false)
+const segundosRestantes = ref(0)
+let intervalo = null
 
 const fechaHoy = new Date().toLocaleDateString('es-AR', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
 })
 
+const countdown = computed(() => {
+  const s = segundosRestantes.value
+  const mm = String(Math.floor(s / 60)).padStart(2, '0')
+  const ss = String(s % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+})
+
+const countdownUrgente = computed(() => segundosRestantes.value <= 60)
+
+onMounted(() => {
+  const raw = route.query.expires_at
+  if (!raw) return
+
+  const deadline = new Date(raw).getTime()
+
+  const tick = () => {
+    const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000))
+    segundosRestantes.value = remaining
+    if (remaining === 0) {
+      expirado.value = true
+      clearInterval(intervalo)
+    }
+  }
+
+  tick()
+  intervalo = setInterval(tick, 1000)
+})
+
+onUnmounted(() => clearInterval(intervalo))
+
 const pagar = async () => {
+  if (expirado.value) return
   const enrollmentId = Number(route.query.enrollment_id)
   if (!enrollmentId) return
 
@@ -248,4 +296,28 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
   cursor: pointer; transition: all 0.2s ease;
 }
 .btn-inicio:hover { background: #00695C; }
+.btn-mp:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.countdown {
+  display: flex; align-items: center; gap: 7px;
+  width: 100%; padding: 10px 14px;
+  border-radius: 10px; font-size: 14px; font-weight: 500;
+  background: #E0F2F1; color: #00695C;
+  border: 1px solid #B2DFDB;
+  margin-top: 20px; margin-bottom: 14px;
+}
+.countdown.urgente {
+  background: #FFF3E0; color: #E65100;
+  border-color: #FFCC80;
+  animation: pulso 1s ease-in-out infinite;
+}
+.countdown.expirado {
+  background: #FFEBEE; color: #C62828;
+  border-color: #FFCDD2;
+  animation: none;
+}
+@keyframes pulso {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
 </style>
