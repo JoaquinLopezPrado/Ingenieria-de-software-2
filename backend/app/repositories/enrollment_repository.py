@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.domain.enrollment import Enrollment, EnrollmentStatus, EnrollmentType
 from app.domain.payment import EnrollmentPaymentDetails
 from app.models.activity import Activity as ActivityORM
@@ -14,7 +15,6 @@ from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as
 from app.models.turno import Turno as TurnoORM
 
 _ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
-_TTL_MINUTES = 10
 
 
 class AbstractEnrollmentRepository(ABC):
@@ -83,7 +83,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             enrollment_type=EnrollmentType.MONTHLY,
             amount=amount,
             status=EnrollmentStatus.PENDING,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=_TTL_MINUTES),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
         )
         self._session.add(enrollment_orm)
         await self._session.flush()
@@ -113,7 +113,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             enrollment_type=EnrollmentType.SINGLE,
             amount=precio_por_clase,
             status=EnrollmentStatus.PENDING,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=_TTL_MINUTES),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
         )
         self._session.add(enrollment_orm)
         await self._session.flush()

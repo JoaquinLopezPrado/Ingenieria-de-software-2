@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta, timezone
 from functools import partial
 
 import mercadopago
@@ -7,6 +8,18 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.domain.enrollment import EnrollmentStatus
 from app.repositories.enrollment_repository import AbstractEnrollmentRepository
+
+
+_ART = timezone(timedelta(hours=-3))
+
+
+def _mp_isoformat(dt) -> str:
+    """Formatea datetime al formato que espera MP: 'YYYY-MM-DDTHH:MM:SS.000-03:00'.
+    Si asyncpg devuelve naive (sin tzinfo) asumimos UTC antes de convertir a ART."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_ART).strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
+
 
 _MP_STATUS_MAP = {
     "approved": EnrollmentStatus.CONFIRMED,
@@ -48,7 +61,7 @@ class PaymentService:
             "external_reference": str(enrollment_id),
             # auto_return requiere URL pública; se activa solo en producción
             **({"auto_return": "approved"} if not settings.debug else {}),
-            **({"expiration_date_to": details.expires_at.isoformat()} if details.expires_at else {}),
+            **({"date_of_expiration": _mp_isoformat(details.expires_at)} if details.expires_at else {}),
         }
         if settings.mp_notification_url:
             preference_data["notification_url"] = settings.mp_notification_url

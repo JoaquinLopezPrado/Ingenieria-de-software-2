@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     mp_frontend_url: str = "http://localhost:5173"
     mp_notification_url: Optional[str] = None
 
+    # Enrollment
+    enrollment_ttl_minutes: int = 2
+
     @property
     def short_sha(self) -> str:
         """Deriva el hash corto de 7 caracteres."""
