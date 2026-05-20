@@ -65,7 +65,6 @@ class TurnoRepository(AbstractTurnoRepository):
         query = (
             select(TurnoORM)
             .options(selectinload(TurnoORM.days))
-            .where(TurnoORM.is_active == True)
             .where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
             .order_by(TurnoORM.year, TurnoORM.month)
         )
