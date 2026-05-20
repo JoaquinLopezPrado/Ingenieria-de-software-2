@@ -20,11 +20,12 @@ defineProps<{
 .page-wrapper {
   padding: 80px 16px 24px 16px;
   min-height: 100vh;
-  background-color: #f8fbfb;
+  background-color: #dff8f2;
 }
 
 .header-section {
   margin-bottom: 24px;
+  text-align: center;
 }
 
 .header-section h2 {
@@ -38,15 +39,20 @@ defineProps<{
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .page-wrapper {
-    padding: 40px 40px 40px 340px;
+    padding: 100px 24px 40px 24px;
   }
 
-  .list-container {
-    max-width: 600px;
+  .header-section {
+    margin-bottom: 32px;
+  }
+
+  .header-section h2 {
+    font-size: 32px;
   }
 }
 </style>

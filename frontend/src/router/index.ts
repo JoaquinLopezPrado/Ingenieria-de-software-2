@@ -96,6 +96,16 @@ const router = createRouter({
       path: '/list',
       name: 'list',
       component: () => import('../views/ShowActivitisView.vue'),
+    },
+    {
+      path: '/asistencias',
+      name: 'asistencias',
+      component: () => import('../views/AsistenciasView.vue'),
+    },
+    {
+      path: '/pagos',
+      name: 'pagos',
+      component: () => import('../views/PagosView.vue'),
     }
   ],
 })
