@@ -23,18 +23,12 @@
       <p class="subtitle">Elegí tu actividad y reservá tu lugar en el turno que más te convenga.</p>
  
       <!-- Tabs -->
-      <div class="tab-bar">
-        <button
-          v-for="tab in tabs"
-          :key="tab"
-          class="tab-btn"
-          :class="{ active: currentTab === tab }"
-          @click="currentTab = tab"
-        >
-          <span v-html="tabIcons[tab]" class="tab-icon"></span>
+      <ActivitiesBar v-model="currentTab">
+        <ActivityBtn v-for="tab in tabs" :key="tab" :value="tab">
+          <span v-html="tabIcons[tab]" class="tab-icon" />
           {{ tab }}
-        </button>
-      </div>
+        </ActivityBtn>
+      </ActivitiesBar>
 
       <div v-if="loading">
         Cargando turnos...
@@ -188,24 +182,27 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { enrollmentService } from '@/services/enrollmentService'
 import { turnoService } from '@/services/turnoService'
+import { getFormOptions } from '@/services/sessionService'
+import ActivitiesBar from '@/components/ui/ActivitiesBar.vue'
+import ActivityBtn from '@/components/ui/ActivityBtn.vue'
+import { ACTIVITY_ICONS, DEFAULT_ACTIVITY_ICON } from '@/constants/activityIcons'
 
 const router = useRouter()
 
-const tabs = ['Pilates', 'Yoga', 'Funcional']
-const currentTab = ref('Pilates')
+const activities = ref([])
+const tabs = computed(() => activities.value.map(a => a.name))
+const currentTab = ref('')
 const inscriptos = ref(new Set())
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
- 
+
 const loading = ref(false)
 const turnos = ref([])
 
-const tabIcons = {
-  Pilates: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l-3 3m3-3 3 3M8 21l1.5-4M16 21l-1.5-4"/></svg>`,
-  Yoga: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v4M9 10c-2 2-3 4-2 6M15 10c2 2 3 4 2 6M7 16c2 2 5 3 5 3s3-1 5-3"/></svg>`,
-  Funcional: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/></svg>`,
-}
+const tabIcons = computed(() =>
+  Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON]))
+)
 
 const nivelColors = {
   Principiante: {
@@ -226,30 +223,25 @@ const nivelColors = {
   },
 }
 
-const getActividad = (activityId) => {
-  switch (activityId) {
-    case 1:
-      return 'Pilates'
-    case 2:
-      return 'Yoga'
-    case 3:
-      return 'Funcional'
-    default:
-      return 'Actividad'
-  }
-}
-
-const fetchTurnos = async () => {
+onMounted(async () => {
   try {
     loading.value = true
 
-    const response = await turnoService.getTurnos()
-    const items = response.data.items || []
+    const [{ activities: acts }, turnosRes] = await Promise.all([
+      getFormOptions(),
+      turnoService.getTurnos(),
+    ])
+
+    activities.value = acts
+    if (acts.length > 0) currentTab.value = acts[0].name
+
+    const nameMap = new Map(acts.map(a => [a.id, a.name]))
+    const items = turnosRes.data.items || []
 
     turnos.value = items.map((turno) => ({
       id: turno.id,
       activityId: turno.activity_id,
-      actividad: getActividad(turno.activity_id),
+      actividad: nameMap.get(turno.activity_id) ?? `Actividad #${turno.activity_id}`,
       dia: turno.days?.join(' / ') || 'Sin días',
       hora: turno.start_time,
       horaFin: turno.end_time,
@@ -261,14 +253,10 @@ const fetchTurnos = async () => {
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
     }))
   } catch (error) {
-    console.error('Error al obtener turnos', error)
+    console.error('Error al cargar actividades o turnos', error)
   } finally {
     loading.value = false
   }
-}
-
-onMounted(() => {
-  fetchTurnos()
 })
 
 const currentTurnos = computed(() => {
@@ -371,6 +359,7 @@ const goToClassSelection = (turno) => {
 
 <style scoped>
 * { box-sizing: border-box; }
+.tab-icon { display: flex; align-items: center; }
 .page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; }
 .header { background: #fff; border-bottom: 1px solid #E0F2F1; padding: 0 24px; box-shadow: 0 2px 12px rgba(0,137,123,0.08); }
 .header-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 60px; }
@@ -381,10 +370,6 @@ const goToClassSelection = (turno) => {
 .main { max-width: 900px; margin: 0 auto; padding: 28px 16px 60px; }
 h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-spacing: -0.5px; }
 .subtitle { font-size: 14px; color: #607D8B; margin: 0 0 24px; }
-.tab-bar { display: flex; gap: 8px; background: #fff; padding: 5px; border-radius: 99px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); width: fit-content; margin-bottom: 22px; }
-.tab-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 99px; border: none; background: transparent; color: #78909C; font-weight: 500; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
-.tab-btn.active { background: #00897B; color: #fff; font-weight: 700; }
-.tab-icon { display: flex; align-items: center; }
 .badges { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 .badge { background: #fff; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border: 1px solid #E0F2F1; }
 .badge-num { font-size: 22px; font-weight: 800; }
@@ -528,51 +513,6 @@ h1 {
   margin: 0 0 32px;
   max-width: 620px;
   line-height: 1.5;
-}
-
-/* TABS */
-
-.tab-bar {
-  display: flex;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(10px);
-  padding: 6px;
-  border-radius: 999px;
-  width: fit-content;
-  margin-bottom: 28px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 20px;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: #78909c;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.tab-btn:hover {
-  background: rgba(0, 137, 123, 0.08);
-}
-
-.tab-btn.active {
-  background: #00897b;
-  color: white;
-  font-weight: 700;
-  box-shadow: 0 6px 14px rgba(0, 137, 123, 0.25);
-}
-
-.tab-icon {
-  display: flex;
-  align-items: center;
 }
 
 /* BADGES */
@@ -866,15 +806,5 @@ h1 {
     width: 100%;
   }
 
-  .tab-bar {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .tab-btn {
-    flex: 1;
-    justify-content: center;
-    white-space: nowrap;
-  }
 }
 </style>
