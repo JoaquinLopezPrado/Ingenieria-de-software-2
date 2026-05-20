@@ -226,3 +226,6 @@ alembic/__pycache__/
 alembic/versions/__pycache__/
 *.pyc
 .ngrok.env.local
+
+# Saco los md que subieron 
+CLAUDE.md
