@@ -82,7 +82,7 @@ const router = createRouter({
       component: EditTurnoView,
       meta: { requiresAuth: true },
     },
-    {  
+    {
       path: '/logout',
       name: 'logout',
       component: () => import('../views/LogoutView.vue'),
@@ -98,6 +98,24 @@ const router = createRouter({
       component: () => import('../views/ShowActivitisView.vue'),
     }
   ],
+})
+
+const publicRouteNames = new Set(['login', 'register', 'forgot-password'])
+
+router.beforeEach((to) => {
+  const hasAccessToken = Boolean(localStorage.getItem('access_token'))
+  const isPublicRoute = typeof to.name === 'string' && publicRouteNames.has(to.name)
+
+  if (!hasAccessToken && !isPublicRoute) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  if (hasAccessToken && isPublicRoute) {
+    return { name: 'home' }
+  }
 })
 
 export default router

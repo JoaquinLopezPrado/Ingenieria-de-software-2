@@ -30,7 +30,7 @@ const resetForm = () => {
 
 watch(
   () => props.visible,
-  (isVisible) => {
+  (isVisible: boolean) => {
     if (isVisible) resetForm()
   }
 )

@@ -18,7 +18,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getAllActivities, type ActivityOption } from '@/services/sessionService'
+import CreateActivityModal from '@/components/CreateActivityModal.vue'
+import {
+  createActivity,
+  getAllActivities,
+  extractBackendError,
+  type ActivityOption,
+  type CreateActivityPayload,
+} from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 
 const router   = useRouter()
@@ -37,6 +44,9 @@ const isAdmin = computed(() => {
 const activities  = ref<ActivityOption[]>([])
 const isLoading   = ref(true)
 const loadError   = ref('')
+const createError = ref('')
+const isCreateActivityVisible = ref(false)
+const isCreatingActivity = ref(false)
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 
@@ -89,6 +99,34 @@ const rangeLabel = computed(() => {
 // Resetear página cuando cambian los filtros
 function resetPage() { currentPage.value = 1 }
 
+function openCreateActivityModal() {
+  createError.value = ''
+  isCreateActivityVisible.value = true
+}
+
+function closeCreateActivityModal() {
+  isCreateActivityVisible.value = false
+}
+
+async function refreshActivities() {
+  activities.value = await getAllActivities()
+}
+
+async function handleCreateActivity(payload: CreateActivityPayload) {
+  isCreatingActivity.value = true
+  createError.value = ''
+
+  try {
+    await createActivity(payload)
+    await refreshActivities()
+    closeCreateActivityModal()
+  } catch (error) {
+    createError.value = extractBackendError(error)
+  } finally {
+    isCreatingActivity.value = false
+  }
+}
+
 // ─── Carga inicial ────────────────────────────────────────────────────────────
 
 onMounted(async () => {
@@ -105,11 +143,6 @@ onMounted(async () => {
   }
 })
 
-// ─── Navegación ───────────────────────────────────────────────────────────────
-
-function goToCreate() {
-  router.push({ name: 'crear-actividad' })
-}
 </script>
 
 <template>
@@ -122,10 +155,18 @@ function goToCreate() {
           <h1 class="page-title">Actividades</h1>
           <p class="page-subtitle">Gestión de la oferta de actividades del centro</p>
         </div>
-        <button class="btn-primary" @click="goToCreate">
+        <button class="btn-primary" @click="openCreateActivityModal">
           + Crear nueva actividad
         </button>
       </div>
+
+      <transition name="fade">
+        <div v-if="createError" class="alert alert-error" role="alert">
+          <span class="alert-icon error-icon">!</span>
+          <span>{{ createError }}</span>
+          <button class="alert-close" @click="createError = ''" aria-label="Cerrar">×</button>
+        </div>
+      </transition>
 
       <!-- ── Escenario 3: Sin permisos ── -->
       <div v-if="!isAdmin || loadError === '__forbidden__'" class="state-card state-forbidden">
@@ -292,6 +333,13 @@ function goToCreate() {
         </template>
       </template>
 
+      <CreateActivityModal
+        :visible="isCreateActivityVisible"
+        :loading="isCreatingActivity"
+        @close="closeCreateActivityModal"
+        @submit="handleCreateActivity"
+      />
+
     </div>
   </AdminLayout>
 </template>
@@ -323,6 +371,60 @@ function goToCreate() {
   color: #6b7280;
   font-size: 0.88rem;
   margin: 0;
+}
+
+/* ── Alertas ── */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.alert-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.error-icon {
+  background-color: #dc2626;
+  color: white;
+}
+
+.alert-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.5;
+  padding: 0 0.2rem;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.alert-close:hover {
+  opacity: 1;
 }
 
 /* ── Botones ── */
