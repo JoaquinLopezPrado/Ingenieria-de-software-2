@@ -5,7 +5,7 @@ import { authService } from '@/services/authService'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<any>(null)
   const isAuthenticated = ref(!!localStorage.getItem('access_token'))
-  const forgotPassword = async (email: string) => {
+  const forgotPassword = async (_email: string) => {
   
   return new Promise((resolve) => setTimeout(resolve, 1000))
 }
@@ -45,5 +45,21 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = false
   }
 
-  return { user, isAuthenticated, login, register, logout, fetchUser,forgotPassword }
+  const loginWithTokens = async (accessToken: string, refreshToken: string) => {
+    localStorage.setItem('access_token', accessToken)
+    localStorage.setItem('refresh_token', refreshToken)
+    isAuthenticated.value = true
+    await fetchUser()
+  }
+
+  const googleComplete = async (pendingToken: string, formData: any) => {
+    const response = await authService.googleComplete({
+      pending_token: pendingToken,
+      ...formData,
+    })
+    const { access_token, refresh_token } = response.data
+    await loginWithTokens(access_token, refresh_token)
+  }
+
+  return { user, isAuthenticated, login, register, logout, fetchUser, forgotPassword, loginWithTokens, googleComplete }
 })

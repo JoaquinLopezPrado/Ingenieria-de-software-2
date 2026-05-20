@@ -91,6 +91,16 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/auth/callback',
+      name: 'auth-callback',
+      component: () => import('../views/GoogleCallbackView.vue'),
+    },
+    {
+      path: '/auth/google-complete',
+      name: 'google-complete',
+      component: () => import('../views/GoogleCompleteView.vue'),
+    },
+    {
       path: '/logout',
       name: 'logout',
       component: () => import('../views/LogoutView.vue'),
@@ -100,12 +110,6 @@ const router = createRouter({
       path: '/class-selection',
       name: 'class-selection',
       component: () => import('../views/ClassSelectionView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/list',
-      name: 'list',
-      component: () => import('../views/ShowActivitisView.vue'),
       meta: { requiresAuth: true }
     },
     {

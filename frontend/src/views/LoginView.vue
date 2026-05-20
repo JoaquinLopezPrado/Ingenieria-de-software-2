@@ -26,15 +26,9 @@ const handleLogin = async (email: string, pass: string) => {
   }
 }
 
-const handleGoogleLogin = async () => {
-  loading.value = true
-  try {
-    console.log('Iniciando flujo de OAuth con Google...')
-  } catch (err: any) {
-    alert('Hubo un problema al iniciar sesión con Google')
-  } finally {
-    loading.value = false
-  }
+const handleGoogleLogin = () => {
+  const apiBase = import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  window.location.href = `${apiBase}/auth/google`
 }
 </script>
 

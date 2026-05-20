@@ -28,4 +28,13 @@ export const authService = {
     apiClient.post('/auth/refresh', {
       refresh_token: refreshToken,
     }),
+
+  googleComplete: (data: {
+    pending_token: string
+    phone: string
+    birth_date: string
+    gender: string
+    doc_type_name: string
+    doc_number: string
+  }) => apiClient.post('/auth/google/complete', data),
 }

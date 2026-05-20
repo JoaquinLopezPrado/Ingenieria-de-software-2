@@ -30,15 +30,9 @@ const handleRegister = async (userData: any) => {
   }
 }
 
-const handleGoogleRegister = async () => {
-  loading.value = true
-  try {
-    console.log('Iniciando flujo de OAuth con Google para registro...')
-  } catch (err: any) {
-    alert('Hubo un problema al registrarse con Google')
-  } finally {
-    loading.value = false
-  }
+const handleGoogleRegister = () => {
+  const apiBase = import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  window.location.href = `${apiBase}/auth/google`
 }
 </script>
 
