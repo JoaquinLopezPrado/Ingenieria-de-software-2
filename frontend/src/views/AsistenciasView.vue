@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/services/api' // Usamos tu cliente HTTP preconfigurado
 import ListLayout from '@/components/ListLayout.vue'
 import ItemCard from '@/components/ItemCard.vue'
 
@@ -36,54 +37,78 @@ interface ClaseIndividualInscripcion {
 const router = useRouter()
 const turnoSeleccionadoId = ref<number | null>(null)
 
-const turnos = ref<TurnoInscripcion[]>([
-  {
-    id: 101,
-    actividad: 'Crossfit',
-    descripcion: 'Turno Tarde Avanzado',
-    instructor: 'Lucas',
-    horario: '19:00 - 20:00',
-    dias: ['Lunes', 'Miércoles', 'Viernes'],
-    periodo: 'Mayo 2026',
-    is_active: true,
-    clasesAsociadas: [
-      { id: 1, fecha: '18 Mayo', horario: '19:00', asistio: true },
-      { id: 2, fecha: '15 Mayo', horario: '19:00', asistio: true },
-      { id: 3, fecha: '13 Mayo', horario: '19:00', asistio: false }
-    ]
-  },
-  {
-    id: 102,
-    actividad: 'Funcional',
-    descripcion: 'Turno Mañana Inicial',
-    instructor: 'Mariana',
-    horario: '08:00 - 09:00',
-    dias: ['Martes', 'Jueves'],
-    periodo: 'Mayo 2026',
-    is_active: true,
-    clasesAsociadas: [
-      { id: 4, fecha: '19 Mayo', horario: '08:00', asistio: true },
-      { id: 5, fecha: '14 Mayo', horario: '08:00', asistio: false }
-    ]
-  },
-  {
-    id: 103,
-    actividad: 'Spinning',
-    descripcion: 'Turno Noche',
-    instructor: 'Robert',
-    horario: '20:00 - 21:00',
-    dias: ['Lunes', 'Miércoles'],
-    periodo: 'Abril 2026',
-    is_active: false,
-    clasesAsociadas: []
-  }
-])
+// Estados para controlar el ciclo de vida de la petición de red
+const turnos = ref<TurnoInscripcion[]>([])
+const clases = ref<ClaseIndividualInscripcion[]>([])
+const isLoading = ref(true)
+const hasError = ref(false)
 
-const clases = ref<ClaseIndividualInscripcion[]>([
-  { id: 501, actividad: 'Pilates', instructor: 'Sofia', fecha: '22 Mayo', horario: '17:00', is_active: true, asistio: true },
-  { id: 502, actividad: 'Crossfit', instructor: 'Lucas', fecha: '23 Mayo', horario: '11:00', is_active: true, asistio: false },
-  { id: 503, actividad: 'Funcional', instructor: 'Mariana', fecha: '10 Abril', horario: '18:00', is_active: false, asistio: true }
-])
+// Helper para pasar fechas nativas ISO (2026-05-22) a formato legible de interfaz ("22 Mayo")
+const formatearFecha = (fechaRaw: string): string => {
+  if (!fechaRaw) return ''
+  const meses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ]
+  // Separamos los componentes para evitar desajustes de zona horaria local de JS
+  const partes = fechaRaw.split('-')
+  if (partes.length !== 3) return fechaRaw
+  const dia = parseInt(partes[2], 10)
+  const mesIndex = parseInt(partes[1], 10) - 1
+  return `${dia} ${meses[mesIndex]}`
+}
+
+const fetchInscripcionesData = async () => {
+  try {
+    isLoading.value = true
+    hasError.value = false
+
+    // Solución al 404: Usamos el prefijo '/enrollments' coincidente con router.py
+    // y removemos '/api/v1' ya que tu instancia base de 'api' lo incluye por defecto.
+    const [resMonthly, resSingle] = await Promise.all([
+      api.get('/enrollments/my/monthly'),
+      api.get('/enrollments/my/single')
+    ])
+
+    // Mapeo adaptativo: transformamos la data pura del Back al modelo reactivo del Front
+    turnos.value = resMonthly.data.map((item: any) => ({
+      id: item.id,
+      actividad: item.actividad || item.activity_name || 'Actividad',
+      descripcion: item.descripcion || item.turno_description || 'Turno fijo',
+      instructor: item.instructor || 'Profesor',
+      horario: item.horario || `${item.start_time?.slice(0, 5)} - ${item.end_time?.slice(0, 5)}`,
+      dias: item.dias || [],
+      periodo: item.periodo || `Mes ${item.month}/${item.year}`,
+      is_active: item.is_active ?? true,
+      clasesAsociadas: (item.clases_asociadas || item.slots || []).map((c: any) => ({
+        id: c.id,
+        fecha: formatearFecha(c.fecha || c.date),
+        horario: c.horario || c.start_time?.slice(0, 5) || '00:00',
+        asistio: c.asistio ?? c.has_attended ?? false
+      }))
+    }))
+
+    clases.value = resSingle.data.map((item: any) => ({
+      id: item.id,
+      actividad: item.actividad || item.activity_name || 'Clase Suelta',
+      instructor: item.instructor || 'Profesor',
+      fecha: formatearFecha(item.fecha || item.date),
+      horario: item.horario || item.start_time?.slice(0, 5) || '00:00',
+      is_active: item.is_active ?? true,
+      asistio: item.asistio ?? item.has_attended ?? false
+    }))
+
+  } catch (error) {
+    console.error('Error al sincronizar con el backend de inscripciones:', error)
+    hasError.value = true
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchInscripcionesData()
+})
 
 const turnosActivos = computed(() => turnos.value.filter(t => t.is_active))
 const turnosPasados = computed(() => turnos.value.filter(t => !t.is_active))
@@ -108,7 +133,17 @@ const irAInscripciones = () => {
   <ListLayout pageTitle="Mis Inscripciones">
     <div class="central-wrapper">
       
-      <div class="columns-grid">
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <span>Sincronizando tus asistencias...</span>
+      </div>
+
+      <div v-else-if="hasError" class="error-state">
+        <span>No se pudieron recuperar tus inscripciones actuales.</span>
+        <button type="button" class="btn-retry" @click="fetchInscripcionesData">Reintentar</button>
+      </div>
+      
+      <div v-else class="columns-grid">
         
         <section class="asistencia-section">
           <div class="section-header">
@@ -244,7 +279,7 @@ const irAInscripciones = () => {
 
       </div>
 
-      <div class="suggestion-banner">
+      <div v-if="!isLoading && !hasError" class="suggestion-banner">
         <span class="suggestion-text">¿Buscás anotarte a nuevos turnos?</span>
         <button type="button" class="btn-action-link" @click="irAInscripciones">
           Hacé click acá
@@ -309,7 +344,6 @@ const irAInscripciones = () => {
   width: 100%;
 }
 
-/* Forzar simetría exacta en altura y estructura */
 :deep(.item-card) {
   min-height: 106px;
   display: flex;
@@ -510,6 +544,43 @@ const irAInscripciones = () => {
   animation: fadeIn 0.2s ease-out forwards;
 }
 
+/* Clases de Feedback de Red */
+.loading-state, .error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 20px;
+  color: #12695f;
+  font-weight: 700;
+  font-size: 16px;
+}
+.error-state {
+  color: #c62828;
+}
+.btn-retry {
+  background: #c62828;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 24px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 4px solid #cfeee6;
+  border-top-color: #11a691;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -519,11 +590,9 @@ const irAInscripciones = () => {
   .central-wrapper {
     max-width: 960px;
   }
-
   .columns-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
   .suggestion-banner {
     flex-direction: row;
     justify-content: space-between;
@@ -531,7 +600,6 @@ const irAInscripciones = () => {
     text-align: left;
     gap: 0;
   }
-  
   .suggestion-text {
     font-size: 16px;
   }
