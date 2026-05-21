@@ -53,8 +53,8 @@ const formatearFecha = (fechaRaw: string): string => {
   // Separamos los componentes para evitar desajustes de zona horaria local de JS
   const partes = fechaRaw.split('-')
   if (partes.length !== 3) return fechaRaw
-  const dia = parseInt(partes[2], 10)
-  const mesIndex = parseInt(partes[1], 10) - 1
+  const dia = parseInt(partes[2] ?? '0', 10)
+  const mesIndex = parseInt(partes[1] ?? '0', 10) - 1
   return `${dia} ${meses[mesIndex]}`
 }
 
