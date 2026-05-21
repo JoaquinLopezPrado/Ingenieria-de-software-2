@@ -14,6 +14,13 @@ class Role:
         self.description = description
 
 
+class ClientProfile:
+    def __init__(self, first_name: str, last_name: str, phone: str):
+        self.first_name = first_name
+        self.last_name = last_name
+        self.phone = phone
+
+
 class User:
     def __init__(
         self,
@@ -27,6 +34,7 @@ class User:
         hashed_password: Optional[str] = None,
         google_id: Optional[str] = None,
         totp_secret: Optional[str] = None,
+        client_profile: Optional[ClientProfile] = None,
     ):
         self.id = id
         self.email = email
@@ -38,3 +46,4 @@ class User:
         self.hashed_password = hashed_password
         self.google_id = google_id
         self.totp_secret = totp_secret
+        self.client_profile = client_profile

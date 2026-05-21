@@ -8,6 +8,8 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.domain.enrollment import EnrollmentStatus
 from app.repositories.enrollment_repository import AbstractEnrollmentRepository
+from app.repositories.user_repository import AbstractUserRepository
+from app.services.email_service import EmailService
 
 
 _ART = timezone(timedelta(hours=-3))
@@ -30,8 +32,10 @@ _MP_STATUS_MAP = {
 
 class PaymentService:
 
-    def __init__(self, enrollment_repo: AbstractEnrollmentRepository):
+    def __init__(self, enrollment_repo: AbstractEnrollmentRepository, user_repo: AbstractUserRepository):
         self._enrollment_repo = enrollment_repo
+        self._user_repo = user_repo
+        self._email_service = EmailService()
         self._sdk = mercadopago.SDK(settings.mp_access_token)
 
     async def create_preference(self, enrollment_id: int, user_id: int) -> str:
@@ -59,8 +63,8 @@ class PaymentService:
                 "pending": f"{settings.mp_frontend_url}/payment/pending?enrollment_id={enrollment_id}",
             },
             "external_reference": str(enrollment_id),
-            # auto_return requiere URL pública; se activa solo en producción
-            **({"auto_return": "approved"} if not settings.debug else {}),
+            # auto_return requiere back_url con HTTPS público (ngrok o producción)
+            **({"auto_return": "approved"} if settings.mp_frontend_url.startswith("https://") else {}),
             **({"date_of_expiration": _mp_isoformat(details.expires_at)} if details.expires_at else {}),
         }
         if settings.mp_notification_url:
@@ -104,8 +108,25 @@ class PaymentService:
         if new_status is None:
             return
 
-        await self._enrollment_repo.update_payment(
+        updated = await self._enrollment_repo.update_payment(
             enrollment_id=enrollment_id,
             new_status=new_status,
+            payment_id=payment_id,
+        )
+
+        if updated and new_status == EnrollmentStatus.CONFIRMED:
+            await self._send_payment_email(enrollment_id, payment_id)
+
+    async def _send_payment_email(self, enrollment_id: int, payment_id: str) -> None:
+        details = await self._enrollment_repo.get_payment_details(enrollment_id)
+        user = await self._user_repo.get_by_id(details.user_id)
+        if not user or not user.client_profile:
+            return
+        self._email_service.send_enrollment_confirmed(
+            to=user.email,
+            first_name=user.client_profile.first_name,
+            activity_name=details.activity_name,
+            turno_description=details.turno_description,
+            amount=details.price,
             payment_id=payment_id,
         )

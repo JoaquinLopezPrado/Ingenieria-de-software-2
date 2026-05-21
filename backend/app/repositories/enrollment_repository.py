@@ -33,7 +33,7 @@ class AbstractEnrollmentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> None:
+    async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:
         raise NotImplementedError
 
     @abstractmethod
@@ -173,12 +173,13 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             expires_at=row[6],
         )
 
-    async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> None:
-        await self._session.execute(
+    async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:
+        result = await self._session.execute(
             update(EnrollmentORM)
-            .where(EnrollmentORM.id == enrollment_id)
+            .where(EnrollmentORM.id == enrollment_id, EnrollmentORM.status == EnrollmentStatus.PENDING)
             .values(status=new_status, payment_id=payment_id)
         )
+        return result.rowcount > 0
 
     # ------------------------------------------------------------------ #
     # Consultas por usuario                                                #

@@ -5,8 +5,9 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.domain.user import AuthProvider, Role, User
+from app.domain.user import AuthProvider, ClientProfile, Role, User
 from app.models.auth import Role as RoleORM, User as UserORM
+from app.models.profile import ClientProfile as ClientProfileORM
 
 
 class AbstractUserRepository(ABC):
@@ -40,7 +41,7 @@ class UserRepository(AbstractUserRepository):
     async def get_by_id(self, user_id: int) -> Optional[User]:
         result = await self._session.execute(
             select(UserORM)
-            .options(selectinload(UserORM.role))
+            .options(selectinload(UserORM.role), selectinload(UserORM.client_profile))
             .where(UserORM.id == user_id)
         )
         orm_user = result.scalar_one_or_none()
@@ -49,7 +50,7 @@ class UserRepository(AbstractUserRepository):
     async def get_by_email(self, email: str) -> Optional[User]:
         result = await self._session.execute(
             select(UserORM)
-            .options(selectinload(UserORM.role))
+            .options(selectinload(UserORM.role), selectinload(UserORM.client_profile))
             .where(UserORM.email == email)
         )
         orm_user = result.scalar_one_or_none()
@@ -87,6 +88,16 @@ class UserRepository(AbstractUserRepository):
             hashed_password=orm_user.hashed_password,
             google_id=orm_user.google_id,
             totp_secret=orm_user.totp_secret,
+            client_profile=self._profile_to_domain(orm_user.client_profile),
+        )
+
+    def _profile_to_domain(self, orm_profile: Optional[ClientProfileORM]) -> Optional[ClientProfile]:
+        if orm_profile is None:
+            return None
+        return ClientProfile(
+            first_name=orm_profile.first_name,
+            last_name=orm_profile.last_name,
+            phone=orm_profile.phone,
         )
 
     def _role_to_domain(self, orm_role: RoleORM) -> Role:

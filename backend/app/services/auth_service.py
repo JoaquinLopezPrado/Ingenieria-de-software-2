@@ -10,6 +10,7 @@ from app.repositories.profile_repository import AbstractProfileRepository
 from app.repositories.token_repository import AbstractTokenRepository
 from app.repositories.user_repository import AbstractUserRepository
 from app.schemas.auth import LoginCredentials, RefreshTokenRequest, RegisterClientRequest
+from app.services.email_service import EmailService
 from app.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -31,6 +32,7 @@ class AuthService:
         self._user_repo = user_repo
         self._profile_repo = profile_repo
         self._token_repo = token_repo
+        self._email_service = EmailService()
 
     async def register_client(self, data: RegisterClientRequest) -> User:
         await self._ensure_email_is_unique(data.email)
@@ -71,6 +73,8 @@ class AuthService:
             gender=data.gender,
         )
         await self._profile_repo.save_client(profile_orm)
+
+        self._email_service.send_welcome(user.email, data.first_name)
 
         return user
 

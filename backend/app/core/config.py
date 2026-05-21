@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     mp_frontend_url: str = "http://localhost:5173"
     mp_notification_url: Optional[str] = None
 
+    # SMTP
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@centroactividades.com"
+
     # Enrollment
     enrollment_ttl_minutes: int = 2
 
