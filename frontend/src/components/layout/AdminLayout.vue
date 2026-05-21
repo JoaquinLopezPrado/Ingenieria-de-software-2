@@ -101,9 +101,9 @@ import { RouterLink } from 'vue-router'
   display: flex;
   flex-direction: column;
   position: fixed;
-  height: 100vh;
+  height: calc(100vh - 60px);
   left: 0;
-  top: 0;
+  top: 60px;
   overflow-y: auto;
 }
 
@@ -223,7 +223,7 @@ import { RouterLink } from 'vue-router'
 .main-content {
   flex-grow: 1;
   margin-left: 260px; /* Deja el espacio exacto del sidebar fijo */
-  padding: 2rem 2.5rem;
+  padding: 60px 2.5rem 2rem 2.5rem;
   min-width: 0; /* Evita que el contenido desborde en pantallas chicas */
 }
 
@@ -234,7 +234,7 @@ import { RouterLink } from 'vue-router'
   }
   .main-content {
     margin-left: 220px;
-    padding: 1.5rem;
+    padding: 60px 1.5rem 1.5rem 1.5rem;
   }
 }
 </style>

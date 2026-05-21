@@ -166,11 +166,21 @@ const pagosClases = ref<PagoClase[]>([
   width: 100%;
 }
 
+/* Fuerza a que todas las ItemCard tengan el mismo alto simétrico */
+:deep(.item-card) {
+  min-height: 106px;
+  display: flex;
+  align-items: center;
+}
+
 .pago-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  justify-content: center;
+  gap: 5px;
+  height: 100%;
+  min-width: 130px;
 }
 
 .precio-label {
@@ -210,7 +220,7 @@ const pagosClases = ref<PagoClase[]>([
 
 .periodo-label {
   color: #7f8c8d;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .fecha-badge {
@@ -246,7 +256,7 @@ const pagosClases = ref<PagoClase[]>([
 
 @media (max-width: 768px) {
   .pago-right {
-    gap: 2px;
+    gap: 4px;
   }
 }
 </style>

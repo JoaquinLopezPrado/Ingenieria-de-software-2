@@ -211,6 +211,7 @@ function formatDay(value) {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
+  padding-top: 100px;
   font-family:
     'Inter',
     'Segoe UI',

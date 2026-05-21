@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { storeToRefs } from 'pinia'
@@ -8,6 +8,24 @@ const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
 const router = useRouter()
 const isMenuOpen = ref(false)
+
+const userName = computed(() => {
+  const user = authStore.user
+  if (!user) return 'Usuario'
+
+  const firstName = user.first_name ?? ''
+  const lastName = user.last_name ?? ''
+  const fullName = `${firstName} ${lastName}`.trim()
+
+  return (
+    fullName ||
+    firstName ||
+    user.name ||
+    user.username ||
+    user.email ||
+    'Usuario'
+  )
+})
 
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
@@ -30,38 +48,44 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <div>
-    <button 
-      v-if="isAuthenticated"
-      type="button" 
-      class="menu-toggle" 
-      @click="toggleMenu"
-      :class="{ 'is-active': isMenuOpen }"
-      aria-label="Abrir menú"
-    >
-      <div class="burger-container">
-        <span class="bar"></span>
-        <span class="bar"></span>
-        <span class="bar"></span>
+  <div v-if="isAuthenticated">
+    <div class="top-bar">
+      <div class="top-bar-inner">
+        <span class="logo-text">SIEMPREGYM</span>
+        <button 
+          type="button" 
+          class="menu-toggle" 
+          @click="toggleMenu"
+          :class="{ 'is-active': isMenuOpen }"
+          aria-label="Abrir menú"
+        >
+          <div class="burger-container">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </div>
+        </button>
       </div>
-    </button>
+    </div>
 
     <div 
-      v-if="isMenuOpen && isAuthenticated" 
+      v-if="isMenuOpen" 
       class="menu-backdrop" 
       @click="closeMenu"
     ></div>
 
     <nav 
-      v-if="isAuthenticated"
       class="side-menu" 
       :class="{ 'is-open': isMenuOpen }"
     >
       <div class="menu-header">
-        <h3>SiempreGym</h3>
+        <h3>{{ userName }}</h3>
       </div>
       
       <ul class="menu-links">
+        <li>
+          <button type="button" @click="navigateTo('/home')">Inicio</button>
+        </li>
         <li>
           <button type="button" @click="closeMenu">Vincular mi cuenta con Google</button>
         </li>
@@ -85,28 +109,54 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
-.menu-toggle {
+/* --- BASE (Mobile First) --- */
+.top-bar {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: white;
+  border-bottom: 1px solid #e0f2f1;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.top-bar-inner {
+  height: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.logo-text {
+  color: #0d9b8a;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.menu-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
-  background: #ffffff;
-  border: 2px solid #e0f2f1;
+  background: transparent;
+  border: none;
   border-radius: 50%;
   cursor: pointer;
   z-index: 1001;
   padding: 0;
-  box-shadow: 0 4px 12px rgba(17, 166, 145, 0.12);
   transition: all 0.2s ease;
 }
 
 .menu-toggle:hover {
-  border-color: #11a691;
-  background-color: #f8fbfb;
+  background-color: rgba(17, 166, 145, 0.1);
 }
 
 .burger-container {
@@ -147,16 +197,16 @@ const handleLogout = async () => {
 
 .side-menu {
   position: fixed;
-  top: 0;
-  left: 0;
+  top: 60px; /* Se posiciona justo debajo de la barra superior */
+  right: 0;  /* Cambiado de left a right */
   width: 280px;
-  height: 100vh;
+  height: calc(100vh - 60px); /* Ocupa el resto de la pantalla visible */
   background-color: #ffffff;
-  z-index: 1000;
-  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+  z-index: 999; /* Por debajo de la barra superior (que tiene 1000) */
+  box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  transform: translateX(-100%);
+  transform: translateX(100%); /* Oculto hacia la derecha */
   transition: transform 0.3s ease;
 }
 
@@ -238,12 +288,19 @@ const handleLogout = async () => {
   flex-shrink: 0;
 }
 
+/* --- MEDIA QUERIES (Escritorio / Tablets) --- */
 @media (min-width: 768px) {
+  .top-bar-inner {
+    padding: 0 24px;
+  }
+
+  .logo-text {
+    font-size: 1.4rem;
+  }
+  
   .menu-toggle {
-    top: 24px;
-    right: 24px;
-    width: 50px;
-    height: 50px;
+    width: 52px;
+    height: 52px;
   }
   
   .side-menu {

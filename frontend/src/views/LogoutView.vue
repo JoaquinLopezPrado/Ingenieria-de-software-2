@@ -96,6 +96,7 @@ function handleCancel() {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  padding-top: 84px;
   transition: opacity 0.18s ease, transform 0.18s ease;
   opacity: 1;
 }

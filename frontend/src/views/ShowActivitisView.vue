@@ -1,23 +1,6 @@
 <template>
   <div class="page">
 
-    <div class="header">
-      <div class="header-inner">
-        <span class="logo">SIEMPREGYM</span>
-
-        <div class="account">
-          <div class="avatar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </div>
-
-          <span class="account-label">Mi cuenta</span>
-        </div>
-      </div>
-    </div>
-
     <div class="main">
       <h1>Actividades disponibles</h1>
       <p class="subtitle">Elegí tu actividad y reservá tu lugar en el turno que más te convenga.</p>
@@ -430,65 +413,11 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-
     'Segoe UI',
     system-ui,
     sans-serif;
+  padding-top: 60px;
 }
 
 /* HEADER */
 
-.header {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 137, 123, 0.08);
-  padding: 0 28px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-
-.header-inner {
-  max-width: 1180px;
-  margin: 0 auto;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  font-size: 1.55rem;
-  font-weight: 900;
-  color: #00695c;
-  letter-spacing: 0.08em;
-}
-
-.account {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  transition: background 0.2s ease;
-  cursor: pointer;
-}
-
-.account:hover {
-  background: rgba(0, 137, 123, 0.06);
-}
-
-.avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #e0f2f1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.account-label {
-  font-size: 14px;
-  color: #546e7a;
-  font-weight: 600;
-}
 
 /* MAIN */
 

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'  
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AuthHeader from '@/components/auth/AuthHeader.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 const loading = ref(false) 
 
@@ -14,15 +13,6 @@ const handleLogin = async (email: string, pass: string) => {
   loading.value = true
   try {
     await authStore.login({ email, password: pass })
-    const redirect = Array.isArray(route.query.redirect)
-      ? route.query.redirect[0]
-      : route.query.redirect
-
-    if (typeof redirect === 'string' && redirect.startsWith('/')) {
-      router.replace(redirect)
-      return
-    }
-
     router.replace('/home')
   } catch (err: any) {
     alert('Email o contraseña incorrectos')

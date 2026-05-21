@@ -1,15 +1,3 @@
-/**
- * api.ts — Cliente HTTP compartido
- * ---------------------------------
- * Instancia de axios preconfigurada con:
- *   - baseURL leída desde la variable de entorno VITE_API_URL
- *   - Interceptor que inyecta el JWT de localStorage en cada request
- *
- * Todos los servicios del frontend deben importar este cliente
- * en lugar de crear sus propias instancias de axios.
- *
- * El token se guarda bajo la clave "token" (ver authService.ts → login).
- */
 import axios from 'axios'
 
 const api = axios.create({
@@ -25,5 +13,21 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+// INTERCEPTOR DE RESPUESTA: Captura la expiración por tiempo (401)
+api.interceptors.response.use(
+  (response) => response, // Si la respuesta es exitosa, pasa de largo
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Si el backend dice 401, el token caducó por tiempo
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      
+      // Forzamos la redirección limpiando estados residuales en memoria
+      window.location.href = '/'
+    }
+    return Promise.reject(error)
+  }
+)
 
 export default api

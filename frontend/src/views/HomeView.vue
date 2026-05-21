@@ -1,5 +1,5 @@
 <template>
-  <div class="home-page" :class="{ leaving: isLeaving }">
+  <div class="home-page">
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand-block">
@@ -8,10 +8,6 @@
             {{ roleLabel }}
           </p>
         </div>
-
-        <button class="logout-btn" @click="goToLogout" :disabled="isLeaving">
-          {{ isLeaving ? 'Saliendo...' : 'Cerrar sesión' }}
-        </button>
       </div>
     </header>
 
@@ -75,8 +71,6 @@ import { useAuthStore } from '@/stores/authStore'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const isLeaving = ref(false)
-
 function normalizeRole(user: any): string {
   const rawRole =
     user?.role?.name ??
@@ -138,14 +132,6 @@ const clientActions = [
 function goTo(path: string) {
   router.push(path)
 }
-
-function goToLogout() {
-  isLeaving.value = true
-
-  setTimeout(() => {
-    router.push('/logout')
-  }, 180)
-}
 </script>
 
 <style scoped>
@@ -154,20 +140,12 @@ function goToLogout() {
   background: #d9eeea;
   display: flex;
   flex-direction: column;
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
-  opacity: 1;
-}
-
-.home-page.leaving {
-  opacity: 0;
-  transform: scale(0.995);
+  padding-top: 60px;
 }
 
 .topbar {
   width: 100%;
-  padding: 28px 20px 12px;
+  padding: 20px 20px 12px;
 }
 
 .topbar-inner {
@@ -203,31 +181,6 @@ function goToLogout() {
   color: #0d9b8a;
   font-size: 0.92rem;
   font-weight: 700;
-}
-
-.logout-btn {
-  border: none;
-  border-radius: 999px;
-  padding: 12px 20px;
-  background: #20b2a6;
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(32, 178, 166, 0.22);
-  transition:
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-
-.logout-btn:hover {
-  background: #189c92;
-  transform: translateY(-1px);
-}
-
-.logout-btn:disabled {
-  opacity: 0.8;
-  cursor: default;
 }
 
 .home-content {
@@ -400,10 +353,6 @@ function goToLogout() {
 
   .hero-text h2 {
     font-size: 1.65rem;
-  }
-
-  .logout-btn {
-    width: 100%;
   }
 }
 </style>

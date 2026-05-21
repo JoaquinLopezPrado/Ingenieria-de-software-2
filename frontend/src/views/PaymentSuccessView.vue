@@ -1,10 +1,5 @@
 <template>
   <div class="page">
-    <div class="header">
-      <div class="header-inner">
-        <span class="logo">SIEMPREGYM</span>
-      </div>
-    </div>
 
     <div class="main">
       <div class="icon success-icon">
@@ -49,7 +44,7 @@ const router = useRouter()
 
 <style scoped>
 * { box-sizing: border-box; }
-.page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; }
+.page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; padding-top: 60px; }
 .header { background: #fff; border-bottom: 1px solid #E0F2F1; padding: 0 24px; box-shadow: 0 2px 12px rgba(0,137,123,0.08); }
 .header-inner { max-width: 600px; margin: 0 auto; display: flex; align-items: center; height: 60px; }
 .logo { font-size: 19px; font-weight: 900; color: #00695C; letter-spacing: 0.08em; }
