@@ -50,12 +50,28 @@ class EmailService:
 
     async def _send(self, to: str, subject: str, html: str) -> None:
         try:
-            if settings.resend_api_key:
+            if settings.mailpit_api_url:
+                await self._send_via_mailpit(to, subject, html)
+            elif settings.resend_api_key:
                 await self._send_via_resend(to, subject, html)
             else:
                 await self._send_via_smtp(to, subject, html)
         except Exception:
             logger.exception("Error al enviar email a %s (asunto: %s)", to, subject)
+
+    async def _send_via_mailpit(self, to: str, subject: str, html: str) -> None:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.mailpit_api_url.rstrip('/')}/api/v1/send-message",
+                json={
+                    "From": {"Email": settings.smtp_from},
+                    "To": [{"Email": to}],
+                    "Subject": subject,
+                    "HTML": html,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
 
     async def _send_via_resend(self, to: str, subject: str, html: str) -> None:
         async with httpx.AsyncClient() as client:

@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     smtp_from: str = "noreply@centroactividades.com"
     smtp_use_tls: bool = False
 
+    # Mailpit HTTP API (ej: https://mailpit-xxx.onrender.com)
+    mailpit_api_url: str = ""
+
     # Resend HTTP API (producción — tiene prioridad sobre SMTP si está seteado)
     resend_api_key: str = ""
 
