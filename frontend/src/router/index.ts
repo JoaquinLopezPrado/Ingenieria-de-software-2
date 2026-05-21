@@ -71,7 +71,6 @@ const router = createRouter({
       name: 'lista-actividades',
       component: ListaActividadesView,
       meta: { requiresAuth: true, requiresAdmin: true },
-      meta: { requiresAuth: true }
     },
     {
       path: '/activities/turnos',
