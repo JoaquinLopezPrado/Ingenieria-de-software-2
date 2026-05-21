@@ -60,7 +60,7 @@ class EmailService:
                 port=settings.smtp_port,
                 username=settings.smtp_user or None,
                 password=settings.smtp_password or None,
-                use_tls=False,
+                use_tls=settings.smtp_use_tls,
                 start_tls=False,
             )
         except Exception:

@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = "noreply@centroactividades.com"
+    smtp_use_tls: bool = False
 
     # Enrollment
     enrollment_ttl_minutes: int = 2
