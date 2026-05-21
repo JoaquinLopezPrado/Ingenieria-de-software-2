@@ -2,7 +2,6 @@ import api from './api'
 
 const apiClient = api
 
-
 export const turnoService = {
   getTurnos: (params?: {
     activity_id?: number
@@ -14,7 +13,7 @@ export const turnoService = {
     })
   },
 
-  getClasesByActividad: (activityId: string | number) => {
-    return apiClient.get(`/activities/${activityId}/clases`)
+  getClasesByTurno: (turnoId: string | number) => {
+    return apiClient.get(`/turnos/${turnoId}/clases`)
   },
 }

@@ -49,17 +49,17 @@ services:
   #     - backend
   #     - frontend
   
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "5173:5173"
-  #   depends_on:
-  #     - backend
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
+  frontend:
+     build:
+       context: ./frontend
+       dockerfile: Dockerfile
+     ports:
+       - "5173:5173"
+     depends_on:
+       - backend
+     volumes:
+       - ./frontend:/app
+       - /app/node_modules
 
   # ngrok:
   #   image: ngrok/ngrok:latest
