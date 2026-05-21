@@ -1,19 +1,19 @@
 <script setup lang="ts">
 /**
- * EditTurnoView — HU ACT-07.01: Modificar turno
- * -----------------------------------------------
+ * EditTurnoView — HU ACT-07.01 v2: Modificar turno
+ * --------------------------------------------------
  * Escenarios cubiertos:
- *   1. Edición exitosa sin inscriptos → redirige a grilla con banner verde
- *   2. Edición exitosa con inscriptos previa confirmación
- *   3. Cancelación del modal → no aplica cambios
- *   4. Cupo menor a inscriptos actuales → error inline
- *   5. Turno duplicado (409) → banner rojo
- *   6. Cupo máximo inválido (≤ 0) → error inline
- *   7. Monto inválido (≤ 0) → error inline
- *   8. Sin días seleccionados → error inline
- *   9. Campo obligatorio vacío → error inline
+ *   1. Modificación exitosa (turno activo, sin inscriptos) → banner verde + redirige
+ *   2. Turno duplicado (409) → banner rojo
+ *   3. Cupo máximo inválido (≤ 0) → error inline
+ *   4. Monto inválido (≤ 0) → error inline
+ *   5. Sin días seleccionados → error inline
+ *   6. Campo obligatorio vacío → error inline
+ *   7. Turno con inscripciones activas → bloqueo al intentar guardar (v2 NUEVO)
  *
  * Guard: solo admin. Turno inactivo → panel informativo, sin formulario.
+ * Regla v2: si el turno tiene inscripciones activas no es editable (Esc. 7).
+ * El campo "actividad" nunca puede modificarse.
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -111,8 +111,7 @@ const form = ref({
 
 const errors = ref<Record<string, string>>({})
 
-// Modal de confirmación cuando hay inscriptos
-const confirmModalOpen = ref(false)
+// v2: ya no hay modal de confirmación — inscriptos activos bloquean la edición (Esc. 7)
 
 // ─── Computed (DESPUÉS de `form`) ─────────────────────────────────────────────
 
@@ -226,21 +225,13 @@ function handleSubmit() {
   serverError.value = ''
   if (!validate()) return
 
+  // Escenario 7 (v2): turno con inscripciones activas → bloqueo directo, sin modal
   if (inscriptos.value > 0) {
-    confirmModalOpen.value = true   // Escenario 2 y 3
+    serverError.value = 'No es posible modificar el turno porque tiene inscripciones activas.'
     return
   }
+
   saveChanges()  // Escenario 1
-}
-
-function handleConfirm() {
-  confirmModalOpen.value = false
-  saveChanges()
-}
-
-function handleCancelConfirm() {
-  confirmModalOpen.value = false
-  // Escenario 3: no aplica cambios, form intacto
 }
 
 async function saveChanges() {
@@ -481,14 +472,7 @@ async function saveChanges() {
             <!-- ── Badge período ── -->
             <div class="period-badge">
               <span>📅</span>
-              <span>
-                Modificando turno de <strong>{{ selectedMonthLabel }} {{ form.year }}</strong>
-                <template v-if="inscriptos > 0">
-                  — <span class="inscriptos-warn">
-                    {{ inscriptos }} inscripto{{ inscriptos !== 1 ? 's' : '' }} activo{{ inscriptos !== 1 ? 's' : '' }}
-                  </span>
-                </template>
-              </span>
+              <span>Modificando turno de <strong>{{ selectedMonthLabel }} {{ form.year }}</strong></span>
             </div>
 
             <!-- ── Acciones ── -->
@@ -511,48 +495,6 @@ async function saveChanges() {
 
       </template>
     </div>
-
-    <!-- ══════════════════════════════════════
-         MODAL DE CONFIRMACIÓN (Esc. 2 y 3)
-    ══════════════════════════════════════ -->
-    <Teleport to="body">
-      <Transition name="modal-fade">
-        <div
-          v-if="confirmModalOpen"
-          class="modal-overlay"
-          @click.self="handleCancelConfirm"
-        >
-          <div class="modal" role="alertdialog" aria-modal="true">
-
-            <div class="modal-header">
-              <span class="modal-warning-icon">⚠</span>
-              <h2 class="modal-title">Confirmar cambios</h2>
-            </div>
-
-            <div class="modal-body">
-              <p class="modal-message">
-                Este turno tiene
-                <strong>{{ inscriptos }} inscripto{{ inscriptos !== 1 ? 's' : '' }}</strong>.
-                ¿Confirmás los cambios?
-              </p>
-              <p class="modal-hint">
-                Si los cambios involucran días, horario, mes o año, se notificará por email a cada inscripto activo.
-              </p>
-            </div>
-
-            <div class="modal-footer">
-              <button class="btn-modal-cancel" @click="handleCancelConfirm">
-                Cancelar
-              </button>
-              <button class="btn-modal-confirm" @click="handleConfirm">
-                Confirmar cambios
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
 
   </AdminLayout>
 </template>
@@ -827,56 +769,7 @@ select:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 .btn-secondary:hover { background: #e5e7eb; }
 
-/* ── Modal ── */
-
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999; padding: 1rem;
-}
-
-.modal {
-  background: white; border-radius: 14px;
-  width: 100%; max-width: 420px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex; align-items: center; gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
-  background: #fffbeb; border-bottom: 1px solid #fde68a;
-}
-.modal-warning-icon { font-size: 1.4rem; }
-.modal-title { font-size: 1rem; font-weight: 700; color: #92400e; margin: 0; }
-
-.modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.modal-message { font-size: 0.95rem; color: #1f2937; margin: 0; line-height: 1.5; }
-.modal-hint    { font-size: 0.82rem; color: #6b7280; margin: 0; line-height: 1.5; }
-
-.modal-footer {
-  padding: 1rem 1.5rem; border-top: 1px solid #f3f4f6;
-  display: flex; justify-content: flex-end; gap: 0.75rem;
-}
-
-.btn-modal-cancel {
-  background: #f3f4f6; color: #374151; font-size: 0.88rem; font-weight: 600;
-  padding: 0.55rem 1.2rem; border-radius: 8px; border: 1px solid #d1d5db;
-  cursor: pointer; transition: background-color 0.15s;
-}
-.btn-modal-cancel:hover { background: #e5e7eb; }
-
-.btn-modal-confirm {
-  background: #11998e; color: white; font-size: 0.88rem; font-weight: 600;
-  padding: 0.55rem 1.2rem; border-radius: 8px; border: none;
-  cursor: pointer; transition: background-color 0.15s;
-}
-.btn-modal-confirm:hover { background: #0c8a70; }
-
 /* ── Transiciones ── */
-
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s, transform 0.25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-6px); }

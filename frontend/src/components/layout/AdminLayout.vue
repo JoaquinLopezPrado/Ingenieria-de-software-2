@@ -8,6 +8,11 @@ import { useAuthStore } from '@/stores/authStore'
 const router = useRouter()
 const authStore = useAuthStore()
 
+async function handleLogout() {
+  await authStore.logout()
+  router.push({ name: 'login' })
+}
+
 const showLogoutConfirm = ref(false)
 const isLoggingOut = ref(false)
 const collapsed = ref(false)
@@ -57,17 +62,21 @@ const confirmLogout = async () => {
             <span class="nav-icon">⊞</span> Inicio
           </RouterLink>
 
-          <RouterLink to="/activities/turnos" class="nav-item" active-class="active">
-            <span class="nav-icon">◷</span>
+          <RouterLink to="/activities" class="nav-item" active-class="active"
+            :title="collapsed ? 'Actividades' : ''">
+            <span class="nav-icon">🏃</span>
+            <span class="nav-text">Actividades</span>
+          </RouterLink>
+
+          <RouterLink to="/activities/turnos" class="nav-item" active-class="active"
+            :title="collapsed ? 'Grilla de Turnos' : ''">
+            <span class="nav-icon">📅</span>
             <span class="nav-text">Grilla de Turnos</span>
           </RouterLink>
 
-          <RouterLink to="/activities/schedule" class="nav-item" active-class="active">
-            <span class="nav-icon">⊕</span>
-            <span class="nav-text">Programar Turno</span>
-          </RouterLink>
-          <a href="#" class="nav-item">
-            <span class="nav-icon">☰</span> Inscripciones
+          <a href="#" class="nav-item" :title="collapsed ? 'Inscripciones' : ''">
+            <span class="nav-icon">📋</span>
+            <span class="nav-text">Inscripciones</span>
           </a>
           <RouterLink to="/clientes" class="nav-item" active-class="active">
             <span class="nav-icon">◎</span> Alumnos
@@ -93,11 +102,11 @@ const confirmLogout = async () => {
           </RouterLink>
         </div>
 
-        <!-- Botón colapsar (al fondo del nav) -->
+        <!-- Botón colapsar -->
         <div class="nav-group nav-group--toggle">
           <button class="nav-item nav-toggle-btn" @click="toggleSidebar"
             :title="collapsed ? 'Expandir menú' : 'Colapsar menú'">
-            <span class="nav-icon toggle-arrow">{{ collapsed ? '›' : '‹' }}</span>
+            <span class="nav-icon toggle-arrow" :class="{ 'is-collapsed': collapsed }">❮</span>
             <span class="nav-text">Colapsar menú</span>
           </button>
         </div>
@@ -334,9 +343,13 @@ const confirmLogout = async () => {
 
 /* Flecha del toggle rota al colapsar */
 .toggle-arrow {
-  font-size: 1.15rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  transition: transform 0.25s;
+  transition: transform 0.25s ease;
+}
+
+.toggle-arrow.is-collapsed {
+  transform: rotate(180deg);
 }
 
 /* ── User footer ── */
@@ -410,7 +423,7 @@ const confirmLogout = async () => {
 .main-content {
   flex-grow: 1;
   margin-left: 260px;
-  padding: 2rem 2.5rem;
+  padding: 1.25rem 2rem;
   min-width: 0;
   min-height: 100vh;
   box-sizing: border-box;
@@ -489,9 +502,41 @@ const confirmLogout = async () => {
   }
 }
 
-/* ── Responsive: tablet ── */
+/* ── Responsive: colapso automático del sidebar ── */
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
+  /* Fuerza el sidebar a modo ícono sin importar el estado JS */
+  .sidebar {
+    width: 64px !important;
+  }
+
+  .nav-text {
+    opacity: 0 !important;
+    max-width: 0 !important;
+  }
+
+  .nav-label {
+    opacity: 0 !important;
+    max-height: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .nav-item {
+    justify-content: center !important;
+    padding: 0.65rem 0 !important;
+  }
+
+  .brand-header {
+    justify-content: center !important;
+    padding: 1.75rem 0 1.5rem !important;
+  }
+
+  .user-footer {
+    justify-content: center !important;
+    padding: 1rem 0 !important;
+  }
+
+  /* El contenido ocupa el espacio restante sin desborde */
   .main-content {
     margin-left: 220px;
     padding: 1.5rem;

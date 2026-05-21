@@ -1,11 +1,12 @@
 import axios from 'axios'
+import router from '@/router'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Adjunta el Bearer token en cada request si el usuario está autenticado
+// ── Request: adjunta el Bearer token si existe ────────────────────────────────
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
   if (token) {
@@ -14,15 +15,17 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// INTERCEPTOR DE RESPUESTA: Captura la expiración por tiempo (401)
+// ── Response: redirige al login cuando la sesión expira (401) ─────────────────
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const wasAuthenticated = Boolean(error.config?.headers?.Authorization)
-    if (error.response?.status === 401 && wasAuthenticated) {
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      window.location.href = '/'
+      // Redirige solo si no estamos ya en la pantalla de login
+      if (router.currentRoute.value.name !== 'login') {
+        router.push({ name: 'login' })
+      }
     }
     return Promise.reject(error)
   }

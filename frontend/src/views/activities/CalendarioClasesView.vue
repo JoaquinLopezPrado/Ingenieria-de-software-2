@@ -32,11 +32,12 @@ const route  = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const turnoId    = Number(route.params.id)
-const month      = Number(route.query.month)     || new Date().getMonth() + 1
-const year       = Number(route.query.year)      || new Date().getFullYear()
-const turnoDesc  = (route.query.desc      as string) || ''
-const actividad  = (route.query.actividad as string) || ''
+const turnoId     = Number(route.params.id)
+const month       = Number(route.query.month)     || new Date().getMonth() + 1
+const year        = Number(route.query.year)      || new Date().getFullYear()
+const turnoDesc   = (route.query.desc      as string) || ''
+const actividad   = (route.query.actividad as string) || ''
+const turnoActive = route.query.turno_active !== '0'   // false solo si se pasó explícitamente '0'
 const initialDate = `${year}-${String(month).padStart(2, '0')}-01`
 
 // ─── Guard de rol ─────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ const MESES_ES = [
 ]
 
 // Azul índigo para activas — visualmente distinto del verde teal del sistema
-const COLOR_ACTIVA     = '#7AC45C'
+const COLOR_ACTIVA     = '#16a34a'   // verde (mismo familia, distinto del teal #11998e de los botones)
 const COLOR_SUSPENDIDA = '#9ca3af'
 
 /**
@@ -100,16 +101,23 @@ const periodoLabel = computed(() =>
 // ─── Eventos para FullCalendar ────────────────────────────────────────────────
 
 const fcEvents = computed(() =>
-  clases.value.map(c => ({
-    id:          String(c.id),
-    title:       `${c.start_time} – ${c.end_time}`,
-    start:       `${c.date}T${padTime(c.start_time)}:00`,
-    end:         `${c.date}T${padTime(c.end_time)}:00`,
-    backgroundColor: c.is_active ? COLOR_ACTIVA : COLOR_SUSPENDIDA,
-    borderColor:     c.is_active ? COLOR_ACTIVA : COLOR_SUSPENDIDA,
-    textColor:   '#ffffff',
-    extendedProps: { clase: c },
-  }))
+  clases.value.map(c => {
+    // Si el turno está inactivo, todas sus clases se muestran en gris
+    // independientemente del estado individual de cada clase.
+    const color = !turnoActive
+      ? COLOR_SUSPENDIDA
+      : c.is_active ? COLOR_ACTIVA : COLOR_SUSPENDIDA
+    return {
+      id:               String(c.id),
+      title:            `${c.start_time} – ${c.end_time}`,
+      start:            `${c.date}T${padTime(c.start_time)}:00`,
+      end:              `${c.date}T${padTime(c.end_time)}:00`,
+      backgroundColor:  color,
+      borderColor:      color,
+      textColor:        '#ffffff',
+      extendedProps:    { clase: c },
+    }
+  })
 )
 
 // ─── Opciones de FullCalendar ─────────────────────────────────────────────────
@@ -202,12 +210,19 @@ onMounted(async () => {
 
         <!-- Leyenda de colores -->
         <div class="legend">
-          <span class="legend-item">
-            <span class="legend-dot" style="background:#7AC45C"></span> Activa
-          </span>
-          <span class="legend-item">
-            <span class="legend-dot" style="background:#9ca3af"></span> Suspendida
-          </span>
+          <template v-if="turnoActive">
+            <span class="legend-item">
+              <span class="legend-dot" style="background:#16a34a"></span> Activa
+            </span>
+            <span class="legend-item">
+              <span class="legend-dot" style="background:#9ca3af"></span> Suspendida
+            </span>
+          </template>
+          <template v-else>
+            <span class="legend-item">
+              <span class="legend-dot" style="background:#9ca3af"></span> Turno inactivo
+            </span>
+          </template>
         </div>
       </div>
 
@@ -710,7 +725,7 @@ onMounted(async () => {
   border-radius: 999px;
 }
 
-.badge-active    { background-color: #dcfce7; color: #15803d; }
+.badge-active    { background-color: #dcfce7; color: #105e3a; }
 .badge-suspended { background-color: #f3f4f6; color: #6b7280; }
 
 .modal-footer {
