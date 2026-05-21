@@ -62,7 +62,7 @@ class EmailService:
     async def _send_via_mailpit(self, to: str, subject: str, html: str) -> None:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{settings.mailpit_api_url.rstrip('/')}/api/v1/send-message",
+                f"{settings.mailpit_api_url.rstrip('/')}/api/v1/send",
                 json={
                     "From": {"Email": settings.smtp_from},
                     "To": [{"Email": to}],
