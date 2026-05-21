@@ -5,6 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import aiosmtplib
+import httpx
 
 from app.core.config import settings
 from app.services.email_templates import enrollment_confirmed, payment_confirmed, welcome
@@ -44,24 +45,45 @@ class EmailService:
     ) -> None:
         html = payment_confirmed(first_name, activity_name, turno_description, price, payment_id)
         asyncio.create_task(
-            self._send(to, "Pago confirmado — Centro de Actividades", html)
+            self._send(to, f"Pago confirmado — Centro de Actividades", html)
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:
+        try:
+            if settings.resend_api_key:
+                await self._send_via_resend(to, subject, html)
+            else:
+                await self._send_via_smtp(to, subject, html)
+        except Exception:
+            logger.exception("Error al enviar email a %s (asunto: %s)", to, subject)
+
+    async def _send_via_resend(self, to: str, subject: str, html: str) -> None:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+                json={
+                    "from": settings.smtp_from,
+                    "to": [to],
+                    "subject": subject,
+                    "html": html,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+
+    async def _send_via_smtp(self, to: str, subject: str, html: str) -> None:
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = settings.smtp_from
         message["To"] = to
         message.attach(MIMEText(html, "html"))
-        try:
-            await aiosmtplib.send(
-                message,
-                hostname=settings.smtp_host,
-                port=settings.smtp_port,
-                username=settings.smtp_user or None,
-                password=settings.smtp_password or None,
-                use_tls=settings.smtp_use_tls,
-                start_tls=False,
-            )
-        except Exception:
-            logger.exception("Error al enviar email a %s (asunto: %s)", to, subject)
+        await aiosmtplib.send(
+            message,
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+            username=settings.smtp_user or None,
+            password=settings.smtp_password or None,
+            use_tls=settings.smtp_use_tls,
+            start_tls=False,
+        )
