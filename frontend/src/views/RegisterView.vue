@@ -11,11 +11,10 @@ const loading = ref(false)
 const apiError = ref('')
 
 const extractErrorMessage = (err: any): string => {
-  const detail = err.response?.data?.detail
-  if (!detail) return 'Error en el registro'
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail) && detail.length > 0) return detail[0].msg
-  return 'Error en el registro'
+  const errors = err.response?.data?.errors
+  if (!errors) return 'Error en el registro'
+  const first = Object.values(errors)[0]
+  return typeof first === 'string' ? first : 'Error en el registro'
 }
 
 const handleRegister = async (userData: any) => {
