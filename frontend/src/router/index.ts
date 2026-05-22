@@ -84,19 +84,19 @@ const router = createRouter({
       path: '/activities',
       name: 'lista-actividades',
       component: ListaActividadesView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {
       path: '/activities/turnos',
       name: 'turnos-grilla',
       component: GrillaTurnosView,
-      meta: { adminLayout: true },
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {
       path: '/activities/turnos/:id/clases',
       name: 'turno-clases',
       component: CalendarioClasesView,
-      meta: { adminLayout: true },
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {
       path: '/activities/schedule',
@@ -108,7 +108,7 @@ const router = createRouter({
       path: '/activities/turnos/:id/edit',
       name: 'edit-turno',
       component: EditTurnoView,
-      meta: { requiresAuth: true, adminLayout: true },
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {
       path: '/activities/turnos/:id/clases',
