@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.domain.profile import Gender
 from app.domain.user import AuthProvider
+from app.models.activity import Activity
 from app.models.auth import Role, User
 from app.models.profile import ClientProfile, DocumentType, EmployeeProfile
 from app.utils.security import hash_password
@@ -17,6 +18,33 @@ ROLES = [
 ]
 
 DOCUMENT_TYPES = ["DNI", "PASAPORTE"]
+
+ACTIVITIES = [
+    {
+        "name": "Yoga",
+        "description": (
+            "Práctica que combina posturas físicas, respiración consciente y meditación "
+            "para mejorar la flexibilidad, el equilibrio y la concentración. "
+            "Apta para todos los niveles."
+        ),
+    },
+    {
+        "name": "Funcional",
+        "description": (
+            "Entrenamiento basado en movimientos naturales del cuerpo que trabajan "
+            "múltiples grupos musculares de forma simultánea. "
+            "Mejora la fuerza, la resistencia y la coordinación general."
+        ),
+    },
+    {
+        "name": "Pilates",
+        "description": (
+            "Método de ejercicio enfocado en el fortalecimiento del core y la mejora "
+            "de la postura mediante movimientos controlados y precisos. "
+            "Apto para personas de cualquier condición física."
+        ),
+    },
+]
 
 USERS = [
     {
@@ -123,12 +151,22 @@ async def seed_users(session, roles: dict[str, Role], doc_types: dict[str, Docum
         print(f"[seed] usuario creado: {data['email']}")
 
 
+async def seed_activities(session) -> None:
+    for data in ACTIVITIES:
+        result = await session.execute(select(Activity).where(Activity.name == data["name"]))
+        if result.scalar_one_or_none() is not None:
+            continue
+        session.add(Activity(name=data["name"], description=data["description"], is_active=True))
+        print(f"[seed] actividad creada: {data['name']}")
+
+
 async def run():
     async with AsyncSessionLocal() as session:
         async with session.begin():
             roles = await seed_roles(session)
             doc_types = await seed_document_types(session)
             await seed_users(session, roles, doc_types)
+            await seed_activities(session)
     print("[seed] listo")
 
 
