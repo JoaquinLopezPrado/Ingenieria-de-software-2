@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import List, Tuple
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import and_, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
@@ -50,8 +50,8 @@ class ClaseRepository(AbstractClaseRepository):
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
             .where(
                 TurnoORM.activity_id == activity_id,
-                TurnoORM.is_active == True,
-                ClaseORM.is_active == True,
+                TurnoORM.is_active,
+                ClaseORM.is_active,
                 tuple_(TurnoORM.month, TurnoORM.year).in_(months),
             )
             .order_by(ClaseORM.date)
@@ -75,6 +75,13 @@ class ClaseRepository(AbstractClaseRepository):
             .where(
                 ClaseORM.turno_id == turno_id,
                 ClaseORM.is_active == True,
+                or_(
+                    ClaseORM.date > datetime.now(timezone.utc).date(),
+                    and_(
+                        ClaseORM.date == datetime.now(timezone.utc).date(),
+                        TurnoORM.start_time > datetime.now(timezone.utc).time(),
+                    ),
+                ),
             )
             .order_by(ClaseORM.date)
         )
