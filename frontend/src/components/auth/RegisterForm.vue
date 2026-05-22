@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import PasswordInput from './PasswordInput.vue'
 
-defineProps<{ loading?: boolean }>()
+defineProps<{ loading?: boolean; apiError?: string }>()
 const emit = defineEmits(['submit', 'google-register'])
 
 const formData = ref({
@@ -86,7 +86,7 @@ const handleSubmit = () => {
     <PasswordInput v-model="formData.password" label="Contraseña" :disabled="loading" />
     <PasswordInput v-model="formData.confirmPassword" label="Confirmar Contraseña" :disabled="loading" />
 
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="error || apiError" class="error-message">{{ error || apiError }}</div>
 
     <button type="submit" class="btn-primary" :disabled="loading">
       <span>{{ loading ? 'Creando cuenta' : 'Registrarse' }}</span>

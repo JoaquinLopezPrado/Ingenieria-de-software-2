@@ -8,15 +8,24 @@ import RegisterForm from '@/components/auth/RegisterForm.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 const loading = ref(false)
+const apiError = ref('')
+
+const extractErrorMessage = (err: any): string => {
+  const detail = err.response?.data?.detail
+  if (!detail) return 'Error en el registro'
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail.length > 0) return detail[0].msg
+  return 'Error en el registro'
+}
 
 const handleRegister = async (userData: any) => {
   loading.value = true
+  apiError.value = ''
   try {
     await authStore.register(userData)
     router.push('/')
   } catch (err: any) {
-    const message = err.response?.data?.errors?.general || 'Error en el registro'
-    alert(message)
+    apiError.value = extractErrorMessage(err)
   } finally {
     loading.value = false
   }
@@ -39,10 +48,11 @@ const handleGoogleRegister = async () => {
     <div class="auth-card">
       <AuthHeader subtitle="Únete a nuestra comunidad" />
       
-      <RegisterForm 
-        :loading="loading" 
-        @submit="handleRegister" 
-        @google-register="handleGoogleRegister" 
+      <RegisterForm
+        :loading="loading"
+        :api-error="apiError"
+        @submit="handleRegister"
+        @google-register="handleGoogleRegister"
       />
       
       <div class="auth-footer">
