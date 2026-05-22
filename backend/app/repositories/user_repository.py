@@ -59,7 +59,7 @@ class UserRepository(AbstractUserRepository):
     async def save(self, user: UserORM) -> User:
         self._session.add(user)
         await self._session.flush()
-        await self._session.refresh(user, ["role"])
+        await self._session.refresh(user, ["role", "client_profile"])
         return self._to_domain(user)
 
     async def get_role_by_name(self, name: str) -> Optional[Role]:
