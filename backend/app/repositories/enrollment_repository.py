@@ -388,7 +388,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ya tenés un lugar reservado en esta clase.",
+            detail="Ya tenés un lugar reservado una clase de este turno.",
         )
 
     def _to_domain(self, orm: EnrollmentORM, excluded_clase_ids: list[int]) -> Enrollment:
