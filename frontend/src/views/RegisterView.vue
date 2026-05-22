@@ -23,7 +23,7 @@ const handleRegister = async (userData: any) => {
   apiError.value = ''
   try {
     await authStore.register(userData)
-    router.push('/')
+    router.push('/?registered=true')
   } catch (err: any) {
     apiError.value = extractErrorMessage(err)
   } finally {

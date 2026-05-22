@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'  
-import { useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AuthHeader from '@/components/auth/AuthHeader.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const loading = ref(false)
 const apiError = ref('')
+const registroExitoso = ref(route.query.registered === 'true')
 
 const handleLogin = async (email: string, pass: string) => {
   loading.value = true
@@ -40,6 +42,10 @@ const handleGoogleLogin = async () => {
     <div class="auth-card">
       <AuthHeader subtitle="Bienvenido de nuevo" />
       
+      <div v-if="registroExitoso" class="success-message">
+        Registro exitoso. Podés iniciar sesión.
+      </div>
+
       <LoginForm
         :loading="loading"
         :api-error="apiError"
@@ -62,6 +68,15 @@ const handleGoogleLogin = async () => {
 </template>
 
 <style scoped>
+.success-message {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid #bbf7d0;
+  margin-bottom: 4px;
+}
 /* ESTILOS BASE: Celulares (<768px) */
 .auth-page-wrapper {
   display: flex;
