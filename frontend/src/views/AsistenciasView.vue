@@ -1,105 +1,87 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import api from '@/services/api' // Usamos tu cliente HTTP preconfigurado
+import api from '@/services/api'
 import ListLayout from '@/components/ListLayout.vue'
 import ItemCard from '@/components/ItemCard.vue'
 
-interface ClaseInterna {
-  id: number
+interface ClaseAsistenciaPlana {
+  keyUnique: string
+  tipo: 'Turno Fijo' | 'Clase Individual'
+  actividad: string
+  instructor: string
   fecha: string
+  fechaObjeto: Date // La usamos para ordenar de forma cronológica exacta en el Front
   horario: string
   asistio: boolean
 }
 
-interface TurnoInscripcion {
-  id: number
-  actividad: string
-  descripcion: string
-  instructor: string
-  horario: string
-  dias: string[]
-  periodo: string
-  is_active: boolean
-  clasesAsociadas: ClaseInterna[]
-}
-
-interface ClaseIndividualInscripcion {
-  id: number
-  actividad: string
-  instructor: string
-  fecha: string
-  horario: string
-  is_active: boolean
-  asistio: boolean
-}
-
-const router = useRouter()
-const turnoSeleccionadoId = ref<number | null>(null)
-
-// Estados para controlar el ciclo de vida de la petición de red
-const turnos = ref<TurnoInscripcion[]>([])
-const clases = ref<ClaseIndividualInscripcion[]>([])
+const historialClases = ref<ClaseAsistenciaPlana[]>([])
 const isLoading = ref(true)
 const hasError = ref(false)
 
-// Helper para pasar fechas nativas ISO (2026-05-22) a formato legible de interfaz ("22 Mayo")
 const formatearFecha = (fechaRaw: string): string => {
   if (!fechaRaw) return ''
   const meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ]
-  // Separamos los componentes para evitar desajustes de zona horaria local de JS
   const partes = fechaRaw.split('-')
   if (partes.length !== 3) return fechaRaw
-  const dia = parseInt(partes[2] ?? '0', 10)
-  const mesIndex = parseInt(partes[1] ?? '0', 10) - 1
+  const dia = parseInt(partes[2], 10)
+  const mesIndex = parseInt(partes[1], 10) - 1
   return `${dia} ${meses[mesIndex]}`
 }
 
-const fetchInscripcionesData = async () => {
+const fetchHistorialAsistencias = async () => {
   try {
     isLoading.value = true
     hasError.value = false
 
-    // Solución al 404: Usamos el prefijo '/enrollments' coincidente con router.py
-    // y removemos '/api/v1' ya que tu instancia base de 'api' lo incluye por defecto.
     const [resMonthly, resSingle] = await Promise.all([
       api.get('/enrollments/my/monthly'),
       api.get('/enrollments/my/single')
     ])
 
-    // Mapeo adaptativo: transformamos la data pura del Back al modelo reactivo del Front
-    turnos.value = resMonthly.data.map((item: any) => ({
-      id: item.id,
-      actividad: item.actividad || item.activity_name || 'Actividad',
-      descripcion: item.descripcion || item.turno_description || 'Turno fijo',
-      instructor: item.instructor || 'Profesor',
-      horario: item.horario || `${item.start_time?.slice(0, 5)} - ${item.end_time?.slice(0, 5)}`,
-      dias: item.dias || [],
-      periodo: item.periodo || `Mes ${item.month}/${item.year}`,
-      is_active: item.is_active ?? true,
-      clasesAsociadas: (item.clases_asociadas || item.slots || []).map((c: any) => ({
-        id: c.id,
-        fecha: formatearFecha(c.fecha || c.date),
-        horario: c.horario || c.start_time?.slice(0, 5) || '00:00',
-        asistio: c.asistio ?? c.has_attended ?? false
-      }))
-    }))
+    const listaPlana: ClaseAsistenciaPlana[] = []
 
-    clases.value = resSingle.data.map((item: any) => ({
-      id: item.id,
-      actividad: item.actividad || item.activity_name || 'Clase Suelta',
-      instructor: item.instructor || 'Profesor',
-      fecha: formatearFecha(item.fecha || item.date),
-      horario: item.horario || item.start_time?.slice(0, 5) || '00:00',
-      is_active: item.is_active ?? true,
-      asistio: item.asistio ?? item.has_attended ?? false
-    }))
+    // 1. Procesamos los desgloses internos de los turnos mensuales
+    resMonthly.data.forEach((turno: any) => {
+      const clasesAsociadas = turno.clases_asociadas || turno.slots || []
+      clasesAsociadas.forEach((c: any) => {
+        const fechaStr = c.fecha || c.date
+        listaPlana.push({
+          keyUnique: `monthly-${turno.id}-${c.id}`,
+          tipo: 'Turno Fijo',
+          actividad: turno.actividad || turno.activity_name || 'Actividad',
+          instructor: turno.instructor || 'Profesor',
+          fecha: formatearFecha(fechaStr),
+          fechaObjeto: new Date(fechaStr),
+          horario: c.horario || turno.start_time?.slice(0, 5) || '00:00',
+          asistio: c.asistio ?? c.has_attended ?? false
+        })
+      })
+    })
+
+    // 2. Procesamos las clases sueltas individuales
+    resSingle.data.forEach((clase: any) => {
+      const fechaStr = clase.fecha || clase.date
+      listaPlana.push({
+        keyUnique: `single-${clase.id}`,
+        tipo: 'Clase Individual',
+        actividad: clase.actividad || clase.activity_name || 'Clase Suelta',
+        instructor: clase.instructor || 'Profesor',
+        fecha: formatearFecha(fechaStr),
+        fechaObjeto: new Date(fechaStr),
+        horario: clase.horario || clase.start_time?.slice(0, 5) || '00:00',
+        asistio: clase.asistio ?? clase.has_attended ?? false
+      })
+    })
+
+    // Ordenamos el listado para que las clases más recientes salgan arriba de todo
+    historialClases.value = listaPlana.sort((a, b) => b.fechaObjeto.getTime() - a.fechaObjeto.getTime())
 
   } catch (error) {
-    console.error('Error al sincronizar con el backend de inscripciones:', error)
+    console.error('Error al armar el historial de asistencias:', error)
     hasError.value = true
   } finally {
     isLoading.value = false
@@ -107,183 +89,54 @@ const fetchInscripcionesData = async () => {
 }
 
 onMounted(() => {
-  fetchInscripcionesData()
+  fetchHistorialAsistencias()
 })
-
-const turnosActivos = computed(() => turnos.value.filter(t => t.is_active))
-const turnosPasados = computed(() => turnos.value.filter(t => !t.is_active))
-const clasesActivas = computed(() => clases.value.filter(c => c.is_active))
-const clasesPasadas = computed(() => clases.value.filter(c => !c.is_active))
-
-const clasesDelTurnoSeleccionado = computed(() => {
-  const turno = turnos.value.find(t => t.id === turnoSeleccionadoId.value)
-  return turno ? turno.clasesAsociadas : []
-})
-
-const toggleVerAsistencias = (id: number) => {
-  turnoSeleccionadoId.value = turnoSeleccionadoId.value === id ? null : id
-}
-
-const irAInscripciones = () => {
-  router.push('/list')
-}
 </script>
 
 <template>
-  <ListLayout pageTitle="Mis Inscripciones">
+  <ListLayout pageTitle="Mis Asistencias">
     <div class="central-wrapper">
       
       <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
-        <span>Sincronizando tus asistencias...</span>
+        <span>Sincronizando historial de asistencias...</span>
       </div>
 
       <div v-else-if="hasError" class="error-state">
-        <span>No se pudieron recuperar tus inscripciones actuales.</span>
-        <button type="button" class="btn-retry" @click="fetchInscripcionesData">Reintentar</button>
+        <span>No se pudo procesar tu historial médico-deportivo.</span>
+        <button type="button" class="btn-retry" @click="fetchHistorialAsistencias">Reintentar</button>
       </div>
-      
-      <div v-else class="columns-grid">
-        
-        <section class="asistencia-section">
-          <div class="section-header">
-            <h3>Turnos Fijos</h3>
-          </div>
 
-          <div class="cards-stack">
-            <div v-if="turnosActivos.length === 0" class="empty-column-sub">
-              <span>No tenés turnos activos</span>
-            </div>
-            
-            <template v-else>
-              <div v-for="turno in turnosActivos" :key="turno.id" class="turno-group">
-                <ItemCard 
-                  :title="turno.actividad"
-                  :subtitle="turno.descripcion"
-                  class="inscripcion-card"
-                >
-                  <template #right>
-                    <div class="inscripcion-right">
-                      <div class="dias-badge-container">
-                        <span v-for="dia in turno.dias" :key="dia" class="dia-badge">
-                          {{ dia.slice(0, 3) }}
-                        </span>
-                      </div>
-                      <span class="horario-label">{{ turno.horario }}</span>
-                      <button type="button" class="btn-toggle-asistencias" @click="toggleVerAsistencias(turno.id)">
-                        {{ turnoSeleccionadoId === turno.id ? 'Ocultar asistencias' : 'Ver asistencias' }}
-                      </button>
-                    </div>
-                  </template>
-                </ItemCard>
+      <div v-else class="cards-stack">
+        <div v-if="historialClases.length === 0" class="empty-column-sub">
+          <span>No tenés asistencias registradas en el sistema</span>
+        </div>
 
-                <div v-if="turnoSeleccionadoId === turno.id" class="desglose-clases animate-fade">
-                  <div class="desglose-header">Historial de clases del turno:</div>
-                  <div v-if="clasesDelTurnoSeleccionado.length === 0" class="empty-column-sub">
-                    <span>No hay clases registradas en este turno</span>
-                  </div>
-                  <ItemCard
-                    v-for="cTurno in clasesDelTurnoSeleccionado"
-                    :key="cTurno.id"
-                    :title="turno.actividad"
-                    :subtitle="'Prof. ' + turno.instructor"
-                    class="inscripcion-card clase-desglose-card"
-                  >
-                    <template #right>
-                      <div class="inscripcion-right">
-                        <span :class="['status-badge-inline', cTurno.asistio ? 'asistio' : 'no-asistio']">
-                          {{ cTurno.asistio ? 'Asistió' : 'No asistió' }}
-                        </span>
-                        <span class="horario-label-single">{{ cTurno.fecha }}</span>
-                        <span class="periodo-label">{{ cTurno.horario }} hs</span>
-                      </div>
-                    </template>
-                  </ItemCard>
+        <template v-else>
+          <ItemCard
+            v-for="clase in historialClases"
+            :key="clase.keyUnique"
+            :title="clase.actividad"
+            :subtitle="`Prof. ${clase.instructor}`"
+            class="asistencia-card"
+          >
+            <template #right>
+              <div class="inscripcion-right">
+                <div class="tags-row">
+                  <span :class="['type-badge', clase.tipo === 'Turno Fijo' ? 'badge-turno' : 'badge-clase']">
+                    {{ clase.tipo }}
+                  </span>
+                  <span :class="['status-badge-inline', clase.asistio ? 'asistio' : 'no-asistio']">
+                    {{ clase.asistio ? 'Asistió' : 'No asistió' }}
+                  </span>
                 </div>
+
+                <span class="horario-label-single">{{ clase.fecha }}</span>
+                <span class="periodo-label">{{ clase.horario }} hs</span>
               </div>
             </template>
-
-            <template v-if="turnosPasados.length > 0">
-              <ItemCard 
-                v-for="turno in turnosPasados" 
-                :key="turno.id"
-                :title="turno.actividad"
-                :subtitle="turno.descripcion"
-                class="inscripcion-card estado-pasado"
-              >
-                <template #right>
-                  <div class="inscripcion-right">
-                    <span class="status-badge-inactive">Inactivo</span>
-                    <span class="horario-label">{{ turno.horario }}</span>
-                    <span class="periodo-label">{{ turno.periodo }} · Prof. {{ turno.instructor }}</span>
-                  </div>
-                </template>
-              </ItemCard>
-            </template>
-          </div>
-        </section>
-
-        <section class="asistencia-section">
-          <div class="section-header">
-            <h3>Clases Individuales</h3>
-          </div>
-
-          <div class="cards-stack">
-            <div v-if="clasesActivas.length === 0" class="empty-column-sub">
-              <span>No tenés clases activas</span>
-            </div>
-            <template v-else>
-              <ItemCard 
-                v-for="clase in clasesActivas" 
-                :key="clase.id"
-                :title="clase.actividad"
-                :subtitle="'Prof. ' + clase.instructor"
-                class="inscripcion-card"
-              >
-                <template #right>
-                  <div class="inscripcion-right">
-                    <span :class="['status-badge-inline', clase.asistio ? 'asistio' : 'no-asistio']">
-                      {{ clase.asistio ? 'Asistió' : 'No asistió' }}
-                    </span>
-                    <span class="fecha-badge">{{ clase.fecha }}</span>
-                    <span class="horario-label-single">{{ clase.horario }} hs</span>
-                  </div>
-                </template>
-              </ItemCard>
-            </template>
-
-            <template v-if="clasesPasadas.length > 0">
-              <ItemCard 
-                v-for="clase in clasesPasadas" 
-                :key="clase.id"
-                :title="clase.actividad"
-                :subtitle="'Prof. ' + clase.instructor"
-                class="inscripcion-card estado-pasado"
-              >
-                <template #right>
-                  <div class="inscripcion-right">
-                    <div class="badges-row">
-                      <span class="status-badge-inactive">Inactivo</span>
-                      <span :class="['status-badge-inline', clase.asistio ? 'asistio' : 'no-asistio']">
-                        {{ clase.asistio ? 'Asistió' : 'No asistió' }}
-                      </span>
-                    </div>
-                    <span class="fecha-badge">{{ clase.fecha }}</span>
-                    <span class="horario-label-single">{{ clase.horario }} hs</span>
-                  </div>
-                </template>
-              </ItemCard>
-            </template>
-          </div>
-        </section>
-
-      </div>
-
-      <div v-if="!isLoading && !hasError" class="suggestion-banner">
-        <span class="suggestion-text">¿Buscás anotarte a nuevos turnos?</span>
-        <button type="button" class="btn-action-link" @click="irAInscripciones">
-          Hacé click acá
-        </button>
+          </ItemCard>
+        </template>
       </div>
 
     </div>
@@ -293,36 +146,10 @@ const irAInscripciones = () => {
 <style scoped>
 .central-wrapper {
   width: 100%;
+  max-width: 680px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-}
-
-.columns-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 32px;
-  width: 100%;
-  margin-bottom: 24px;
-}
-
-.asistencia-section {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 16px;
-  border-bottom: 2px solid #cfeee6;
-  padding-bottom: 6px;
-}
-
-.section-header h3 {
-  color: #12695f;
-  font-size: 20px;
-  font-weight: 800;
-  margin: 0;
 }
 
 .cards-stack {
@@ -332,15 +159,7 @@ const irAInscripciones = () => {
   width: 100%;
 }
 
-.turno-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.inscripcion-card {
-  transition: all 0.2s ease;
+.asistencia-card {
   width: 100%;
 }
 
@@ -350,96 +169,40 @@ const irAInscripciones = () => {
   align-items: center;
 }
 
-.clase-desglose-card {
-  border-left: 4px solid #11a691 !important;
-  background-color: #fbfdfd !important;
-}
-
-.inscripcion-card.estado-pasado {
-  background-color: rgba(255, 255, 255, 0.5) !important;
-  border-color: #cfd8dc !important;
-  opacity: 0.65;
-  filter: grayscale(0.6);
-}
-
-.inscripcion-card.estado-pasado .fecha-badge {
-  background: #78909c !important;
-  color: #ffffff !important;
-}
-
 .inscripcion-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   height: 100%;
-  min-width: 130px;
+  min-width: 150px;
 }
 
-.dias-badge-container {
+.tags-row {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  gap: 6px;
+  align-items: center;
 }
 
-.dia-badge {
-  background-color: #e0f2f1;
-  color: #12695f;
-  font-size: 11px;
-  font-weight: 700;
+.type-badge {
+  font-size: 9px;
+  font-weight: 800;
   padding: 2px 6px;
   border-radius: 6px;
   text-transform: uppercase;
 }
 
-.btn-toggle-asistencias {
-  background: transparent;
-  border: none;
-  color: #11a691;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 2px 0 0 0;
-  text-decoration: underline;
-  transition: color 0.2s;
+.type-badge.badge-turno {
+  background-color: #f5f5f5;
+  color: #616161;
+  border: 1px solid #e0e0e0;
 }
 
-.btn-toggle-asistencias:hover {
-  color: #0d8277;
-}
-
-.desglose-clases {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px 0 12px 16px;
-}
-
-.desglose-header {
-  font-size: 12px;
-  font-weight: 700;
-  color: #546e7a;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-
-.badges-row {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.status-badge-inactive {
-  background-color: #eceff1;
-  color: #546e7a;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 8px;
-  text-transform: uppercase;
-  border: 1px solid #b0bec5;
+.type-badge.badge-clase {
+  background-color: #f5f5f5;
+  color: #616161;
+  border: 1px solid #e0e0e0;
 }
 
 .status-badge-inline {
@@ -462,77 +225,21 @@ const irAInscripciones = () => {
   border: 1px solid #ffcdd2;
 }
 
-.horario-label {
-  color: #2c3e50;
-  font-weight: 700;
-  font-size: 13px;
-}
-
 .horario-label-single {
   color: #2c3e50;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .periodo-label {
   color: #7f8c8d;
-  font-size: 11px;
-}
-
-.fecha-badge {
-  background: linear-gradient(135deg, #11a691 0%, #0d8277 100%);
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 10px;
-}
-
-.suggestion-banner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background-color: #ffffff;
-  border: 2px dashed #11a691;
-  padding: 20px;
-  border-radius: 16px;
-  text-align: center;
-  margin-top: 24px;
-  width: 100%;
-  box-shadow: 0 4px 12px rgba(13, 110, 95, 0.04);
-}
-
-.suggestion-text {
-  color: #12695f;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.btn-action-link {
-  background: #11a691;
-  color: white;
-  border: none;
-  border-radius: 20px;
-  padding: 8px 24px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(17, 166, 145, 0.2);
-  transition: all 0.2s ease;
-}
-
-.btn-action-link:hover {
-  background: #0d8277;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(13, 130, 119, 0.3);
+  font-size: 12px;
 }
 
 .empty-column-sub {
   background: rgba(255, 255, 255, 0.25);
   border: 1px dashed #b0bec5;
-  padding: 16px;
+  padding: 32px 16px;
   text-align: center;
   border-radius: 12px;
   color: #78909c;
@@ -540,11 +247,7 @@ const irAInscripciones = () => {
   font-weight: 600;
 }
 
-.animate-fade {
-  animation: fadeIn 0.2s ease-out forwards;
-}
-
-/* Clases de Feedback de Red */
+/* Feedback de Red */
 .loading-state, .error-state {
   display: flex;
   flex-direction: column;
@@ -579,35 +282,5 @@ const irAInscripciones = () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (min-width: 768px) {
-  .central-wrapper {
-    max-width: 960px;
-  }
-  .columns-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .suggestion-banner {
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 16px 24px;
-    text-align: left;
-    gap: 0;
-  }
-  .suggestion-text {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 768px) {
-  .inscripcion-right {
-    gap: 4px;
-  }
 }
 </style>
