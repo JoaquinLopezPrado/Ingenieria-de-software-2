@@ -85,6 +85,11 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="El email o la contraseña ingresados son incorrectos.",
             )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="El email o la contraseña ingresados son incorrectos.",
+            )
         access_token = create_access_token(user.id, user.token_version)
         refresh_token = create_refresh_token(user.id)
         expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)

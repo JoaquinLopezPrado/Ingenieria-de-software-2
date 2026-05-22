@@ -2,8 +2,9 @@
 import { ref } from 'vue'
 import PasswordInput from './PasswordInput.vue'
 
-defineProps<{
+const props = defineProps<{
   loading?: boolean
+  apiError?: string
 }>()
 
 const emit = defineEmits<{
@@ -13,14 +14,14 @@ const emit = defineEmits<{
 
 const email = ref('')
 const password = ref('')
-const error = ref('')
+const validationError = ref('')
 
 const handleSubmit = () => {
   if (!email.value || !password.value) {
-    error.value = 'Por favor completa todos los campos'
+    validationError.value = 'Por favor completa todos los campos'
     return
   }
-  error.value = ''
+  validationError.value = ''
   emit('submit', email.value, password.value)
 }
 </script>
@@ -45,8 +46,8 @@ const handleSubmit = () => {
       :disabled="loading"
     />
 
-    <div v-if="error" class="error-message">
-      {{ error }}
+    <div v-if="validationError || apiError" class="error-message">
+      {{ validationError || apiError }}
     </div>
 
     <button type="submit" class="btn-primary" :disabled="loading">

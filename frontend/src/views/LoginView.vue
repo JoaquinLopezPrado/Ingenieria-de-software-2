@@ -7,15 +7,17 @@ import LoginForm from '@/components/auth/LoginForm.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const loading = ref(false) 
+const loading = ref(false)
+const apiError = ref('')
 
 const handleLogin = async (email: string, pass: string) => {
   loading.value = true
+  apiError.value = ''
   try {
     await authStore.login({ email, password: pass })
     router.replace('/home')
   } catch (err: any) {
-    alert('Email o contraseña incorrectos')
+    apiError.value = err?.response?.data?.detail ?? 'El email o la contraseña ingresados son incorrectos.'
   } finally {
     loading.value = false
   }
@@ -38,10 +40,11 @@ const handleGoogleLogin = async () => {
     <div class="auth-card">
       <AuthHeader subtitle="Bienvenido de nuevo" />
       
-      <LoginForm 
-        :loading="loading" 
-        @submit="handleLogin" 
-        @google-login="handleGoogleLogin" 
+      <LoginForm
+        :loading="loading"
+        :api-error="apiError"
+        @submit="handleLogin"
+        @google-login="handleGoogleLogin"
       />
       
       <div class="auth-footer">

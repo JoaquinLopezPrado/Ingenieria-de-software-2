@@ -16,14 +16,12 @@ api.interceptors.request.use((config) => {
 
 // INTERCEPTOR DE RESPUESTA: Captura la expiración por tiempo (401)
 api.interceptors.response.use(
-  (response) => response, // Si la respuesta es exitosa, pasa de largo
+  (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Si el backend dice 401, el token caducó por tiempo
+    const wasAuthenticated = Boolean(error.config?.headers?.Authorization)
+    if (error.response?.status === 401 && wasAuthenticated) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      
-      // Forzamos la redirección limpiando estados residuales en memoria
       window.location.href = '/'
     }
     return Promise.reject(error)
