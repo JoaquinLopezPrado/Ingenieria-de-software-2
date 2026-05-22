@@ -115,12 +115,6 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/inscripciones',
-      name: 'inscripciones',
-      component: () => import('../views/InscripcionesView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/pagos',
       name: 'pagos',
       component: () => import('../views/PagosView.vue'),

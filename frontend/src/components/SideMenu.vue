@@ -40,9 +40,10 @@ const navigateTo = (path: string) => {
   router.push(path)
 }
 
-const handleLogout = () => {
+const handleLogout = async () => {
   closeMenu()
-  router.push('/logout')
+  await authStore.logout()
+  router.push('/')
 }
 </script>
 
@@ -86,13 +87,7 @@ const handleLogout = () => {
           <button type="button" @click="navigateTo('/home')">Inicio</button>
         </li>
         <li>
-          <button type="button" @click="navigateTo('/list')">Ver actividades</button>
-        </li>
-        <li>
           <button type="button" @click="closeMenu">Vincular mi cuenta con Google</button>
-        </li>
-        <li>
-          <button type="button" @click="navigateTo('/inscripciones')">Mis inscripciones</button>
         </li>
         <li>
           <button type="button" @click="navigateTo('/asistencias')">Mis asistencias</button>
@@ -202,16 +197,16 @@ const handleLogout = () => {
 
 .side-menu {
   position: fixed;
-  top: 60px;
-  right: 0;
+  top: 60px; /* Se posiciona justo debajo de la barra superior */
+  right: 0;  /* Cambiado de left a right */
   width: 280px;
-  height: calc(100vh - 60px);
+  height: calc(100vh - 60px); /* Ocupa el resto de la pantalla visible */
   background-color: #ffffff;
-  z-index: 999;
+  z-index: 999; /* Por debajo de la barra superior (que tiene 1000) */
   box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translateX(100%); /* Oculto hacia la derecha */
   transition: transform 0.3s ease;
 }
 
