@@ -19,7 +19,8 @@ const handleLogin = async (email: string, pass: string) => {
     await authStore.login({ email, password: pass })
     router.replace('/home')
   } catch (err: any) {
-    apiError.value = err?.response?.data?.detail ?? 'El email o la contraseña ingresados son incorrectos.'
+    const errors = err?.response?.data?.errors
+    apiError.value = (errors && Object.values(errors)[0]) || 'El email o la contraseña ingresados son incorrectos.'
   } finally {
     loading.value = false
   }
