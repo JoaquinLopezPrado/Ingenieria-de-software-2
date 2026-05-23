@@ -25,7 +25,7 @@ export interface SessionFormData {
   startTime: string     // "HH:MM"
   endTime: string       // "HH:MM"
   maxCapacity: number
-  price: number
+  class_price: number
   month: number         // 1–12, seleccionado por el admin
   year: number          // >= 2024, seleccionado por el admin
   is_active: boolean
@@ -53,6 +53,7 @@ export interface Turno {
   end_time: string
   capacity: number
   price: number
+  class_price: number
   month: number       // 1–12
   year: number
   is_active: boolean
@@ -125,7 +126,7 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
     year: formData.year,
     days: formData.days.map(d => DAY_TO_BACKEND[d]),
     is_active: formData.is_active,
-    price: formData.price,
+    class_price: formData.class_price,
     instructor: 'A', // temporal hasta que el back lo resuelva
   }
 

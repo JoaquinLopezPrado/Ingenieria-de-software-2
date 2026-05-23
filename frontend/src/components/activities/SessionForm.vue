@@ -89,7 +89,7 @@ const form = ref({
   startTime:    '',   // "HH:MM" — valores de TIME_SLOTS
   endTime:      '',   // "HH:MM" — siempre > startTime gracias a endTimeSlots
   maxCapacity:  null as number | null,
-  price:        null as number | null,
+  class_price:  null as number | null,
   month:        now.getMonth() + 1,
   year:         now.getFullYear(),
   is_active:    false,
@@ -156,9 +156,9 @@ const validate = (): boolean => {
   if (cap === null || !Number.isInteger(Number(cap)) || Number(cap) <= 0)
     errors.value.maxCapacity = 'El cupo máximo debe ser un número entero mayor a 0.'
 
-  const price = form.value.price
-  if (price === null || isNaN(Number(price)) || Number(price) < 0)
-    errors.value.price = 'El precio debe ser un número mayor o igual a 0.'
+  const class_price = form.value.class_price
+  if (class_price === null || isNaN(Number(class_price)) || Number(class_price) <= 0)
+    errors.value.class_price = 'El precio por clase debe ser un número mayor a 0.'
 
   return Object.keys(errors.value).length === 0
 }
@@ -172,7 +172,7 @@ const handleSubmit = () => {
     startTime:    form.value.startTime,
     endTime:      form.value.endTime,
     maxCapacity:  form.value.maxCapacity!,
-    price:        form.value.price!,
+    class_price:  form.value.class_price!,
     month:        form.value.month,
     year:         form.value.year,
     is_active:    form.value.is_active,
@@ -298,18 +298,18 @@ const handleSubmit = () => {
         </div>
       </div>
 
-      <!-- Monto -->
+      <!-- Precio por clase -->
       <div class="input-group">
-        <label>Monto</label>
+        <label>Precio por clase</label>
         <input
           type="number"
-          v-model.number="form.price"
-          min="0"
+          v-model.number="form.class_price"
+          min="0.01"
           step="0.01"
           placeholder="Ej: 150.00"
-          :class="{ 'input-error': errors.price }"
+          :class="{ 'input-error': errors.class_price }"
         >
-        <span v-if="errors.price" class="field-error">{{ errors.price }}</span>
+        <span v-if="errors.class_price" class="field-error">{{ errors.class_price }}</span>
       </div>
 
       <!-- Error rango horario -->

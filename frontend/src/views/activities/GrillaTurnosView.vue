@@ -360,7 +360,8 @@ onMounted(async () => {
               <th>Días</th>
               <th>Horario</th>
               <th>Cupo</th>
-              <th>Precio por clase</th>
+              <th>Valor de clase</th>
+              <th>Valor del turno</th>
               <th>Período</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -381,7 +382,8 @@ onMounted(async () => {
               </td>
               <td class="cell-time">{{ turno.start_time }} – {{ turno.end_time }}</td>
               <td class="cell-capacity">{{ turno.capacity }}</td>
-              <td class="cell-price">{{ turno.price }}</td>
+              <td class="cell-price">${{ turno.class_price }}</td>
+              <td class="cell-price">${{ turno.price }}</td>
               <td class="cell-period">{{ formatPeriod(turno.month, turno.year) }}</td>
               <td class="cell-status">
                 <span :class="['status-badge', turno.is_active ? 'badge-active' : 'badge-inactive']">
