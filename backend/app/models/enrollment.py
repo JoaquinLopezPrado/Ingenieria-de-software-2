@@ -25,6 +25,7 @@ class Enrollment(IDMixin, TimestampMixin, Base):
 
     turno = relationship("Turno", back_populates="enrollments")
     slots = relationship("EnrollmentSlot", back_populates="enrollment", cascade="all, delete-orphan")
+    payment = relationship("Payment", back_populates="enrollment", uselist=False)
 
 
 class EnrollmentSlot(IDMixin, Base):

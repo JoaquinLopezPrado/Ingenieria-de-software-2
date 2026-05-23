@@ -1,0 +1,18 @@
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy.orm import relationship
+
+from app.core.database import Base
+from app.models.mixins import IDMixin
+
+
+class Payment(IDMixin, Base):
+    __tablename__ = "payments"
+
+    enrollment_id = Column(Integer, ForeignKey("enrollments.id"), unique=True, nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    class_price_snapshot = Column(Numeric(10, 2), nullable=False)
+    num_classes_snapshot = Column(Integer, nullable=False)
+    payment_provider_id = Column(String, nullable=False)
+    confirmed_at = Column(DateTime(timezone=True), nullable=False)
+
+    enrollment = relationship("Enrollment", back_populates="payment")
