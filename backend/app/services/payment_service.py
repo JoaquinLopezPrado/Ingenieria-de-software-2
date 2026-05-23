@@ -1,5 +1,5 @@
 import asyncio
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from functools import partial
 
 import mercadopago
@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.domain.enrollment import EnrollmentStatus
 from app.repositories.enrollment_repository import AbstractEnrollmentRepository
+from app.repositories.payment_repository import AbstractPaymentRepository
 from app.repositories.user_repository import AbstractUserRepository
 from app.services.email_service import EmailService
 
@@ -32,9 +33,15 @@ _MP_STATUS_MAP = {
 
 class PaymentService:
 
-    def __init__(self, enrollment_repo: AbstractEnrollmentRepository, user_repo: AbstractUserRepository):
+    def __init__(
+        self,
+        enrollment_repo: AbstractEnrollmentRepository,
+        user_repo: AbstractUserRepository,
+        payment_repo: AbstractPaymentRepository,
+    ):
         self._enrollment_repo = enrollment_repo
         self._user_repo = user_repo
+        self._payment_repo = payment_repo
         self._email_service = EmailService()
         self._sdk = mercadopago.SDK(settings.mp_access_token)
 
@@ -115,6 +122,15 @@ class PaymentService:
         )
 
         if updated and new_status == EnrollmentStatus.CONFIRMED:
+            details = await self._enrollment_repo.get_payment_details(enrollment_id)
+            await self._payment_repo.create(
+                enrollment_id=enrollment_id,
+                amount=details.price,
+                class_price_snapshot=details.class_price_snapshot,
+                num_classes_snapshot=details.num_classes_snapshot,
+                payment_provider_id=payment_id,
+                confirmed_at=datetime.now(timezone.utc),
+            )
             await self._send_payment_email(enrollment_id, payment_id)
 
     async def _send_payment_email(self, enrollment_id: int, payment_id: str) -> None:
