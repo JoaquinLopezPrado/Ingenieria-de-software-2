@@ -15,3 +15,16 @@ class EnrollmentPaymentDetails:
     turno_description: str
     price: Decimal
     expires_at: Optional[datetime]
+    class_price_snapshot: Decimal
+    num_classes_snapshot: int
+
+
+@dataclass
+class Payment:
+    id: int
+    enrollment_id: int
+    amount: Decimal
+    class_price_snapshot: Decimal
+    num_classes_snapshot: int
+    payment_provider_id: str
+    confirmed_at: datetime
