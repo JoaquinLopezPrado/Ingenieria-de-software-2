@@ -79,7 +79,7 @@ async def create_turno(
         start_time=body.start_time,
         end_time=body.end_time,
         capacity=body.capacity,
-        price=body.price,
+        class_price=body.class_price,
         month=body.month,
         year=body.year,
         days=body.days,

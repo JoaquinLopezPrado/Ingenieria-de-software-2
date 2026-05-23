@@ -81,7 +81,7 @@ class TurnoService:
         start_time: time,
         end_time: time,
         capacity: int,
-        price: Decimal,
+        class_price: Decimal,
         month: int,
         year: int,
         days: List[DiaSemana],
@@ -103,11 +103,13 @@ class TurnoService:
                 detail="Ya existe un turno con esa descripción para esa actividad en ese mes.",
             )
 
+        dates = _generate_dates(month, year, days)
+        price = class_price * len(dates)
+
         turno = await self._turno_repo.create(
-            activity_id, description, instructor, start_time, end_time, capacity, price, month, year, days, is_active
+            activity_id, description, instructor, start_time, end_time, capacity, price, class_price, month, year, days, is_active
         )
 
-        dates = _generate_dates(month, year, days)
         await self._clase_repo.create_many(turno.id, dates, capacity)
 
         return turno

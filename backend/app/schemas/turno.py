@@ -30,7 +30,7 @@ class CreateTurnoRequest(BaseModel):
     start_time: time
     end_time: time
     capacity: int = Field(gt=0)
-    price: Decimal = Field(gt=0)
+    class_price: Decimal = Field(gt=0)
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=2024)
     days: List[DiaSemana] = Field(min_length=1)
@@ -91,6 +91,7 @@ class TurnoResponse(BaseModel):
     end_time: time
     capacity: int
     price: Decimal
+    class_price: Decimal
     month: int
     year: int
     is_active: bool
