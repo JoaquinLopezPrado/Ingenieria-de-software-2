@@ -17,6 +17,10 @@ class EnrollmentPaymentDetails:
     expires_at: Optional[datetime]
     class_price_snapshot: Decimal
     num_classes_snapshot: int
+    activity_id: int
+    month: int
+    year: int
+    enrollment_type: str
 
 
 @dataclass
@@ -28,3 +32,8 @@ class Payment:
     num_classes_snapshot: int
     payment_provider_id: str
     confirmed_at: datetime
+    activity_id: Optional[int]
+    activity_name_snapshot: str
+    month_snapshot: int
+    year_snapshot: int
+    enrollment_type_snapshot: str

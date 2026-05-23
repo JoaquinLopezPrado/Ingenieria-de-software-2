@@ -1,7 +1,8 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.domain.enrollment import EnrollmentType
 from app.models.mixins import IDMixin
 
 
@@ -14,5 +15,14 @@ class Payment(IDMixin, Base):
     num_classes_snapshot = Column(Integer, nullable=False)
     payment_provider_id = Column(String, nullable=False)
     confirmed_at = Column(DateTime(timezone=True), nullable=False)
+
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=True)
+    activity_name_snapshot = Column(String, nullable=False)
+    month_snapshot = Column(Integer, nullable=False)
+    year_snapshot = Column(Integer, nullable=False)
+    enrollment_type_snapshot = Column(
+        Enum(EnrollmentType, name="enrollment_type_enum", create_constraint=False),
+        nullable=False,
+    )
 
     enrollment = relationship("Enrollment", back_populates="payment")
