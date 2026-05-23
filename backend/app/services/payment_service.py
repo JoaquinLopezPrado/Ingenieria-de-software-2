@@ -130,6 +130,11 @@ class PaymentService:
                 num_classes_snapshot=details.num_classes_snapshot,
                 payment_provider_id=payment_id,
                 confirmed_at=datetime.now(timezone.utc),
+                activity_id=details.activity_id,
+                activity_name_snapshot=details.activity_name,
+                month_snapshot=details.month,
+                year_snapshot=details.year,
+                enrollment_type_snapshot=details.enrollment_type,
             )
             await self._send_payment_email(enrollment_id, payment_id)
 
