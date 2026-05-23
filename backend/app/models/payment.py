@@ -21,7 +21,7 @@ class Payment(IDMixin, Base):
     month_snapshot = Column(Integer, nullable=False)
     year_snapshot = Column(Integer, nullable=False)
     enrollment_type_snapshot = Column(
-        Enum(EnrollmentType, name="enrollment_type_enum", create_constraint=False),
+        Enum(EnrollmentType, name="enrollment_type_enum", create_constraint=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
     )
 
