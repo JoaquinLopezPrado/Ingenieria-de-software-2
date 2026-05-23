@@ -19,6 +19,11 @@ class AbstractPaymentRepository(ABC):
         num_classes_snapshot: int,
         payment_provider_id: str,
         confirmed_at: datetime,
+        activity_id: int | None,
+        activity_name_snapshot: str,
+        month_snapshot: int,
+        year_snapshot: int,
+        enrollment_type_snapshot: str,
     ) -> Payment:
         raise NotImplementedError
 
@@ -36,6 +41,11 @@ class PaymentRepository(AbstractPaymentRepository):
         num_classes_snapshot: int,
         payment_provider_id: str,
         confirmed_at: datetime,
+        activity_id: int | None,
+        activity_name_snapshot: str,
+        month_snapshot: int,
+        year_snapshot: int,
+        enrollment_type_snapshot: str,
     ) -> Payment:
         orm = PaymentORM(
             enrollment_id=enrollment_id,
@@ -44,6 +54,11 @@ class PaymentRepository(AbstractPaymentRepository):
             num_classes_snapshot=num_classes_snapshot,
             payment_provider_id=payment_provider_id,
             confirmed_at=confirmed_at,
+            activity_id=activity_id,
+            activity_name_snapshot=activity_name_snapshot,
+            month_snapshot=month_snapshot,
+            year_snapshot=year_snapshot,
+            enrollment_type_snapshot=enrollment_type_snapshot,
         )
         self._session.add(orm)
         await self._session.flush()
@@ -58,4 +73,9 @@ class PaymentRepository(AbstractPaymentRepository):
             num_classes_snapshot=orm.num_classes_snapshot,
             payment_provider_id=orm.payment_provider_id,
             confirmed_at=orm.confirmed_at,
+            activity_id=orm.activity_id,
+            activity_name_snapshot=orm.activity_name_snapshot,
+            month_snapshot=orm.month_snapshot,
+            year_snapshot=orm.year_snapshot,
+            enrollment_type_snapshot=orm.enrollment_type_snapshot,
         )
