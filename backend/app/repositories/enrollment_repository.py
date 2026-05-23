@@ -143,6 +143,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
     # ------------------------------------------------------------------ #
 
     async def get_payment_details(self, enrollment_id: int) -> EnrollmentPaymentDetails:
+        num_classes_subq = (
+            select(func.count(EnrollmentSlotORM.id))
+            .where(EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
+            .correlate(EnrollmentORM)
+            .scalar_subquery()
+        )
         result = await self._session.execute(
             select(
                 EnrollmentORM.id,
@@ -152,6 +158,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 ActivityORM.name,
                 TurnoORM.description,
                 EnrollmentORM.expires_at,
+                TurnoORM.class_price,
+                num_classes_subq.label("num_classes"),
             )
             .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
             .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
@@ -171,6 +179,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             activity_name=row[4],
             turno_description=row[5],
             expires_at=row[6],
+            class_price_snapshot=row[7],
+            num_classes_snapshot=row[8] or 1,
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:
