@@ -160,6 +160,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 EnrollmentORM.expires_at,
                 TurnoORM.class_price,
                 num_classes_subq.label("num_classes"),
+                TurnoORM.activity_id,
+                TurnoORM.month,
+                TurnoORM.year,
+                EnrollmentORM.enrollment_type,
             )
             .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
             .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
@@ -181,6 +185,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             expires_at=row[6],
             class_price_snapshot=row[7],
             num_classes_snapshot=row[8] or 1,
+            activity_id=row[9],
+            month=row[10],
+            year=row[11],
+            enrollment_type=row[12],
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:
