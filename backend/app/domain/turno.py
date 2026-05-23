@@ -25,6 +25,7 @@ class Turno:
         end_time: time,
         capacity: int,
         price: Decimal,
+        class_price: Decimal,
         month: int,
         year: int,
         is_active: bool,
@@ -39,6 +40,7 @@ class Turno:
         self.end_time = end_time
         self.capacity = capacity
         self.price = price
+        self.class_price = class_price
         self.month = month
         self.year = year
         self.is_active = is_active

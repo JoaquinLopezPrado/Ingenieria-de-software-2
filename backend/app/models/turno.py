@@ -16,6 +16,7 @@ class Turno(IDMixin, TimestampMixin, Base):
     end_time = Column(Time(timezone=False), nullable=False)
     capacity = Column(Integer, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
+    class_price = Column(Numeric(10, 2), nullable=False)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=False, nullable=False)
