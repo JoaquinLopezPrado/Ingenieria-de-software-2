@@ -9,7 +9,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
         <p class="eyebrow">Panel de administración</p>
         <h1>Bienvenido al panel de administración</h1>
         <p>
-          Usá el menú lateral para moverte por las herramientas de gestión.
+          Acá podés gestionar actividades, turnos y configuraciones del centro.
         </p>
       </div>
     </section>
@@ -18,14 +18,15 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 
 <style scoped>
 .admin-home {
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 2rem;
+  box-sizing: border-box;
 }
 
 .welcome-card {
-  width: min(100%, 680px);
+  width: min(100%, 720px);
   padding: 3rem;
   border-radius: 28px;
   background: linear-gradient(135deg, #ffffff 0%, #f1f7f6 100%);

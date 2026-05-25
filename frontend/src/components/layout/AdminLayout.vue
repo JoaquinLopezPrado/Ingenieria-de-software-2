@@ -1,39 +1,53 @@
+
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { isAdminUser } from '@/utils/role'
 
+const router = useRouter()
 const authStore = useAuthStore()
-const isAdmin = computed(() => isAdminUser(authStore.user))
+
+const showLogoutConfirm = ref(false)
+const isLoggingOut = ref(false)
+
+const adminEmail = computed(() => authStore.user?.email ?? authStore.user?.username ?? 'Sin correo')
+
+const openLogoutConfirm = () => {
+  showLogoutConfirm.value = true
+}
+
+const closeLogoutConfirm = () => {
+  if (isLoggingOut.value) return
+  showLogoutConfirm.value = false
+}
+
+const confirmLogout = async () => {
+  isLoggingOut.value = true
+
+  try {
+    await authStore.logout()
+    router.replace('/')
+  } finally {
+    showLogoutConfirm.value = false
+    isLoggingOut.value = false
+  }
+}
 </script>
 
 <template>
   <div class="admin-wrapper">
-
-    <!-- =========================================================
-         SIDEBAR
-         Barra lateral fija con navegación principal.
-         Los RouterLink detectan la ruta activa automáticamente
-         y aplican la clase CSS "active" sin lógica extra.
-    ========================================================= -->
     <aside class="sidebar">
-
-      <!-- Logo y nombre del centro -->
       <div class="brand-header">
-        <div class="logo-circle">A</div>
         <div class="brand-text">
-          <h2 class="brand-title">Centro Activo</h2>
-          <p class="brand-subtitle">Tu bienestar, nuestra meta</p>
+          <h2 class="brand-title">SiempreGym</h2>
+          <p class="brand-subtitle">Panel de administración</p>
         </div>
       </div>
 
-      <!-- Menú de navegación -->
       <nav class="sidebar-nav">
-
         <div class="nav-group">
           <p class="nav-label">PRINCIPAL</p>
-          <!-- RouterLink aplica "active" cuando la ruta coincide exactamente -->
           <RouterLink to="/admin" class="nav-item" active-class="active" exact>
             <span class="nav-icon">⊞</span> Inicio
           </RouterLink>
@@ -63,41 +77,50 @@ const isAdmin = computed(() => isAdminUser(authStore.user))
             <span class="nav-icon">⚙</span> Configuración
           </a>
         </div>
-
       </nav>
 
-      <!-- Usuario autenticado -->
       <div class="user-footer">
-        <div class="logo-circle small">AG</div>
-        <div class="brand-text">
-          <p class="user-name">Administrador</p>
-          <p class="user-email">admin@centroactivo.ar</p>
+        <div class="brand-text user-meta">
+          <p class="user-email">{{ adminEmail }}</p>
         </div>
-      </div>
 
+        <button type="button" class="btn-logout" @click="openLogoutConfirm">
+          <svg class="logout-icon" viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 17v-3H9v-4h7V7l5 5-5 5M14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z" fill="currentColor"/>
+          </svg>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
     </aside>
 
-    <!-- =========================================================
-         CONTENIDO PRINCIPAL
-         El slot recibe el contenido de cada vista.
-         El padding horizontal se adapta al tamaño de pantalla.
-    ========================================================= -->
     <main class="main-content">
       <slot></slot>
     </main>
 
+    <div v-if="showLogoutConfirm" class="modal-overlay" @click.self="closeLogoutConfirm">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="logout-title">
+        <h2 id="logout-title" class="modal-title">Confirmar cierre de sesión</h2>
+        <p class="modal-text">¿Deseás continuar con la operación?</p>
+
+        <div class="modal-actions">
+          <button type="button" class="modal-cancel-btn" @click="closeLogoutConfirm" :disabled="isLoggingOut">
+            No
+          </button>
+          <button type="button" class="modal-confirm-btn" @click="confirmLogout" :disabled="isLoggingOut">
+            Sí, cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* Layout raíz: sidebar fijo + contenido fluido */
 .admin-wrapper {
   display: flex;
   min-height: 100vh;
   background-color: #f3f4f6;
 }
-
-/* ───────────── SIDEBAR ───────────── */
 
 .sidebar {
   width: 260px;
@@ -107,9 +130,9 @@ const isAdmin = computed(() => isAdminUser(authStore.user))
   display: flex;
   flex-direction: column;
   position: fixed;
-  height: calc(100vh - 60px);
+  height: 100vh;
   left: 0;
-  top: 60px;
+  top: 0;
   overflow-y: auto;
 }
 
@@ -118,26 +141,6 @@ const isAdmin = computed(() => isAdminUser(authStore.user))
   align-items: center;
   gap: 1rem;
   padding: 2rem 1.5rem;
-}
-
-.logo-circle {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 2px solid #11998e;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.1rem;
-  color: #11998e;
-}
-
-.logo-circle.small {
-  width: 34px;
-  height: 34px;
-  font-size: 0.85rem;
 }
 
 .brand-title {
@@ -190,7 +193,6 @@ const isAdmin = computed(() => isAdminUser(authStore.user))
   color: white;
 }
 
-/* Clase aplicada por RouterLink cuando la ruta está activa */
 .nav-item.active {
   background-color: #11998e;
   color: white;
@@ -208,39 +210,135 @@ const isAdmin = computed(() => isAdminUser(authStore.user))
   padding: 1.25rem 1.5rem;
   background-color: #0a251e;
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.user-name {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 600;
+.user-meta {
+  min-width: 0;
 }
 
 .user-email {
   margin: 0;
-  font-size: 0.72rem;
-  color: #8fa8a2;
+  font-size: 0.78rem;
+  color: #d1dadd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ───────────── MAIN CONTENT ───────────── */
+.btn-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background-color: #fff5f5;
+  color: #e53935;
+  border: 2px solid #ffcdd2;
+  border-radius: 30px;
+  padding: 12px 16px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(229, 57, 53, 0.08);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background-color: #e53935;
+  color: #ffffff;
+  border-color: #e53935;
+  box-shadow: 0 6px 15px rgba(229, 57, 53, 0.2);
+}
+
+.logout-icon {
+  flex-shrink: 0;
+}
 
 .main-content {
   flex-grow: 1;
-  margin-left: 260px; /* Deja el espacio exacto del sidebar fijo */
-  padding: 60px 2.5rem 2rem 2.5rem;
-  min-width: 0; /* Evita que el contenido desborde en pantallas chicas */
+  margin-left: 260px;
+  padding: 2rem 2.5rem;
+  min-width: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
-/* En tablets (sidebar colapsado via scroll) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1200;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 380px;
+  background: white;
+  border-radius: 24px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  text-align: center;
+}
+
+.modal-title {
+  margin: 0 0 10px;
+  color: #0d9b8a;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.modal-text {
+  margin: 0 0 22px;
+  color: #6b7280;
+  font-size: 0.98rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-cancel-btn,
+.modal-confirm-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-cancel-btn {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-confirm-btn {
+  background: #18b4a3;
+  color: white;
+}
+
+.modal-cancel-btn:disabled,
+.modal-confirm-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 220px;
   }
+
   .main-content {
     margin-left: 220px;
-    padding: 60px 1.5rem 1.5rem 1.5rem;
+    padding: 1.5rem;
   }
 }
 </style>
+
