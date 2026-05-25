@@ -25,7 +25,7 @@
  
         <div class="divider"></div>
  
-        <div class="actividad-nombre">{{ route.query.actividad }}</div>
+        <div class="actividad-nombre">{{ route.query.actividad }}{{ route.query.descripcion ? ' - ' + route.query.descripcion : '' }}</div>
  
         <div class="datos-grid">
           <div class="dato">

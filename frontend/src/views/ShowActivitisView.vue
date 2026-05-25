@@ -260,6 +260,7 @@ const handleInscripcion = async (turno) => {
       query: {
         enrollment_id:      data.id,
         actividad:          turno.actividad,
+        descripcion:        turno.descripcion,
         dia:                turno.dia,
         hora:               turno.hora,
         duracion:           turno.dur,
