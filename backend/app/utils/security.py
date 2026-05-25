@@ -110,7 +110,7 @@ def create_google_pending_token(google_id: str, email: str, first_name: str, las
         "last_name": last_name,
         "jti": str(uuid.uuid4()),
         "iat": now,
-        "exp": now + timedelta(minutes=15),
+        "exp": now + timedelta(minutes=1),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 
