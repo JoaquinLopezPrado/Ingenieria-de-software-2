@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AuthHeader from '@/components/auth/AuthHeader.vue'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const loading = ref(false)
 const apiError = ref('')
+
+const googleErrorMessages: Record<string, string> = {
+  google_token_expired: 'El proceso de registro expiró. Iniciá el registro nuevamente.',
+}
+const googleError = ref(googleErrorMessages[route.query.error as string] ?? '')
 
 const extractErrorMessage = (err: any): string => {
   const errors = err.response?.data?.errors
@@ -40,7 +46,9 @@ const handleGoogleRegister = () => {
   <div class="auth-page-wrapper">
     <div class="auth-card">
       <AuthHeader subtitle="Únete a nuestra comunidad" />
-      
+
+      <div v-if="googleError" class="error-message">{{ googleError }}</div>
+
       <RegisterForm
         :loading="loading"
         :api-error="apiError"
@@ -117,5 +125,15 @@ const handleGoogleRegister = () => {
     justify-content: center;
     gap: 6px;
   }
+}
+
+.error-message {
+  background-color: #fff5f5;
+  color: #c0392b;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid #fecaca;
+  margin-bottom: 4px;
 }
 </style>
