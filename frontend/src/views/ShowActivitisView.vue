@@ -39,7 +39,15 @@
         </div>
       </div>
 
-      <div class="grid">
+      <div v-if="!loading && turnos.length === 0" class="empty-state">
+        No hay turnos disponibles
+      </div>
+
+      <div v-else-if="!loading && currentTurnos.length === 0" class="empty-state">
+        No hay turnos para la actividad seleccionada
+      </div>
+
+      <div v-else class="grid">
         <div
           v-for="turno in currentTurnos"
           :key="turno.id"
@@ -358,6 +366,7 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-
 .badge { background: #fff; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border: 1px solid #E0F2F1; }
 .badge-num { font-size: 22px; font-weight: 800; }
 .badge-label { font-size: 13px; color: #78909C; }
+.empty-state { padding: 40px 0; text-align: center; font-size: 15px; color: #78909C; font-weight: 500; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .card { background: #fff; border-radius: 16px; border: 1px solid #E0E0E0; padding: 18px 20px; display: flex; flex-direction: column; gap: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: all 0.25s ease; position: relative; overflow: hidden; }
 .card.inscripto { border-color: #00897B; box-shadow: 0 0 0 3px #E0F2F1; }
