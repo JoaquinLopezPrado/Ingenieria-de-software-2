@@ -73,6 +73,7 @@ class TurnoRepository(AbstractTurnoRepository):
     ) -> Tuple[List[Turno], int]:
         base = (
             select(TurnoORM)
+            .where(TurnoORM.is_active == True)
             .where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
             .order_by(TurnoORM.year, TurnoORM.month)
         )
