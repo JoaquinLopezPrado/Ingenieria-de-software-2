@@ -9,8 +9,8 @@
         </svg>
       </div>
  
-      <h1>¡Inscripción confirmada!</h1>
-      <p class="subtitle">Tu lugar está reservado. Te esperamos.</p>
+      <h1>¡Se reservo tu lugar hasta finalizar el pago!</h1>
+      <p class="subtitle">Te esperamos.</p>
  
       <!-- Comprobante -->
       <div class="comprobante">
@@ -48,7 +48,7 @@
             </div>
             <div>
               <div class="dato-label">Horario</div>
-              <div class="dato-valor">{{ route.query.hora }} hs · {{ route.query.duracion }}</div>
+              <div class="dato-valor">{{ route.query.duracion }}</div>
             </div>
           </div>
  
@@ -67,12 +67,9 @@
           <div class="dato">
             <div class="dato-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </div>
             <div>
-              <div class="dato-label">Nivel</div>
-              <div class="dato-valor">{{ route.query.nivel }}</div>
             </div>
           </div>
         </div>
@@ -244,7 +241,6 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 .datos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
  
 .dato { display: flex; align-items: flex-start; gap: 10px; }
-.dato-icon { width: 32px; height: 32px; border-radius: 8px; background: #E0F2F1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
 .dato-label { font-size: 11px; color: #90A4AE; margin-bottom: 2px; }
 .dato-valor { font-size: 14px; font-weight: 600; color: #37474F; }
  

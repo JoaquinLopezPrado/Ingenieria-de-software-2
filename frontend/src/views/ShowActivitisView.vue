@@ -47,18 +47,15 @@
           >
             INSCRIPTO ✓
           </div>
-
           <!-- CARD TOP: nombre + hora | agotado badge -->
           <div class="card-top">
             <div>
               <div class="turno-nombre">{{ turno.nombre }}</div>
               <div class="hora-row">
-                <span class="hora">{{ turno.hora }}</span>
-                <span class="duracion">hs · {{ turno.dur }}</span>
+                <span class="hora">{{ turno.descripcion }}</span>
               </div>
-              <div class="dia">{{ turno.dia }}</div>
+              <div class="dia">{{ turno.dur }} · {{ turno.dia }}</div>
             </div>
-
             <span
               v-if="turno.ocup >= turno.total"
               class="agotado-badge"
@@ -200,6 +197,7 @@ onMounted(async () => {
       total: turno.capacity,
       ocup: turno.enrolled ?? 0,
       nivel: turno.level || 'Todos los niveles',
+      descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
     }))
   } catch (error) {
