@@ -53,6 +53,16 @@ const handleLinkGoogle = async () => {
   }
 }
 
+const handleUnlinkGoogle = async () => {
+  closeMenu()
+  try {
+    await authStore.unlinkGoogle()
+    router.push('/home?google_unlinked=true')
+  } catch {
+    router.push('/home?error=google_unlink_failed')
+  }
+}
+
 const handleLogout = async () => {
   closeMenu()
   await authStore.logout()
@@ -101,6 +111,9 @@ const handleLogout = async () => {
         </li>
         <li v-if="!hasGoogleLinked">
           <button type="button" @click="handleLinkGoogle">Vincular mi cuenta con Google</button>
+        </li>
+        <li v-if="hasGoogleLinked">
+          <button type="button" @click="handleUnlinkGoogle">Desvincular Google</button>
         </li>
         <li>
           <button type="button" @click="navigateTo('/asistencias')">Mis asistencias</button>
