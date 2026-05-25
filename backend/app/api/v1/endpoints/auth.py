@@ -99,6 +99,8 @@ async def google_oauth_callback(
         result = await service.handle_google_callback(code, state)
     except HTTPException as exc:
         if mode == "link":
+            if exc.status_code == status.HTTP_409_CONFLICT and exc.detail == "GOOGLE_ALREADY_LINKED":
+                return RedirectResponse(url=f"{frontend}/home?error=google_already_in_use")
             return RedirectResponse(url=f"{frontend}/home?error=google_link_failed")
         if exc.status_code == status.HTTP_409_CONFLICT:
             if exc.detail == "GOOGLE_ALREADY_LINKED":
