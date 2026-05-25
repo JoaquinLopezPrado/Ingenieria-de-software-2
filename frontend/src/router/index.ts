@@ -127,7 +127,7 @@ const router = createRouter({
   ]
 })
 
-const publicRouteNames = new Set(['login', 'register', 'forgot-password'])
+const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'auth-callback', 'google-complete'])
 
 router.beforeEach((to) => {
   const hasAccessToken = Boolean(localStorage.getItem('access_token'))
