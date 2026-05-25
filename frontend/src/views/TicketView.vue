@@ -118,9 +118,6 @@
         <button class="btn-volver" @click="router.push({ name: 'list' })">
           ← Volver a actividades
         </button>
-        <button class="btn-inicio" @click="router.push({ name: 'home' })">
-          Ir al inicio
-        </button>
       </div>
     </div>
   </div>
@@ -275,16 +272,6 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 }
 .btn-volver:hover { background: #E0F2F1; }
  
-.btn-inicio {
-  width: 100%; padding: 13px;
-  border-radius: 99px; border: none;
-  background: #00897B; color: #fff;
-  font-weight: 700; font-size: 14px;
-  cursor: pointer; transition: all 0.2s ease;
-}
-.btn-inicio:hover { background: #00695C; }
-.btn-mp:disabled { opacity: 0.5; cursor: not-allowed; }
-
 .countdown {
   display: flex; align-items: center; gap: 7px;
   width: 100%; padding: 10px 14px;
