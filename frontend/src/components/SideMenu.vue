@@ -49,7 +49,7 @@ const handleLinkGoogle = async () => {
     const { data } = await authService.getGoogleLinkUrl()
     window.location.href = data.url
   } catch {
-    // si falla la petición no hacemos nada
+    router.push('/home?error=google_link_failed')
   }
 }
 
