@@ -129,8 +129,7 @@ class AuthService:
     # Google OAuth                                                         #
     # ------------------------------------------------------------------ #
 
-    def get_google_oauth_url(self, mode: str = "login") -> str:
-        state = create_google_state_token(mode)
+    def _build_google_url(self, state: str) -> str:
         params = urlencode({
             "client_id": settings.google_client_id,
             "redirect_uri": settings.google_redirect_uri,
@@ -141,24 +140,29 @@ class AuthService:
         })
         return f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
 
+    def get_google_oauth_url(self, mode: str = "login") -> str:
+        return self._build_google_url(create_google_state_token(mode))
+
+    def get_google_link_url(self, user_id: int) -> str:
+        return self._build_google_url(create_google_state_token(mode="link", user_id=user_id))
+
     async def handle_google_callback(self, code: str, state: str) -> dict:
-        """
-        Intercambia el code con Google, obtiene el perfil del usuario y devuelve:
-        - {"type": "login", "access_token": ..., "refresh_token": ...} si el usuario ya existe.
-        - {"type": "new_user", "pending_token": ..., "email": ..., "first_name": ..., "last_name": ...} si es nuevo.
-        """
-        mode = decode_google_state_token(state)
-        if mode is None:
+        state_data = decode_google_state_token(state)
+        if state_data is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Estado OAuth inválido o expirado.",
             )
+        mode = state_data["mode"]
 
         userinfo = await self._exchange_code_for_userinfo(code)
         google_id = userinfo["id"]
         email = userinfo.get("email", "")
         first_name = userinfo.get("given_name", "")
         last_name = userinfo.get("family_name", "")
+
+        if mode == "link":
+            return await self._link_google_account(state_data["user_id"], google_id)
 
         user = await self._user_repo.get_by_google_id(google_id)
 
@@ -183,6 +187,29 @@ class AuthService:
             "first_name": first_name,
             "last_name": last_name,
         }
+
+    async def _link_google_account(self, user_id: int, google_id: str) -> dict:
+        existing = await self._user_repo.get_by_google_id(google_id)
+        if existing is not None and existing.id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Esta cuenta de Google ya está vinculada a otro usuario.",
+            )
+
+        current_user = await self._user_repo.get_by_id(user_id)
+        if current_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado.",
+            )
+        if current_user.google_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Tu cuenta ya tiene una cuenta de Google vinculada.",
+            )
+
+        await self._user_repo.link_google(user_id, google_id)
+        return {"type": "linked"}
 
     async def google_complete_registration(self, data: GoogleCompleteRequest) -> tuple[str, str]:
         try:
