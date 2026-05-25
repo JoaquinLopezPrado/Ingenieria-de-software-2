@@ -1,6 +1,6 @@
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
@@ -15,13 +15,23 @@ async function handleLogout() {
 
 const showLogoutConfirm = ref(false)
 const isLoggingOut = ref(false)
+
+// ─── Sidebar colapsable ───────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'sidebar_collapsed'
 const collapsed = ref(false)
 
-const adminEmail = computed(() => authStore.user?.email ?? authStore.user?.username ?? 'Sin correo')
+onMounted(() => {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  collapsed.value = stored !== null ? stored === 'true' : window.innerWidth < 1024
+})
 
 const toggleSidebar = () => {
   collapsed.value = !collapsed.value
+  localStorage.setItem(STORAGE_KEY, String(collapsed.value))
 }
+
+const adminEmail = computed(() => authStore.user?.email ?? authStore.user?.username ?? 'Sin correo')
 
 const openLogoutConfirm = () => {
   showLogoutConfirm.value = true
@@ -46,10 +56,11 @@ const confirmLogout = async () => {
 </script>
 
 <template>
-  <div class="admin-wrapper">
+  <div :class="['admin-wrapper', { 'sidebar-collapsed': collapsed }]">
     <aside class="sidebar">
       <div class="brand-header">
-        <div class="brand-text">
+        <div class="logo-circle">S</div>
+        <div class="brand-name nav-text">
           <h2 class="brand-title">SiempreGym</h2>
           <p class="brand-subtitle">Panel de administración</p>
         </div>
@@ -58,8 +69,10 @@ const confirmLogout = async () => {
       <nav class="sidebar-nav">
         <div class="nav-group">
           <p class="nav-label">PRINCIPAL</p>
-          <RouterLink to="/admin" class="nav-item" active-class="active" exact>
-            <span class="nav-icon">⊞</span> Inicio
+          <RouterLink :to="{ name: 'admin-home' }" class="nav-item" active-class="active"
+            :title="collapsed ? 'Inicio' : ''">
+            <span class="nav-icon">🗂️</span>
+            <span class="nav-text">Inicio</span>
           </RouterLink>
 
           <RouterLink to="/activities" class="nav-item" active-class="active"
@@ -114,15 +127,16 @@ const confirmLogout = async () => {
       </nav>
 
       <div class="user-footer">
-        <div class="brand-text user-meta">
+        <div class="logo-circle small">{{ adminEmail.substring(0, 2).toUpperCase() }}</div>
+        <div class="user-info nav-text">
           <p class="user-email">{{ adminEmail }}</p>
         </div>
 
-        <button type="button" class="btn-logout" @click="openLogoutConfirm">
+        <button type="button" class="btn-logout" @click="openLogoutConfirm" :title="collapsed ? 'Cerrar sesión' : ''">
           <svg class="logout-icon" viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
             <path d="M16 17v-3H9v-4h7V7l5 5-5 5M14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z" fill="currentColor"/>
           </svg>
-          <span>Cerrar sesión</span>
+          <span class="nav-text">Cerrar sesión</span>
         </button>
       </div>
     </aside>
@@ -254,6 +268,12 @@ const confirmLogout = async () => {
 
 .brand-name {
   min-width: 0;
+  flex: 1;
+}
+
+.user-info {
+  min-width: 0;
+  flex: 1;
 }
 
 .brand-title {
@@ -538,8 +558,10 @@ const confirmLogout = async () => {
 
   /* El contenido ocupa el espacio restante sin desborde */
   .main-content {
-    margin-left: 220px;
-    padding: 1.5rem;
+    margin-left: 64px !important;
+    padding: 1.25rem 1.5rem;
+    min-width: 0;
+    overflow-x: hidden;
   }
 }
 </style>

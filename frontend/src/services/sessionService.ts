@@ -251,6 +251,30 @@ export const getClasesByTurno = async (turnoId: number): Promise<Clase[]> => {
   return res.data
 }
 
+export interface UpdateTurnoPayload {
+  description?: string
+  days?:        string[]
+  start_time?:  string
+  end_time?:    string
+  capacity?:    number
+  price?:       number
+  month?:       number
+  year?:        number
+  is_active?:   boolean
+}
+
+/**
+ * Actualiza un turno existente con PATCH /api/v1/turnos/{id}.
+ * Requiere rol admin y que el turno no tenga inscripciones activas.
+ */
+export const updateTurno = async (
+  turnoId: number,
+  payload: UpdateTurnoPayload
+): Promise<{ message: string }> => {
+  await api.patch(`/turnos/${turnoId}`, payload)
+  return { message: 'Turno modificado con éxito' }
+}
+
 /**
  * Extrae el mensaje de error legible del formato de error del backend.
  * El backend siempre retorna: { errors: { general: "..." } } o { errors: { field: "..." } }
