@@ -84,6 +84,16 @@ async def google_link_start(
     return {"url": service.get_google_link_url(user_id)}
 
 
+@router.delete("/google/link", status_code=status.HTTP_204_NO_CONTENT)
+async def google_unlink(
+    user_id: int = Depends(get_current_user_id),
+    _=require_roles("admin", "empleado", "cliente"),
+    service: AuthService = Depends(get_auth_service),
+):
+    """Desvincula la cuenta de Google del usuario autenticado."""
+    await service.unlink_google_account(user_id)
+
+
 @router.get("/google/callback", include_in_schema=False)
 async def google_oauth_callback(
     code: str = Query(...),
