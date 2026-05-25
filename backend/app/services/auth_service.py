@@ -216,6 +216,19 @@ class AuthService:
         await self._user_repo.link_google(user_id, google_id)
         return {"type": "linked"}
 
+    async def unlink_google_account(self, user_id: int) -> None:
+        user = await self._user_repo.get_by_id(user_id)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+        if user.google_id is None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No tenés una cuenta de Google vinculada.")
+        if user.hashed_password is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No podés desvincular Google si no tenés contraseña configurada.",
+            )
+        await self._user_repo.unlink_google(user_id)
+
     async def google_complete_registration(self, data: GoogleCompleteRequest) -> tuple[str, str]:
         try:
             google_data = decode_google_pending_token(data.pending_token)
