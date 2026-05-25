@@ -42,6 +42,10 @@ const handleSubmit = async () => {
     await authStore.googleComplete(pendingToken.value, formData.value)
     router.replace('/home')
   } catch (err: any) {
+    if (err.response?.status === 401) {
+      router.replace('/register?error=google_token_expired')
+      return
+    }
     error.value = err.response?.data?.detail || 'Error al completar el registro.'
   } finally {
     loading.value = false
