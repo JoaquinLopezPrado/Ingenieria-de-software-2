@@ -4,7 +4,7 @@
     <div class="main">
       <h1>Actividades disponibles</h1>
       <p class="subtitle">Elegí tu actividad y reservá tu lugar en el turno que más te convenga.</p>
- 
+
       <!-- Tabs -->
       <ActivitiesBar v-model="currentTab">
         <ActivityBtn v-for="tab in tabs" :key="tab" :value="tab">
@@ -22,32 +22,18 @@
           <span class="badge-num" style="color: #00897B">
             {{ disponibles }}
           </span>
-
-          <span class="badge-label">
-            Turnos disponibles
-          </span>
+          <span class="badge-label">Turnos disponibles</span>
         </div>
 
         <div class="badge">
           <span class="badge-num" style="color: #E53935">
             {{ completos }}
           </span>
-
-          <span class="badge-label">
-            Turnos completos
-          </span>
+          <span class="badge-label">Turnos completos</span>
         </div>
       </div>
 
-      <div v-if="!loading && turnos.length === 0" class="empty-state">
-        No hay turnos disponibles
-      </div>
-
-      <div v-else-if="!loading && currentTurnos.length === 0" class="empty-state">
-        No hay turnos para la actividad seleccionada
-      </div>
-
-      <div v-else class="grid">
+      <div class="grid">
         <div
           v-for="turno in currentTurnos"
           :key="turno.id"
@@ -62,31 +48,22 @@
             INSCRIPTO ✓
           </div>
 
+          <!-- CARD TOP: nombre + hora | agotado badge -->
           <div class="card-top">
             <div>
+              <div class="turno-nombre">{{ turno.nombre }}</div>
               <div class="hora-row">
-                <span class="hora">
-                  {{ turno.hora }}
-                </span>
-
-                <span class="duracion">
-                  hs · {{ turno.dur }}
-                </span>
+                <span class="hora">{{ turno.hora }}</span>
+                <span class="duracion">hs · {{ turno.dur }}</span>
               </div>
-
-              <div class="dia">
-                {{ turno.dia }}
-              </div>
+              <div class="dia">{{ turno.dia }}</div>
             </div>
 
             <span
-              class="nivel-badge"
-              :style="{
-                background: nivelColors[turno.nivel].bg,
-                color: nivelColors[turno.nivel].text
-              }"
+              v-if="turno.ocup >= turno.total"
+              class="agotado-badge"
             >
-              {{ turno.nivel }}
+              AGOTADO
             </span>
           </div>
 
@@ -99,13 +76,8 @@
             </div>
 
             <div>
-              <div class="inst-label">
-                Instructor/a
-              </div>
-
-              <div class="inst-name">
-                {{ turno.inst }}
-              </div>
+              <div class="inst-label">Instructor/a</div>
+              <div class="inst-name">{{ turno.inst }}</div>
             </div>
           </div>
 
@@ -135,30 +107,33 @@
               ></div>
             </div>
           </div>
- 
+
           <div class="acciones-card">
             <button
               class="accion-btn"
-              :disabled="turno.ocup >= turno.total && !inscriptos.has(turno.id)"
+              :disabled="inscriptos.has(turno.id)"
               :class="{
-                lleno: turno.ocup >= turno.total && !inscriptos.has(turno.id),
+                espera: turno.ocup >= turno.total && !inscriptos.has(turno.id),
                 inscripto: inscriptos.has(turno.id)
               }"
               @click="handleInscripcion(turno)"
             >
-              {{ turno.ocup >= turno.total && !inscriptos.has(turno.id)
-                ? 'Sin disponibilidad'
-                : inscriptos.has(turno.id)
+              {{ inscriptos.has(turno.id)
                 ? 'Cancelar inscripción'
+                : turno.ocup >= turno.total
+                ? 'Inscribirse a la lista de espera'
                 : 'Inscribirse' }}
             </button>
 
             <button
               class="secondary-btn"
+              :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
               type="button"
               @click="goToClassSelection(turno)"
             >
-              Ver clases de prueba individual
+              {{ turno.ocup >= turno.total
+                ? 'Anotarse en lista de espera para clase de prueba'
+                : 'Ver clases de prueba individual' }}
             </button>
           </div>
 
@@ -195,25 +170,6 @@ const tabIcons = computed(() =>
   Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON]))
 )
 
-const nivelColors = {
-  Principiante: {
-    bg: '#E8F5E9',
-    text: '#2E7D32',
-  },
-  Intermedio: {
-    bg: '#FFF8E1',
-    text: '#F57F17',
-  },
-  Avanzado: {
-    bg: '#FCE4EC',
-    text: '#880E4F',
-  },
-  'Todos los niveles': {
-    bg: '#E0F2F1',
-    text: '#00695C',
-  },
-}
-
 onMounted(async () => {
   try {
     loading.value = true
@@ -233,13 +189,16 @@ onMounted(async () => {
       id: turno.id,
       activityId: turno.activity_id,
       actividad: nameMap.get(turno.activity_id) ?? `Actividad #${turno.activity_id}`,
+      nombre: (turno.name || turno.nombre || nameMap.get(turno.activity_id) || '')
+        .replace(/:/g, '')
+        .trim(),
       dia: turno.days?.join(' / ') || 'Sin días',
       hora: turno.start_time,
       horaFin: turno.end_time,
       dur: `${turno.start_time} - ${turno.end_time}`,
       inst: turno.instructor_name || turno.instructor || 'Instructor',
       total: turno.capacity,
-      ocup: turno.occupied ?? 0,
+      ocup: turno.enrolled ?? 0,
       nivel: turno.level || 'Todos los niveles',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
     }))
@@ -277,16 +236,15 @@ const pct = (t) => {
 
 const barColor = (t) => {
   const p = pct(t)
-
   return p >= 100
     ? '#E53935'
     : p >= 75
     ? '#FB8C00'
     : '#00897B'
 }
- 
+
 const handleInscripcion = async (turno) => {
-  if (inscriptos.value.has(turno.id) || turno.ocup >= turno.total) return
+  if (inscriptos.value.has(turno.id)) return
 
   loadingTurno.value = turno.id
   errorMensaje.value = null
@@ -335,15 +293,15 @@ const goToClassSelection = (turno) => {
   router.push({
     name: 'class-selection',
     query: {
-      turnoId: String(turno.id),
+      turnoId:    String(turno.id),
       activityId: String(turno.activityId),
-      actividad: turno.actividad,
+      actividad:  turno.actividad,
       horaInicio: turno.hora,
-      horaFin: turno.horaFin,
-      dias: turno.dia,
-      sala: String(turno.sala),
+      horaFin:    turno.horaFin,
+      dias:       turno.dia,
+      sala:       String(turno.sala),
       instructor: turno.inst,
-      nivel: turno.nivel,
+      nivel:      turno.nivel,
     },
   })
 }
@@ -352,91 +310,74 @@ const goToClassSelection = (turno) => {
 <style scoped>
 * { box-sizing: border-box; }
 .tab-icon { display: flex; align-items: center; }
-.page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; }
-.header { background: #fff; border-bottom: 1px solid #E0F2F1; padding: 0 24px; box-shadow: 0 2px 12px rgba(0,137,123,0.08); }
-.header-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 60px; }
-.logo { font-size: 19px; font-weight: 900; color: #00695C; letter-spacing: 0.08em; }
-.account { display: flex; align-items: center; gap: 8px; }
-.avatar { width: 34px; height: 34px; border-radius: 50%; background: #E0F2F1; display: flex; align-items: center; justify-content: center; }
-.account-label { font-size: 13px; color: #546E7A; font-weight: 500; }
-.main { max-width: 900px; margin: 0 auto; padding: 28px 16px 60px; }
-h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 6px; letter-spacing: -0.5px; }
-.subtitle { font-size: 14px; color: #607D8B; margin: 0 0 24px; }
-.badges { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-.badge { background: #fff; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border: 1px solid #E0F2F1; }
-.badge-num { font-size: 22px; font-weight: 800; }
-.badge-label { font-size: 13px; color: #78909C; }
-.empty-state { padding: 40px 0; text-align: center; font-size: 15px; color: #78909C; font-weight: 500; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.card { background: #fff; border-radius: 16px; border: 1px solid #E0E0E0; padding: 18px 20px; display: flex; flex-direction: column; gap: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: all 0.25s ease; position: relative; overflow: hidden; }
-.card.inscripto { border-color: #00897B; box-shadow: 0 0 0 3px #E0F2F1; }
-.inscripto-badge { position: absolute; top: 0; right: 0; background: #00897B; color: #fff; font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 0 16px 0 12px; letter-spacing: 0.04em; }
-.card-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.hora-row { display: flex; align-items: baseline; gap: 6px; }
-.hora { font-size: 22px; font-weight: 800; color: #00695C; letter-spacing: -0.5px; }
-.duracion { font-size: 13px; color: #90A4AE; font-weight: 500; }
-.dia { font-size: 13px; color: #455A64; font-weight: 500; margin-top: 2px; }
-.nivel-badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 99px; letter-spacing: 0.03em; white-space: nowrap; }
-.instructor-row { display: flex; align-items: center; gap: 8px; }
-.inst-icon { width: 30px; height: 30px; border-radius: 50%; background: #E0F2F1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.inst-label { font-size: 10px; color: #90A4AE; line-height: 1; }
-.inst-name { font-size: 13px; font-weight: 600; color: #37474F; }
-.cap-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.cap-text { font-size: 12px; color: #607D8B; }
-.cap-num { font-size: 12px; font-weight: 600; }
-.bar-bg { background: #E0E0E0; border-radius: 99px; height: 6px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
-.accion-btn { width: 100%; padding: 11px 0; border-radius: 99px; border: none; background: #00897B; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; letter-spacing: 0.02em; transition: all 0.2s ease; }
-.accion-btn:hover:not(:disabled) { background: #00695C; }
-.accion-btn.inscripto { background: #fff; color: #00897B; outline: 2px solid #00897B; }
-.accion-btn.lleno { background: #ECEFF1; color: #90A4AE; cursor: not-allowed; }
-.aviso-lleno {
-  background: #FFEBEE;
-  color: #C62828;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-  animation: fadeIn 0.2s ease;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-* {
-  box-sizing: border-box;
-}
 
 .page {
   min-height: 100vh;
-  background: linear-gradient(
-    135deg,
-    #e4f3f0 0%,
-    #edf7f5 50%,
-    #f3faf8 100%
-  );
-  font-family:
-    'Inter',
-    'Segoe UI',
-    system-ui,
-    sans-serif;
-  padding-top: 60px;
+  background: linear-gradient(135deg, #e4f3f0 0%, #edf7f5 50%, #f3faf8 100%);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* HEADER */
+.header {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 137, 123, 0.08);
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
 
+.header-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #00695c;
+  letter-spacing: 0.08em;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.account:hover { background: rgba(0, 137, 123, 0.06); }
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e0f2f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-label {
+  font-size: 14px;
+  color: #546e7a;
+  font-weight: 600;
+}
 
 /* MAIN */
-
 .main {
   max-width: 1180px;
   margin: 0 auto;
   padding: 42px 24px 70px;
 }
-
-/* HERO */
 
 h1 {
   font-size: 2.35rem;
@@ -455,7 +396,6 @@ h1 {
 }
 
 /* BADGES */
-
 .badges {
   display: flex;
   gap: 14px;
@@ -489,7 +429,6 @@ h1 {
 }
 
 /* GRID */
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -498,7 +437,6 @@ h1 {
 }
 
 /* CARD */
-
 .card {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
@@ -510,19 +448,13 @@ h1 {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(0, 137, 123, 0.08);
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.03);
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
 .card:hover {
   transform: translateY(-4px);
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.08),
-    0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .card.inscripto {
@@ -543,7 +475,6 @@ h1 {
 }
 
 /* CARD TOP */
-
 .card-top {
   display: flex;
   justify-content: space-between;
@@ -551,44 +482,56 @@ h1 {
   gap: 12px;
 }
 
+.turno-nombre {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #00695c;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  letter-spacing: -0.3px;
+}
+
 .hora-row {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
 }
 
 .hora {
-  font-size: 2rem;
-  font-weight: 900;
-  color: #00695c;
-  letter-spacing: -1px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #455a64;
+  letter-spacing: -0.5px;
 }
 
 .duracion {
-  font-size: 13px;
+  font-size: 12px;
   color: #90a4ae;
   font-weight: 600;
 }
 
 .dia {
-  font-size: 14px;
-  color: #455a64;
-  font-weight: 600;
-  margin-top: 4px;
+  font-size: 11px;
+  color: #78909c;
+  font-weight: 500;
+  margin-top: 3px;
   line-height: 1.4;
 }
 
-.nivel-badge {
-  font-size: 11px;
+.agotado-badge {
+  font-size: 10px;
   font-weight: 800;
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: 999px;
-  letter-spacing: 0.03em;
+  background: #FFEBEE;
+  color: #C62828;
+  letter-spacing: 0.06em;
   white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid #FFCDD2;
 }
 
 /* INSTRUCTOR */
-
 .instructor-row {
   display: flex;
   align-items: center;
@@ -620,7 +563,6 @@ h1 {
 }
 
 /* CAPACIDAD */
-
 .cap-row {
   display: flex;
   justify-content: space-between;
@@ -653,11 +595,10 @@ h1 {
 }
 
 /* BOTONES */
-
 .acciones-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-top: 4px;
 }
 
@@ -672,10 +613,7 @@ h1 {
   font-size: 14px;
   cursor: pointer;
   letter-spacing: 0.02em;
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
   box-shadow: 0 10px 18px rgba(0, 137, 123, 0.18);
 }
 
@@ -691,26 +629,34 @@ h1 {
   box-shadow: none;
 }
 
-.accion-btn.lleno {
-  background: #eceff1;
-  color: #90a4ae;
-  cursor: not-allowed;
-  box-shadow: none;
+.accion-btn.inscripto:hover:not(:disabled) {
+  background: #f1faf9;
+  transform: translateY(-1px);
+}
+
+.accion-btn.espera {
+  background: #F57C00;
+  color: white;
+  box-shadow: 0 10px 18px rgba(245, 124, 0, 0.20);
+}
+
+.accion-btn.espera:hover:not(:disabled) {
+  background: #E65100;
+  transform: translateY(-1px);
 }
 
 .secondary-btn {
   width: 100%;
-  padding: 13px 0;
+  padding: 12px 0;
   border-radius: 999px;
   border: 1.5px solid #00897b;
   background: transparent;
   color: #00897b;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
-  transition:
-    background 0.18s ease,
-    transform 0.18s ease;
+  transition: background 0.18s ease, transform 0.18s ease;
+  line-height: 1.3;
 }
 
 .secondary-btn:hover {
@@ -718,32 +664,38 @@ h1 {
   transform: translateY(-1px);
 }
 
+.secondary-btn--espera {
+  border-color: #F57C00;
+  color: #F57C00;
+}
+
+.secondary-btn--espera:hover {
+  background: rgba(245, 124, 0, 0.08);
+}
+
+.aviso-lleno {
+  background: #FFEBEE;
+  color: #C62828;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* MOBILE */
-
 @media (max-width: 768px) {
-  .header {
-    padding: 0 18px;
-  }
-
-  .header-inner {
-    height: 64px;
-  }
-
-  .main {
-    padding: 28px 18px 50px;
-  }
-
-  h1 {
-    font-size: 1.9rem;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .badge {
-    width: 100%;
-  }
-
+  .header { padding: 0 18px; }
+  .header-inner { height: 64px; }
+  .main { padding: 28px 18px 50px; }
+  h1 { font-size: 1.9rem; }
+  .grid { grid-template-columns: 1fr; }
+  .badge { width: 100%; }
 }
 </style>
