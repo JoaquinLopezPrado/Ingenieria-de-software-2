@@ -73,6 +73,18 @@ class TurnoService:
         items, total = await self._turno_repo.list(activity_id, has_availability, months, page, page_size)
         return items, total, page_size
 
+    async def list_all(
+        self,
+        activity_id: Optional[int],
+        has_availability: Optional[bool],
+        page: int,
+    ) -> Tuple[List[Turno], int, int]:
+        page_size = await self._config_repo.get_int("turnos_page_size", _DEFAULT_PAGE_SIZE)
+        preview_days = await self._config_repo.get_int("next_month_preview_days", _DEFAULT_NEXT_MONTH_PREVIEW_DAYS)
+        months = _months_to_show(date.today(), preview_days)
+        items, total = await self._turno_repo.list(activity_id, has_availability, months, page, page_size, include_inactive=True)
+        return items, total, page_size
+
     async def create(
         self,
         activity_id: int,

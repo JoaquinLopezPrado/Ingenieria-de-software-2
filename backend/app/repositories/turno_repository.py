@@ -36,6 +36,7 @@ class AbstractTurnoRepository(ABC):
         months: List[Tuple[int, int]],
         page: int,
         page_size: int,
+        include_inactive: bool = False,
     ) -> Tuple[List[Turno], int]:
         raise NotImplementedError
 
@@ -70,13 +71,12 @@ class TurnoRepository(AbstractTurnoRepository):
         months: List[Tuple[int, int]],
         page: int,
         page_size: int,
+        include_inactive: bool = False,
     ) -> Tuple[List[Turno], int]:
-        base = (
-            select(TurnoORM)
-            .where(TurnoORM.is_active == True)
-            .where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
-            .order_by(TurnoORM.year, TurnoORM.month)
-        )
+        base = select(TurnoORM).where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
+        if not include_inactive:
+            base = base.where(TurnoORM.is_active == True)
+        base = base.order_by(TurnoORM.year, TurnoORM.month)
 
         if activity_id is not None:
             base = base.where(TurnoORM.activity_id == activity_id)

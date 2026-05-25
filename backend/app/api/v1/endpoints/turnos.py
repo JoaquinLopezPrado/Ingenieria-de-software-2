@@ -49,6 +49,28 @@ async def list_turnos(
 
 
 @router.get(
+    "/all",
+    response_model=TurnoPageResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def list_all_turnos(
+    activity_id: Optional[int] = Query(None),
+    has_availability: Optional[bool] = Query(None),
+    page: int = Query(1, ge=1),
+    _=require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    items, total, page_size = await service.list_all(activity_id, has_availability, page)
+    return TurnoPageResponse(
+        items=[TurnoResponse.model_validate(t) for t in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=math.ceil(total / page_size) if total > 0 else 1,
+    )
+
+
+@router.get(
     "/{turno_id}/clases",
     response_model=list[ClaseDetalleResponse],
     status_code=status.HTTP_200_OK,

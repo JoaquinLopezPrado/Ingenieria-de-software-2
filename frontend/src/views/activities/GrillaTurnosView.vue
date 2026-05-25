@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import {
-  getTurnos,
+  getTurnosAll,
   getAllActivities,
   extractBackendError,
   type Turno,
@@ -184,7 +184,7 @@ function goToPage(page: number | '...') {
 onMounted(async () => {
   try {
     const [turnosRes, activities] = await Promise.all([
-      getTurnos({ page_size: 500 }),
+      getTurnosAll({ page_size: 500 }),
       getAllActivities(),
     ])
     allTurnos.value = turnosRes.items

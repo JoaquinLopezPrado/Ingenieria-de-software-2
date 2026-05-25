@@ -152,6 +152,20 @@ export const getTurnos = async (params?: {
 }
 
 /**
+ * Obtiene todos los turnos (activos e inactivos) desde GET /api/v1/turnos/all.
+ * Solo accesible para admins.
+ */
+export const getTurnosAll = async (params?: {
+  activity_id?: number
+  has_availability?: boolean
+  page?: number
+  page_size?: number
+}): Promise<TurnoPageResponse> => {
+  const res = await api.get('/turnos/all', { params })
+  return res.data
+}
+
+/**
  * Obtiene todas las actividades (activas e inactivas) desde GET /api/v1/activities.
  * Usado para construir los mapas de nombre e instructor en la grilla.
  */
