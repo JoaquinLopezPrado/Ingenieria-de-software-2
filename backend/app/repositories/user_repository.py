@@ -73,7 +73,7 @@ class UserRepository(AbstractUserRepository):
     async def get_by_google_id(self, google_id: str) -> Optional[User]:
         result = await self._session.execute(
             select(UserORM)
-            .options(selectinload(UserORM.role))
+            .options(selectinload(UserORM.role), selectinload(UserORM.client_profile))
             .where(UserORM.google_id == google_id)
         )
         orm_user = result.scalar_one_or_none()
