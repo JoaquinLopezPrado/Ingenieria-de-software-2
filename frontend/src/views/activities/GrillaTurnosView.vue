@@ -450,6 +450,13 @@ onMounted(async () => {
                       : `${generateResult.generated} clases generadas`
                     : 'Error al generar' }}
                 </span>
+                <button
+                  :class="['btn-toggle', turno.is_active ? 'btn-deactivate' : 'btn-disabled']"
+                  disabled
+                  :title="turno.is_active ? 'Desactivar turno (próximamente)' : 'El turno ya está inactivo'"
+                >
+                  Desactivar
+                </button>
               </td>
             </tr>
           </tbody>
@@ -970,6 +977,33 @@ onMounted(async () => {
 
 .generate-result.ok { color: #15803d; }
 .generate-result.err { color: #dc2626; }
+
+.btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  margin-left: 0.4rem;
+  border: 1px solid;
+  cursor: not-allowed;
+  opacity: 0.55;
+  white-space: nowrap;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+.btn-deactivate {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.btn-disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+}
 
 /* ── Footer de la tabla ── */
 
