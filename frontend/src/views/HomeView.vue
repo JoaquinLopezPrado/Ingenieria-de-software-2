@@ -15,6 +15,9 @@
       <div v-if="googleLinked" class="banner banner-success">
         Tu cuenta de Google fue vinculada correctamente.
       </div>
+      <div v-if="googleAlreadyInUse" class="banner banner-error">
+        Esta cuenta de Google ya está asociada a otro usuario. Por favor, utilizá una cuenta diferente.
+      </div>
       <div v-if="googleLinkError" class="banner banner-error">
         No se pudo vincular la cuenta de Google. Intentá de nuevo.
       </div>
@@ -79,6 +82,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const googleLinked = ref(route.query.google_linked === 'true')
+const googleAlreadyInUse = ref(route.query.error === 'google_already_in_use')
 const googleLinkError = ref(route.query.error === 'google_link_failed')
 
 function normalizeRole(user: any): string {
