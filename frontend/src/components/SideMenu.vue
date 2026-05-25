@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { authService } from '@/services/authService'
 import { storeToRefs } from 'pinia'
 
 const authStore = useAuthStore()
@@ -38,6 +39,18 @@ const closeMenu = () => {
 const navigateTo = (path: string) => {
   closeMenu()
   router.push(path)
+}
+
+const hasGoogleLinked = computed(() => authStore.user?.has_google_linked ?? true)
+
+const handleLinkGoogle = async () => {
+  closeMenu()
+  try {
+    const { data } = await authService.getGoogleLinkUrl()
+    window.location.href = data.url
+  } catch {
+    // si falla la petición no hacemos nada
+  }
 }
 
 const handleLogout = async () => {
@@ -86,8 +99,8 @@ const handleLogout = async () => {
         <li>
           <button type="button" @click="navigateTo('/home')">Inicio</button>
         </li>
-        <li>
-          <button type="button" @click="closeMenu">Vincular mi cuenta con Google</button>
+        <li v-if="!hasGoogleLinked">
+          <button type="button" @click="handleLinkGoogle">Vincular mi cuenta con Google</button>
         </li>
         <li>
           <button type="button" @click="navigateTo('/asistencias')">Mis asistencias</button>

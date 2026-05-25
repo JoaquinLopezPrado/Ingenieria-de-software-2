@@ -12,6 +12,12 @@
     </header>
 
     <main class="home-content">
+      <div v-if="googleLinked" class="banner banner-success">
+        Tu cuenta de Google fue vinculada correctamente.
+      </div>
+      <div v-if="googleLinkError" class="banner banner-error">
+        No se pudo vincular la cuenta de Google. Intentá de nuevo.
+      </div>
       <section class="hero-card">
         <div class="hero-text">
           <p class="eyebrow">Panel principal</p>
@@ -65,11 +71,15 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
+
+const googleLinked = ref(route.query.google_linked === 'true')
+const googleLinkError = ref(route.query.error === 'google_link_failed')
 
 function normalizeRole(user: any): string {
   const rawRole =
@@ -325,6 +335,25 @@ function goTo(path: string) {
   border-radius: 24px;
   padding: 24px 20px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+}
+
+.banner {
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.banner-success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.banner-error {
+  background-color: #fff5f5;
+  color: #c0392b;
+  border: 1px solid #fecaca;
 }
 
 .empty-role-card h3 {

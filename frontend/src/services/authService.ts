@@ -37,4 +37,7 @@ export const authService = {
     doc_type_name: string
     doc_number: string
   }) => apiClient.post('/auth/google/complete', data),
+
+  getGoogleLinkUrl: () =>
+    apiClient.get<{ url: string }>('/auth/google/link'),
 }
