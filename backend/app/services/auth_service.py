@@ -175,6 +175,11 @@ class AuthService:
                 )
 
         if user is not None:
+            if mode == "register":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="GOOGLE_ALREADY_LINKED",
+                )
             access_token, refresh_token = await self._issue_tokens(user)
             return {"type": "login", "access_token": access_token, "refresh_token": refresh_token}
 

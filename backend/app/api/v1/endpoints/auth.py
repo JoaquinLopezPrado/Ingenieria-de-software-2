@@ -101,6 +101,8 @@ async def google_oauth_callback(
         if mode == "link":
             return RedirectResponse(url=f"{frontend}/home?error=google_link_failed")
         if exc.status_code == status.HTTP_409_CONFLICT:
+            if exc.detail == "GOOGLE_ALREADY_LINKED":
+                return RedirectResponse(url=f"{frontend}/?error=google_already_linked")
             return RedirectResponse(url=f"{frontend}/?error=google_email_conflict")
         return RedirectResponse(url=f"{frontend}/?error=google_error")
 
