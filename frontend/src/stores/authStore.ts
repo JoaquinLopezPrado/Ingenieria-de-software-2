@@ -61,5 +61,10 @@ export const useAuthStore = defineStore('auth', () => {
     await loginWithTokens(access_token, refresh_token)
   }
 
-  return { user, isAuthenticated, login, register, logout, fetchUser, forgotPassword, loginWithTokens, googleComplete }
+  const unlinkGoogle = async () => {
+    await authService.unlinkGoogle()
+    await fetchUser()
+  }
+
+  return { user, isAuthenticated, login, register, logout, fetchUser, forgotPassword, loginWithTokens, googleComplete, unlinkGoogle }
 })

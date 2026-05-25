@@ -40,4 +40,7 @@ export const authService = {
 
   getGoogleLinkUrl: () =>
     apiClient.get<{ url: string }>('/auth/google/link'),
+
+  unlinkGoogle: () =>
+    apiClient.delete('/auth/google/link'),
 }
