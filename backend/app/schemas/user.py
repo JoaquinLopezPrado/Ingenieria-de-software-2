@@ -49,5 +49,6 @@ class UserMeResponse(BaseModel):
     id: int
     email: str
     role: str
+    has_google_linked: bool = False
     client_profile: Optional[ClientProfileMeResponse] = None
     employee_profile: Optional[EmployeeProfileMeResponse] = None

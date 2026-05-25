@@ -60,6 +60,7 @@ class UserService:
             id=user.id,
             email=user.email,
             role=user.role.name,
+            has_google_linked=user.google_id is not None,
             client_profile=client_profile,
             employee_profile=employee_profile,
         )
