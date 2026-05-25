@@ -33,6 +33,10 @@ class AbstractUserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def link_google(self, user_id: int, google_id: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def increment_token_version(self, user_id: int) -> None:
         raise NotImplementedError
 
@@ -81,6 +85,13 @@ class UserRepository(AbstractUserRepository):
         )
         orm_role = result.scalar_one_or_none()
         return self._role_to_domain(orm_role) if orm_role else None
+
+    async def link_google(self, user_id: int, google_id: str) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == user_id)
+            .values(google_id=google_id)
+        )
 
     async def increment_token_version(self, user_id: int) -> None:
         await self._session.execute(
