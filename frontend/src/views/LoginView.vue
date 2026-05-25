@@ -13,7 +13,7 @@ const apiError = ref('')
 const registroExitoso = ref(route.query.registered === 'true')
 const googleErrorMessages: Record<string, string> = {
   google_not_registered: 'No encontramos una cuenta registrada con ese correo de Google. Registrate primero.',
-  google_email_conflict: 'Ese correo ya está registrado con email y contraseña. Iniciá sesión de la forma habitual.',
+  google_email_conflict: 'Este correo ya está registrado. Por favor, iniciá sesión con tu contraseña y vinculá Google desde tu perfil.',
   google_already_linked: 'Esa cuenta de Google ya está vinculada a un usuario existente. Intentá iniciar sesión.',
   google_error: 'Ocurrió un error al iniciar sesión con Google. Intentá de nuevo.',
 }
