@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AuthHeader from '@/components/auth/AuthHeader.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
+import { isAdminUser } from '@/utils/role'
 
 const router = useRouter()
 const route = useRoute()
@@ -24,7 +25,17 @@ const handleLogin = async (email: string, pass: string) => {
   apiError.value = ''
   try {
     await authStore.login({ email, password: pass })
-    router.replace('/home')
+
+    const redirectParam = Array.isArray(route.query.redirect)
+      ? route.query.redirect[0]
+      : route.query.redirect
+
+    if (typeof redirectParam === 'string' && redirectParam.startsWith('/')) {
+      router.replace(redirectParam === '/home' ? '/list' : redirectParam)
+      return
+    }
+
+    router.replace(isAdminUser(authStore.user) ? '/admin' : '/list')
   } catch (err: any) {
     const errors = err?.response?.data?.errors
     apiError.value = (errors && Object.values(errors)[0]) || 'El email o la contraseña ingresados son incorrectos.'

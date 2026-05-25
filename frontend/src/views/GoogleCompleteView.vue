@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AuthHeader from '@/components/auth/AuthHeader.vue'
+import { isAdminUser } from '@/utils/role'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,7 +41,7 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     await authStore.googleComplete(pendingToken.value, formData.value)
-    router.replace('/home')
+    router.replace(isAdminUser(authStore.user) ? '/admin' : '/list')
   } catch (err: any) {
     if (err.response?.status === 401) {
       router.replace('/register?error=google_token_expired')

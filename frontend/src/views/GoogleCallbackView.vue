@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { isAdminUser } from '@/utils/role'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,7 +15,7 @@ onMounted(async () => {
   if (access_token && refresh_token) {
     try {
       await authStore.loginWithTokens(access_token, refresh_token)
-      router.replace('/home')
+      router.replace(isAdminUser(authStore.user) ? '/admin' : '/list')
     } catch {
       router.replace('/')
     }

@@ -4,11 +4,14 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { authService } from '@/services/authService'
 import { storeToRefs } from 'pinia'
+import { isAdminUser } from '@/utils/role'
 
 const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
 const router = useRouter()
 const isMenuOpen = ref(false)
+const showLogoutConfirm = ref(false)
+const isLoggingOut = ref(false)
 
 const userName = computed(() => {
   const user = authStore.user
@@ -42,6 +45,7 @@ const navigateTo = (path: string) => {
 }
 
 const hasGoogleLinked = computed(() => authStore.user?.has_google_linked ?? true)
+const isAdmin = computed(() => isAdminUser(authStore.user))
 
 const handleLinkGoogle = async () => {
   closeMenu()
@@ -49,7 +53,7 @@ const handleLinkGoogle = async () => {
     const { data } = await authService.getGoogleLinkUrl()
     window.location.href = data.url
   } catch {
-    router.push('/home?error=google_link_failed')
+    router.push('/list?error=google_link_failed')
   }
 }
 
@@ -57,16 +61,33 @@ const handleUnlinkGoogle = async () => {
   closeMenu()
   try {
     await authStore.unlinkGoogle()
-    router.push('/home?google_unlinked=true')
+    router.push('/list?google_unlinked=true')
   } catch {
-    router.push('/home?error=google_unlink_failed')
+    router.push('/list?error=google_unlink_failed')
   }
 }
 
 const handleLogout = async () => {
   closeMenu()
-  await authStore.logout()
-  router.push('/')
+  showLogoutConfirm.value = true
+}
+
+const closeLogoutConfirm = () => {
+  if (isLoggingOut.value) return
+
+  showLogoutConfirm.value = false
+}
+
+const confirmLogout = async () => {
+  isLoggingOut.value = true
+
+  try {
+    await authStore.logout()
+    router.replace('/')
+  } finally {
+    showLogoutConfirm.value = false
+    isLoggingOut.value = false
+  }
 }
 </script>
 
@@ -107,7 +128,10 @@ const handleLogout = async () => {
       
       <ul class="menu-links">
         <li>
-          <button type="button" @click="navigateTo('/home')">Inicio</button>
+          <button type="button" @click="navigateTo('/list')">Inicio</button>
+        </li>
+        <li v-if="isAdmin">
+          <button type="button" @click="navigateTo('/admin')">Panel admin</button>
         </li>
         <li v-if="!hasGoogleLinked">
           <button type="button" @click="handleLinkGoogle">Vincular mi cuenta con Google</button>
@@ -131,6 +155,33 @@ const handleLogout = async () => {
         </li>
       </ul>
     </nav>
+
+    <div v-if="showLogoutConfirm" class="modal-overlay" @click.self="closeLogoutConfirm">
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="logout-title">
+        <h2 id="logout-title" class="modal-title">Confirmar cierre de sesión</h2>
+        <p class="modal-text">¿Deseás continuar con la operación?</p>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="modal-cancel-btn"
+            @click="closeLogoutConfirm"
+            :disabled="isLoggingOut"
+          >
+            No
+          </button>
+
+          <button
+            type="button"
+            class="modal-confirm-btn"
+            @click="confirmLogout"
+            :disabled="isLoggingOut"
+          >
+            Sí, cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -279,6 +330,72 @@ const handleLogout = async () => {
 .menu-links button:hover {
   background-color: #f8fbfb;
   color: #11a691;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1200;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 380px;
+  background: white;
+  border-radius: 24px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  text-align: center;
+}
+
+.modal-title {
+  margin: 0 0 10px;
+  color: #0d9b8a;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.modal-text {
+  margin: 0 0 22px;
+  color: #6b7280;
+  font-size: 0.98rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-cancel-btn,
+.modal-confirm-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-cancel-btn {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-confirm-btn {
+  background: #18b4a3;
+  color: white;
+}
+
+.modal-cancel-btn:disabled,
+.modal-confirm-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .logout-item {

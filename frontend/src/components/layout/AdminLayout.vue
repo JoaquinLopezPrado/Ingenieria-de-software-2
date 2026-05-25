@@ -1,5 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import { isAdminUser } from '@/utils/role'
+
+const authStore = useAuthStore()
+const isAdmin = computed(() => isAdminUser(authStore.user))
 </script>
 
 <template>
@@ -28,7 +34,7 @@ import { RouterLink } from 'vue-router'
         <div class="nav-group">
           <p class="nav-label">PRINCIPAL</p>
           <!-- RouterLink aplica "active" cuando la ruta coincide exactamente -->
-          <RouterLink to="/" class="nav-item" active-class="active" exact>
+          <RouterLink to="/admin" class="nav-item" active-class="active" exact>
             <span class="nav-icon">⊞</span> Inicio
           </RouterLink>
           <a href="#" class="nav-item">

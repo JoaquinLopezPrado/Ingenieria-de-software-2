@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import type { RouteLocationNormalized } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import { isAdminUser } from '@/utils/role'
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
@@ -10,10 +12,10 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/home',
-      name: 'home',
-      component: HomeView,
-      meta: { requiresAuth: true }
+      path: '/admin',
+      name: 'admin-home',
+      component: () => import('../views/AdminHomeView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/',
@@ -129,19 +131,31 @@ const router = createRouter({
 
 const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'auth-callback', 'google-complete'])
 
-router.beforeEach((to) => {
+router.beforeEach(async (to: RouteLocationNormalized) => {
+  const authStore = useAuthStore()
   const hasAccessToken = Boolean(localStorage.getItem('access_token'))
   const isPublicRoute = typeof to.name === 'string' && publicRouteNames.has(to.name)
 
-  if (!hasAccessToken && !isPublicRoute) {
+  if (hasAccessToken && !authStore.user) {
+    await authStore.fetchUser().catch(() => { })
+  }
+
+  const isAuthenticated = Boolean(localStorage.getItem('access_token'))
+  const isAdmin = isAdminUser(authStore.user)
+
+  if (!isAuthenticated && !isPublicRoute) {
     return {
       name: 'login',
       query: { redirect: to.fullPath },
     }
   }
 
-  if (hasAccessToken && isPublicRoute) {
-    return { name: 'home' }
+  if (to.meta.requiresAdmin && !isAdmin) {
+    return { name: 'list' }
+  }
+
+  if (isAuthenticated && isPublicRoute) {
+    return { name: isAdmin ? 'admin-home' : 'list' }
   }
 })
 
