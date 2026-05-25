@@ -64,9 +64,12 @@ async def logout(
 
 
 @router.get("/google", include_in_schema=True)
-async def google_oauth_start(service: AuthService = Depends(get_auth_service)):
+async def google_oauth_start(
+    mode: str = Query("login"),
+    service: AuthService = Depends(get_auth_service),
+):
     """Redirige al usuario a la pantalla de login de Google."""
-    url = service.get_google_oauth_url()
+    url = service.get_google_oauth_url(mode)
     return RedirectResponse(url=url)
 
 
@@ -76,7 +79,7 @@ async def google_oauth_callback(
     state: str = Query(...),
     service: AuthService = Depends(get_auth_service),
 ):
-    """Recibe el callback de Google, emite tokens o redirige al formulario de completar registro."""
+    """Recibe el callback de Google, emite tokens o redirige según el modo y si el usuario existe."""
     result = await service.handle_google_callback(code, state)
     frontend = settings.mp_frontend_url.rstrip("/")
 
@@ -87,13 +90,16 @@ async def google_oauth_callback(
         })
         return RedirectResponse(url=f"{frontend}/auth/callback?{params}")
 
-    params = urlencode({
-        "pending_token": result["pending_token"],
-        "email": result["email"],
-        "first_name": result["first_name"],
-        "last_name": result["last_name"],
-    })
-    return RedirectResponse(url=f"{frontend}/auth/google-complete?{params}")
+    if result["mode"] == "register":
+        params = urlencode({
+            "pending_token": result["pending_token"],
+            "email": result["email"],
+            "first_name": result["first_name"],
+            "last_name": result["last_name"],
+        })
+        return RedirectResponse(url=f"{frontend}/auth/google-complete?{params}")
+
+    return RedirectResponse(url=f"{frontend}/?error=google_not_registered")
 
 
 @router.post("/google/complete", response_model=Token, status_code=status.HTTP_201_CREATED)

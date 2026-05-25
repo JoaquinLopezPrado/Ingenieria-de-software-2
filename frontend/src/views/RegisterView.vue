@@ -32,7 +32,7 @@ const handleRegister = async (userData: any) => {
 
 const handleGoogleRegister = () => {
   const apiBase = import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  window.location.href = `${apiBase}/auth/google`
+  window.location.href = `${apiBase}/auth/google?mode=register`
 }
 </script>
 

@@ -71,10 +71,11 @@ def decode_refresh_token(token: str) -> int:
         raise ValueError from e
 
 
-def create_google_state_token() -> str:
+def create_google_state_token(mode: str = "login") -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "type": "oauth_state",
+        "mode": mode,
         "jti": str(uuid.uuid4()),
         "iat": now,
         "exp": now + timedelta(minutes=10),
@@ -82,12 +83,15 @@ def create_google_state_token() -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 
 
-def verify_google_state_token(token: str) -> bool:
+def decode_google_state_token(token: str) -> str | None:
+    """Devuelve el mode ('login'|'register') o None si el token es inválido."""
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
-        return payload.get("type") == "oauth_state"
+        if payload.get("type") != "oauth_state":
+            return None
+        return payload.get("mode", "login")
     except jwt.PyJWTError:
-        return False
+        return None
 
 
 def create_google_pending_token(google_id: str, email: str, first_name: str, last_name: str) -> str:

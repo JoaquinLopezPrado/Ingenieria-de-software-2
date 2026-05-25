@@ -19,10 +19,10 @@ from app.utils.security import (
     create_google_state_token,
     create_refresh_token,
     decode_google_pending_token,
+    decode_google_state_token,
     decode_refresh_token,
     hash_password,
     hash_token,
-    verify_google_state_token,
     verify_password,
 )
 
@@ -129,8 +129,8 @@ class AuthService:
     # Google OAuth                                                         #
     # ------------------------------------------------------------------ #
 
-    def get_google_oauth_url(self) -> str:
-        state = create_google_state_token()
+    def get_google_oauth_url(self, mode: str = "login") -> str:
+        state = create_google_state_token(mode)
         params = urlencode({
             "client_id": settings.google_client_id,
             "redirect_uri": settings.google_redirect_uri,
@@ -147,7 +147,8 @@ class AuthService:
         - {"type": "login", "access_token": ..., "refresh_token": ...} si el usuario ya existe.
         - {"type": "new_user", "pending_token": ..., "email": ..., "first_name": ..., "last_name": ...} si es nuevo.
         """
-        if not verify_google_state_token(state):
+        mode = decode_google_state_token(state)
+        if mode is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Estado OAuth inválido o expirado.",
@@ -176,6 +177,7 @@ class AuthService:
         pending_token = create_google_pending_token(google_id, email, first_name, last_name)
         return {
             "type": "new_user",
+            "mode": mode,
             "pending_token": pending_token,
             "email": email,
             "first_name": first_name,

@@ -11,6 +11,7 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const apiError = ref('')
 const registroExitoso = ref(route.query.registered === 'true')
+const googleError = ref(route.query.error === 'google_not_registered')
 
 const handleLogin = async (email: string, pass: string) => {
   loading.value = true
@@ -28,7 +29,7 @@ const handleLogin = async (email: string, pass: string) => {
 
 const handleGoogleLogin = () => {
   const apiBase = import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  window.location.href = `${apiBase}/auth/google`
+  window.location.href = `${apiBase}/auth/google?mode=login`
 }
 </script>
 
@@ -39,6 +40,10 @@ const handleGoogleLogin = () => {
       
       <div v-if="registroExitoso" class="success-message">
         Registro exitoso. Podés iniciar sesión.
+      </div>
+
+      <div v-if="googleError" class="error-message">
+        No encontramos una cuenta registrada con ese correo de Google. Registrate primero.
       </div>
 
       <LoginForm
@@ -70,6 +75,16 @@ const handleGoogleLogin = () => {
   border-radius: 10px;
   font-size: 13px;
   border: 1px solid #bbf7d0;
+  margin-bottom: 4px;
+}
+
+.error-message {
+  background-color: #fff5f5;
+  color: #c0392b;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid #fecaca;
   margin-bottom: 4px;
 }
 /* ESTILOS BASE: Celulares (<768px) */
