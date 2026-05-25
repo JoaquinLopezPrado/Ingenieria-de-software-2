@@ -6,12 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.docs.auth_responses import LOGIN_RESPONSES, LOGOUT_RESPONSES, REFRESH_RESPONSES, REGISTER_RESPONSES
 from app.core.config import settings
-from app.core.dependencies import get_current_user_id, get_db
+from app.core.dependencies import get_current_user_id, get_db, require_roles
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import GoogleCompleteRequest, LoginCredentials, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, Token
 from app.services.auth_service import AuthService
+from app.utils.security import decode_google_state_token
 
 router = APIRouter()
 
@@ -73,6 +74,16 @@ async def google_oauth_start(
     return RedirectResponse(url=url)
 
 
+@router.get("/google/link", include_in_schema=True)
+async def google_link_start(
+    user_id: int = Depends(get_current_user_id),
+    _=require_roles("admin", "empleado", "cliente"),
+    service: AuthService = Depends(get_auth_service),
+):
+    """Devuelve la URL de Google para vincular una cuenta existente."""
+    return {"url": service.get_google_link_url(user_id)}
+
+
 @router.get("/google/callback", include_in_schema=False)
 async def google_oauth_callback(
     code: str = Query(...),
@@ -81,12 +92,20 @@ async def google_oauth_callback(
 ):
     """Recibe el callback de Google, emite tokens o redirige según el modo y si el usuario existe."""
     frontend = settings.mp_frontend_url.rstrip("/")
+    state_data = decode_google_state_token(state)
+    mode = state_data["mode"] if state_data else "login"
+
     try:
         result = await service.handle_google_callback(code, state)
     except HTTPException as exc:
+        if mode == "link":
+            return RedirectResponse(url=f"{frontend}/home?error=google_link_failed")
         if exc.status_code == status.HTTP_409_CONFLICT:
             return RedirectResponse(url=f"{frontend}/?error=google_email_conflict")
         return RedirectResponse(url=f"{frontend}/?error=google_error")
+
+    if result["type"] == "linked":
+        return RedirectResponse(url=f"{frontend}/home?google_linked=true")
 
     if result["type"] == "login":
         params = urlencode({
