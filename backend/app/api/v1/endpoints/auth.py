@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,8 +80,13 @@ async def google_oauth_callback(
     service: AuthService = Depends(get_auth_service),
 ):
     """Recibe el callback de Google, emite tokens o redirige según el modo y si el usuario existe."""
-    result = await service.handle_google_callback(code, state)
     frontend = settings.mp_frontend_url.rstrip("/")
+    try:
+        result = await service.handle_google_callback(code, state)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_409_CONFLICT:
+            return RedirectResponse(url=f"{frontend}/?error=google_email_conflict")
+        return RedirectResponse(url=f"{frontend}/?error=google_error")
 
     if result["type"] == "login":
         params = urlencode({

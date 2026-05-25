@@ -11,7 +11,12 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const apiError = ref('')
 const registroExitoso = ref(route.query.registered === 'true')
-const googleError = ref(route.query.error === 'google_not_registered')
+const googleErrorMessages: Record<string, string> = {
+  google_not_registered: 'No encontramos una cuenta registrada con ese correo de Google. Registrate primero.',
+  google_email_conflict: 'Ese correo ya está registrado con email y contraseña. Iniciá sesión de la forma habitual.',
+  google_error: 'Ocurrió un error al iniciar sesión con Google. Intentá de nuevo.',
+}
+const googleError = ref(googleErrorMessages[route.query.error as string] ?? '')
 
 const handleLogin = async (email: string, pass: string) => {
   loading.value = true
@@ -43,7 +48,7 @@ const handleGoogleLogin = () => {
       </div>
 
       <div v-if="googleError" class="error-message">
-        No encontramos una cuenta registrada con ese correo de Google. Registrate primero.
+        {{ googleError }}
       </div>
 
       <LoginForm
