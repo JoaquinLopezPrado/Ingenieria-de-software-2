@@ -12,6 +12,9 @@ class ActivityService:
     async def list(self) -> list[Activity]:
         return await self._activity_repo.list_active()
 
+    async def list_all(self) -> list[Activity]:
+        return await self._activity_repo.list_all()
+
     async def create(self, name: str, description: str) -> Activity:
         if await self._activity_repo.get_active_by_name(name):
             raise HTTPException(

@@ -40,6 +40,18 @@ async def list_activities(
     return await service.list()
 
 
+@router.get(
+    "/all",
+    response_model=list[ActivityResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_all_activities(
+    _=require_roles("admin"),
+    service: ActivityService = Depends(get_activity_service),
+):
+    return await service.list_all()
+
+
 @router.post(
     "",
     response_model=ActivityResponse,

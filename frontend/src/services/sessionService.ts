@@ -156,7 +156,7 @@ export const getTurnos = async (params?: {
  * Usado para construir los mapas de nombre e instructor en la grilla.
  */
 export const getAllActivities = async (): Promise<ActivityOption[]> => {
-  const res = await api.get('/activities')
+  const res = await api.get('/activities/all')
   return res.data
 }
 
