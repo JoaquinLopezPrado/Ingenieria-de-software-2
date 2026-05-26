@@ -44,6 +44,10 @@ class AbstractEnrollmentRepository(ABC):
     async def get_single_by_user(self, user_id: int) -> list[MySingleEnrollment]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def cancel_expired_for_user(self, user_id: int) -> None:
+        raise NotImplementedError
+
 
 class EnrollmentRepository(AbstractEnrollmentRepository):
 
@@ -269,6 +273,18 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 activity_name=e.turno.activity.name,
             ))
         return enrollments
+
+    async def cancel_expired_for_user(self, user_id: int) -> None:
+        await self._session.execute(
+            update(EnrollmentORM)
+            .where(
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.status == EnrollmentStatus.PENDING,
+                EnrollmentORM.expires_at.isnot(None),
+                EnrollmentORM.expires_at <= datetime.now(timezone.utc),
+            )
+            .values(status=EnrollmentStatus.CANCELLED)
+        )
 
     # ------------------------------------------------------------------ #
     # Helpers de lock y validación                                         #
