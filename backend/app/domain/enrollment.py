@@ -83,6 +83,7 @@ class MySingleEnrollment:
         amount: Decimal,
         expires_at: datetime | None,
         created_at: datetime,
+        turno_id: int,
         clase_id: int,
         clase_date: date,
         start_time: time,
@@ -96,6 +97,7 @@ class MySingleEnrollment:
         self.amount = amount
         self.expires_at = expires_at
         self.created_at = created_at
+        self.turno_id = turno_id
         self.clase_id = clase_id
         self.clase_date = clase_date
         self.start_time = start_time

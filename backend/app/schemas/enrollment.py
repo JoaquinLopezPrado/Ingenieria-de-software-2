@@ -60,6 +60,7 @@ class MySingleEnrollmentResponse(BaseModel):
     amount: Decimal
     expires_at: datetime | None
     created_at: datetime
+    turno_id: int
     clase_id: int
     clase_date: date
     start_time: time

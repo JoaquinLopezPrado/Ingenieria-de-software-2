@@ -264,6 +264,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 amount=e.amount,
                 expires_at=e.expires_at,
                 created_at=e.created_at,
+                turno_id=e.turno_id,
                 clase_id=clase.id,
                 clase_date=clase.date,
                 start_time=e.turno.start_time,
