@@ -1,3 +1,6 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,13 +9,29 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.dependencies import get_db
+from app.core.tasks import enrollment_expiry_loop
 from app.api.v1.router import api_router
 from app.api.exception_handlers import http_exception_handler, validation_exception_handler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(
+        enrollment_expiry_loop(settings.enrollment_expiry_check_seconds)
+    )
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
 
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
     docs_url="/docs" if settings.debug else None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

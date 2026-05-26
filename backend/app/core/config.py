@@ -77,6 +77,7 @@ class Settings(BaseSettings):
 
     # Enrollment
     enrollment_ttl_minutes: int = 2
+    enrollment_expiry_check_seconds: int = 30
 
     # Google OAuth
     google_client_id: str = ""
