@@ -96,6 +96,7 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const submitError = ref('')
 const clases = ref([])
+const enrolledClaseIds = ref(new Set())
 
 const turnoId = computed(() => String(route.query.turnoId || ''))
 const actividad = computed(() => String(route.query.actividad || 'Clase'))
@@ -107,7 +108,7 @@ const instructor = computed(() => String(route.query.instructor || 'Instructor')
 
 const availableOptions = computed(() => {
   return clases.value
-    .filter((clase) => clase.isActive && clase.availableSpots > 0)
+    .filter((clase) => clase.isActive && clase.availableSpots > 0 && !enrolledClaseIds.value.has(clase.id))
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
 })
 
@@ -155,11 +156,14 @@ const fetchClases = async () => {
       return
     }
 
-    const response = await turnoService.getClasesByTurno(turnoId.value)
+    const [clasesRes, myEnrollmentsRes] = await Promise.all([
+      turnoService.getClasesByTurno(turnoId.value),
+      enrollmentService.getMySingle(),
+    ])
 
-    const items = Array.isArray(response.data)
-      ? response.data
-      : response.data.items || []
+    const items = Array.isArray(clasesRes.data)
+      ? clasesRes.data
+      : clasesRes.data.items || []
 
     clases.value = items.map((clase) => {
       const capacity = clase.capacity ?? 0
@@ -176,6 +180,12 @@ const fetchClases = async () => {
         isActive: clase.is_active ?? true,
       }
     })
+
+    enrolledClaseIds.value = new Set(
+      myEnrollmentsRes.data
+        .filter((e) => e.status === 'confirmed' || e.status === 'pending')
+        .map((e) => e.clase_id)
+    )
   } catch (error) {
     console.error('Error al obtener clases', error)
     errorMessage.value = 'No se pudieron cargar las clases de prueba individual.'

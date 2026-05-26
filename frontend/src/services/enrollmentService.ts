@@ -25,4 +25,7 @@ export const enrollmentService = {
 
   getMyMonthly: () =>
     apiClient.get('/enrollments/my/monthly'),
+
+  getMySingle: () =>
+    apiClient.get('/enrollments/my/single'),
 }
