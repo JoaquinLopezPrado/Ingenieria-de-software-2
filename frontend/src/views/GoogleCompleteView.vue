@@ -37,13 +37,10 @@ onMounted(() => {
 })
 
 const extractApiError = (err: any): string => {
-  const detail = err.response?.data?.detail
-  if (!detail) return 'Error al completar el registro.'
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail) && detail.length > 0) {
-    const first = detail[0]
-    const msg: unknown = first?.ctx?.error ?? first?.msg
-    if (typeof msg === 'string') return msg.replace(/^Value error,\s*/i, '')
+  const errors = err.response?.data?.errors
+  if (errors) {
+    const first = Object.values(errors)[0]
+    if (typeof first === 'string') return first
   }
   return 'Error al completar el registro.'
 }
