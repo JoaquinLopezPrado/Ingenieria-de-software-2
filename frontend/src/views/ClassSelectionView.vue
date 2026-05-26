@@ -22,6 +22,10 @@
         {{ errorMessage }}
       </div>
 
+      <div v-else-if="hasActiveSingleEnrollment" class="state-box error">
+        Ya tenés una clase de prueba reservada. Solo podés tener una activa a la vez.
+      </div>
+
       <div v-else class="field-group">
         <label class="label">Opciones disponibles</label>
 
@@ -96,7 +100,7 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const submitError = ref('')
 const clases = ref([])
-const enrolledClaseIds = ref(new Set())
+const hasActiveSingleEnrollment = ref(false)
 
 const turnoId = computed(() => String(route.query.turnoId || ''))
 const actividad = computed(() => String(route.query.actividad || 'Clase'))
@@ -108,7 +112,7 @@ const instructor = computed(() => String(route.query.instructor || 'Instructor')
 
 const availableOptions = computed(() => {
   return clases.value
-    .filter((clase) => clase.isActive && clase.availableSpots > 0 && !enrolledClaseIds.value.has(clase.id))
+    .filter((clase) => clase.isActive && clase.availableSpots > 0)
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
 })
 
@@ -156,7 +160,7 @@ const fetchClases = async () => {
       return
     }
 
-    const [clasesRes, myEnrollmentsRes] = await Promise.all([
+    const [clasesRes, mySingleRes] = await Promise.all([
       turnoService.getClasesByTurno(turnoId.value),
       enrollmentService.getMySingle(),
     ])
@@ -181,11 +185,8 @@ const fetchClases = async () => {
       }
     })
 
-    enrolledClaseIds.value = new Set(
-      myEnrollmentsRes.data
-        .filter((e) => e.status === 'confirmed' || e.status === 'pending')
-        .map((e) => e.clase_id)
-    )
+    hasActiveSingleEnrollment.value = mySingleRes.data
+      .some((e) => e.status === 'confirmed' || e.status === 'pending')
   } catch (error) {
     console.error('Error al obtener clases', error)
     errorMessage.value = 'No se pudieron cargar las clases de prueba individual.'

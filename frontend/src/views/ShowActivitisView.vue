@@ -123,6 +123,7 @@
             </button>
 
             <button
+              v-if="!hasActiveSingleEnrollment"
               class="secondary-btn"
               :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
               type="button"
@@ -156,6 +157,7 @@ const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
 const currentTab = ref('')
 const inscriptos = ref(new Set())
+const hasActiveSingleEnrollment = ref(false)
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
@@ -171,10 +173,11 @@ onMounted(async () => {
   try {
     loading.value = true
 
-    const [{ activities: acts }, turnosRes, myEnrollmentsRes] = await Promise.all([
+    const [{ activities: acts }, turnosRes, myMonthlyRes, mySingleRes] = await Promise.all([
       getFormOptions(),
       turnoService.getTurnos(),
       enrollmentService.getMyMonthly(),
+      enrollmentService.getMySingle(),
     ])
 
     activities.value = acts
@@ -202,12 +205,14 @@ onMounted(async () => {
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
     }))
 
-    const confirmed = new Set(
-      myEnrollmentsRes.data
+    inscriptos.value = new Set(
+      myMonthlyRes.data
         .filter((e) => e.status === 'confirmed')
         .map((e) => e.turno_id)
     )
-    inscriptos.value = confirmed
+
+    hasActiveSingleEnrollment.value = mySingleRes.data
+      .some((e) => e.status === 'confirmed' || e.status === 'pending')
   } catch (error) {
     console.error('Error al cargar actividades o turnos', error)
   } finally {
