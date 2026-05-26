@@ -186,7 +186,10 @@ const fetchClases = async () => {
     })
 
     hasActiveSingleEnrollment.value = mySingleRes.data
-      .some((e) => e.status === 'confirmed' || e.status === 'pending')
+      .some((e) =>
+        (e.status === 'confirmed' || e.status === 'pending') &&
+        String(e.turno_id) === turnoId.value
+      )
   } catch (error) {
     console.error('Error al obtener clases', error)
     errorMessage.value = 'No se pudieron cargar las clases de prueba individual.'

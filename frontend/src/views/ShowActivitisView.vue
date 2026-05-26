@@ -123,7 +123,7 @@
             </button>
 
             <button
-              v-if="!hasActiveSingleEnrollment"
+              v-if="!turnosConClaseSuelta.has(turno.id)"
               class="secondary-btn"
               :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
               type="button"
@@ -157,7 +157,7 @@ const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
 const currentTab = ref('')
 const inscriptos = ref(new Set())
-const hasActiveSingleEnrollment = ref(false)
+const turnosConClaseSuelta = ref(new Set())
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
@@ -211,8 +211,11 @@ onMounted(async () => {
         .map((e) => e.turno_id)
     )
 
-    hasActiveSingleEnrollment.value = mySingleRes.data
-      .some((e) => e.status === 'confirmed' || e.status === 'pending')
+    turnosConClaseSuelta.value = new Set(
+      mySingleRes.data
+        .filter((e) => e.status === 'confirmed' || e.status === 'pending')
+        .map((e) => e.turno_id)
+    )
   } catch (error) {
     console.error('Error al cargar actividades o turnos', error)
   } finally {
