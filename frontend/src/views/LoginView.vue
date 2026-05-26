@@ -42,7 +42,6 @@ const handleLogin = async (email: string, pass: string) => {
   loading.value = true
   apiError.value = ''
   try {
-<<<<<<< HEAD
     const result = await authStore.login({ email, password: pass })
     if (result.requires_2fa) {
       preAuthToken.value = result.pre_auth_token!
@@ -50,14 +49,6 @@ const handleLogin = async (email: string, pass: string) => {
       return
     }
     redirectAfterLogin()
-=======
-    await authStore.login({ email, password: pass })
-
-    const role = authStore.user?.role ?? ''
-    const isAdmin = role === 'admin' || role === 'Admin' || role === 'Administrador'
-
-    router.push(isAdmin ? { name: 'admin-home' } : { name: 'cliente-home' })
->>>>>>> c8d7b14 (feat: agregar enrutamiento de Inicio basado en roles (admin/cliente) y corregir la redireccion de sesion)
   } catch (err: any) {
     const errors = err?.response?.data?.errors
     apiError.value = (errors && Object.values(errors)[0]) || 'El email o la contraseña ingresados son incorrectos.'

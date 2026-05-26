@@ -8,6 +8,7 @@ import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
 import CalendarioClasesView from '@/views/activities/CalendarioClasesView.vue'
 import EditTurnoView from '@/views/activities/EditTurnoView.vue'
 import ListaActividadesView from '@/views/activities/ListaActividadesView.vue'
+import EditActividadView from '@/views/activities/EditActividadView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -102,6 +103,12 @@ const router = createRouter({
       path: '/activities/schedule',
       name: 'schedule-session',
       component: ScheduleSessionView,
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
+    },
+    {
+      path: '/activities/:id/edit',
+      name: 'editar-actividad',
+      component: EditActividadView,
       meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {

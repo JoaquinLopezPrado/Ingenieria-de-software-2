@@ -27,7 +27,12 @@ export interface SessionFormData {
   endTime: string       // "HH:MM"
   maxCapacity: number
   class_price: number
+<<<<<<< HEAD
   start_date: string    // "YYYY-MM-DD"
+=======
+  month: number         // 1–12, seleccionado por el admin
+  year: number          // >= 2024, seleccionado por el admin
+>>>>>>> fad9fa2 (agregar vista y ruta para editar actividad (wip))
   is_active: boolean
 }
 
@@ -42,6 +47,20 @@ export interface ActivityOption {
 export interface CreateActivityPayload {
   name: string
   description: string
+}
+
+export interface CreateTurnoPayload {
+  activity_id: number
+  description: string
+  start_time: string
+  end_time: string
+  capacity: number
+  month: number
+  year: number
+  days: string[]
+  is_active: boolean
+  class_price: number
+  instructor: string
 }
 
 export interface Turno {
@@ -127,6 +146,7 @@ export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }
  * Estos errores se propagan como excepciones para que la vista los capture.
  */
 export const createSession = async (formData: SessionFormData): Promise<{ message: string }> => {
+<<<<<<< HEAD
   const payload = {
     activity_id: formData.activity_id,
     description: formData.description,
@@ -138,6 +158,20 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
     is_active: formData.is_active,
     class_price: formData.class_price,
     instructor: formData.instructor,
+=======
+  const payload: CreateTurnoPayload = {
+    activity_id:  formData.activity_id,
+    description:  formData.description,
+    start_time:   formData.startTime,
+    end_time:     formData.endTime,
+    capacity:     formData.maxCapacity,
+    month:        formData.month,
+    year:         formData.year,
+    days:         formData.days.map(d => DAY_TO_BACKEND[d] ?? d),
+    is_active:    formData.is_active,
+    class_price:  formData.class_price,
+    instructor:   formData.instructor,
+>>>>>>> fad9fa2 (agregar vista y ruta para editar actividad (wip))
   }
 
   // axios lanza una excepción automáticamente para respuestas 4xx/5xx
