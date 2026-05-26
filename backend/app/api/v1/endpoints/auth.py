@@ -101,7 +101,7 @@ async def google_oauth_callback(
     service: AuthService = Depends(get_auth_service),
 ):
     """Recibe el callback de Google, emite tokens o redirige según el modo y si el usuario existe."""
-    frontend = settings.mp_frontend_url.rstrip("/")
+    frontend = settings.frontend_url.rstrip("/")
     state_data = decode_google_state_token(state)
     mode = state_data["mode"] if state_data else "login"
 

@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    # Frontend
+    frontend_url: str = "http://localhost:5173"
+
     # MercadoPago
     mp_access_token: str = ""
     mp_frontend_url: str = "http://localhost:5173"
@@ -82,7 +85,7 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+    google_redirect_uri: str = "http://localhost:8001/api/v1/auth/google/callback"
 
     @property
     def short_sha(self) -> str:
