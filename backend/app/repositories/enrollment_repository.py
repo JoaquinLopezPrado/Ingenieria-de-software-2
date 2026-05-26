@@ -45,7 +45,7 @@ class AbstractEnrollmentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def cancel_expired_for_user(self, user_id: int) -> None:
+    async def cancel_expired(self) -> int:
         raise NotImplementedError
 
 
@@ -274,17 +274,17 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             ))
         return enrollments
 
-    async def cancel_expired_for_user(self, user_id: int) -> None:
-        await self._session.execute(
+    async def cancel_expired(self) -> int:
+        result = await self._session.execute(
             update(EnrollmentORM)
             .where(
-                EnrollmentORM.user_id == user_id,
                 EnrollmentORM.status == EnrollmentStatus.PENDING,
                 EnrollmentORM.expires_at.isnot(None),
                 EnrollmentORM.expires_at <= datetime.now(timezone.utc),
             )
             .values(status=EnrollmentStatus.CANCELLED)
         )
+        return result.rowcount
 
     # ------------------------------------------------------------------ #
     # Helpers de lock y validación                                         #

@@ -14,9 +14,7 @@ class EnrollmentService:
         return await self._enrollment_repo.create_single(clase_id=clase_id, user_id=user_id)
 
     async def get_monthly_by_user(self, user_id: int) -> list[MyMonthlyEnrollment]:
-        await self._enrollment_repo.cancel_expired_for_user(user_id)
         return await self._enrollment_repo.get_monthly_by_user(user_id=user_id)
 
     async def get_single_by_user(self, user_id: int) -> list[MySingleEnrollment]:
-        await self._enrollment_repo.cancel_expired_for_user(user_id)
         return await self._enrollment_repo.get_single_by_user(user_id=user_id)
