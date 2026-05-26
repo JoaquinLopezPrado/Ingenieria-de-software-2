@@ -36,6 +36,18 @@ onMounted(() => {
   }
 })
 
+const extractApiError = (err: any): string => {
+  const detail = err.response?.data?.detail
+  if (!detail) return 'Error al completar el registro.'
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0]
+    const msg: unknown = first?.ctx?.error ?? first?.msg
+    if (typeof msg === 'string') return msg.replace(/^Value error,\s*/i, '')
+  }
+  return 'Error al completar el registro.'
+}
+
 const handleSubmit = async () => {
   error.value = ''
   loading.value = true
@@ -47,7 +59,7 @@ const handleSubmit = async () => {
       router.replace('/register?error=google_token_expired')
       return
     }
-    error.value = err.response?.data?.detail || 'Error al completar el registro.'
+    error.value = extractApiError(err)
   } finally {
     loading.value = false
   }
