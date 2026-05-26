@@ -112,7 +112,7 @@ class TurnoService:
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un turno con esa descripción para esa actividad en ese mes.",
+                detail="Ya existe un turno con esa actividad, descripción y período (mes y año)",
             )
 
         dates = _generate_dates(month, year, days)

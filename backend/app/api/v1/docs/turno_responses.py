@@ -85,10 +85,10 @@ CREATE_TURNO_RESPONSES: _Responses = {
         },
     },
     409: {
-        "description": "Ya existe un turno con esa descripción para esa actividad en ese mes.",
+        "description": "Ya existe un turno con esa actividad, descripción y período (mes y año)",
         "content": {
             "application/json": {
-                "example": {"errors": {"general": "Ya existe un turno con esa descripción para esa actividad en ese mes."}}
+                "example": {"errors": {"general": "Ya existe un turno con esa actividad, descripción y período (mes y año)"}}
             }
         },
     },
