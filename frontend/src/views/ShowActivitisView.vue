@@ -105,7 +105,7 @@
             </div>
           </div>
 
-          <div class="acciones-card">
+          <div v-if="!inscriptos.has(turno.id)" class="acciones-card">
             <button
               class="accion-btn"
               :disabled="inscriptos.has(turno.id)"
@@ -171,9 +171,10 @@ onMounted(async () => {
   try {
     loading.value = true
 
-    const [{ activities: acts }, turnosRes] = await Promise.all([
+    const [{ activities: acts }, turnosRes, myEnrollmentsRes] = await Promise.all([
       getFormOptions(),
       turnoService.getTurnos(),
+      enrollmentService.getMyMonthly(),
     ])
 
     activities.value = acts
@@ -200,6 +201,13 @@ onMounted(async () => {
       descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
     }))
+
+    const confirmed = new Set(
+      myEnrollmentsRes.data
+        .filter((e) => e.status === 'confirmed')
+        .map((e) => e.turno_id)
+    )
+    inscriptos.value = confirmed
   } catch (error) {
     console.error('Error al cargar actividades o turnos', error)
   } finally {

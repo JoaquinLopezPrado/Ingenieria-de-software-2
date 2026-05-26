@@ -22,4 +22,7 @@ export const enrollmentService = {
 
   createPaymentPreference: (enrollment_id: number) =>
     apiClient.post('/payments/preference', { enrollment_id }),
+
+  getMyMonthly: () =>
+    apiClient.get('/enrollments/my/monthly'),
 }
