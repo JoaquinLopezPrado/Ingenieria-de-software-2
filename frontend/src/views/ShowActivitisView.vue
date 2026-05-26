@@ -105,7 +105,17 @@
             </div>
           </div>
 
-          <div v-if="!inscriptos.has(turno.id)" class="acciones-card">
+          <div v-if="turnosPendienteMensual.has(turno.id)" class="acciones-card">
+            <button
+              class="continuar-btn"
+              type="button"
+              @click="continuarPago(turno)"
+            >
+              Continuar con el pago
+            </button>
+          </div>
+
+          <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
             <button
               class="accion-btn"
               :disabled="inscriptos.has(turno.id)"
@@ -158,6 +168,7 @@ const tabs = computed(() => activities.value.map(a => a.name))
 const currentTab = ref('')
 const inscriptos = ref(new Set())
 const turnosConClaseSuelta = ref(new Set())
+const turnosPendienteMensual = ref(new Map())
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
@@ -209,6 +220,12 @@ onMounted(async () => {
       myMonthlyRes.data
         .filter((e) => e.status === 'confirmed')
         .map((e) => e.turno_id)
+    )
+
+    turnosPendienteMensual.value = new Map(
+      myMonthlyRes.data
+        .filter((e) => e.status === 'pending')
+        .map((e) => [e.turno_id, e])
     )
 
     turnosConClaseSuelta.value = new Set(
@@ -302,6 +319,27 @@ const handleInscripcion = async (turno) => {
   } finally {
     loadingTurno.value = null
   }
+}
+
+const continuarPago = (turno) => {
+  const enrollment = turnosPendienteMensual.value.get(turno.id)
+  if (!enrollment) return
+  router.push({
+    name: 'ticket',
+    query: {
+      enrollment_id: enrollment.enrollment_id,
+      actividad:     turno.actividad,
+      descripcion:   turno.descripcion,
+      dia:           turno.dia,
+      hora:          turno.hora,
+      duracion:      turno.dur,
+      instructor:    turno.inst,
+      nivel:         turno.nivel,
+      numero:        enrollment.enrollment_id,
+      amount:        enrollment.amount,
+      expires_at:    enrollment.expires_at,
+    },
+  })
 }
 
 const goToClassSelection = (turno) => {
@@ -656,6 +694,26 @@ h1 {
 }
 
 .accion-btn.espera:hover:not(:disabled) {
+  background: #E65100;
+  transform: translateY(-1px);
+}
+
+.continuar-btn {
+  width: 100%;
+  padding: 13px 0;
+  border-radius: 999px;
+  border: none;
+  background: #F57C00;
+  color: white;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 10px 18px rgba(245, 124, 0, 0.20);
+}
+
+.continuar-btn:hover {
   background: #E65100;
   transform: translateY(-1px);
 }
