@@ -177,6 +177,10 @@ onMounted(() => {
     if (remaining === 0) {
       expirado.value = true
       clearInterval(intervalo)
+      const enrollmentId = Number(route.query.enrollment_id)
+      if (enrollmentId) {
+        enrollmentService.cancelEnrollment(enrollmentId).catch(() => {})
+      }
     }
   }
 
