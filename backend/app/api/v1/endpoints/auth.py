@@ -110,8 +110,8 @@ async def google_oauth_callback(
     except HTTPException as exc:
         if mode == "link":
             if exc.status_code == status.HTTP_409_CONFLICT and exc.detail == "GOOGLE_ALREADY_LINKED":
-                return RedirectResponse(url=f"{frontend}/home?error=google_already_in_use")
-            return RedirectResponse(url=f"{frontend}/home?error=google_link_failed")
+                return RedirectResponse(url=f"{frontend}/list?error=google_already_in_use")
+            return RedirectResponse(url=f"{frontend}/list?error=google_link_failed")
         if exc.status_code == status.HTTP_409_CONFLICT:
             if exc.detail == "GOOGLE_ALREADY_LINKED":
                 return RedirectResponse(url=f"{frontend}/?error=google_already_linked")
@@ -119,7 +119,7 @@ async def google_oauth_callback(
         return RedirectResponse(url=f"{frontend}/?error=google_error")
 
     if result["type"] == "linked":
-        return RedirectResponse(url=f"{frontend}/home?google_linked=true")
+        return RedirectResponse(url=f"{frontend}/list?google_linked=true")
 
     if result["type"] == "login":
         params = urlencode({
