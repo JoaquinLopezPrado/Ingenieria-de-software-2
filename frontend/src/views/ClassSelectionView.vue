@@ -93,7 +93,7 @@
           @click="handleSubmit"
           type="button"
         >
-          {{ submitting ? 'Procesando...' : 'Continuar al ticket' }}
+          {{ submitting ? 'Procesando...' : 'Inscribirse' }}
         </button>
       </div>
     </div>
