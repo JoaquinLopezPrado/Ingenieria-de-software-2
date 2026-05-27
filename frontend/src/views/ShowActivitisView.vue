@@ -103,7 +103,7 @@
 
           <div>
             <div class="cap-row">
-              <span class="cap-text">
+              <span class="cap-text" :style="{ color: barColor(turno) }">
                 {{ turno.ocup >= turno.total
                   ? 'Sin lugares disponibles'
                   : `${turno.total - turno.ocup} lugar${turno.total - turno.ocup !== 1 ? 'es' : ''} disponible${turno.total - turno.ocup !== 1 ? 's' : ''}` }}
@@ -117,7 +117,7 @@
               </span>
             </div>
 
-            <div class="bar-bg">
+            <div class="bar-bg" :style="{ background: barBgColor(turno) }">
               <div
                 class="bar-fill"
                 :style="{
@@ -305,11 +305,16 @@ const pct = (t) => {
 
 const barColor = (t) => {
   const p = pct(t)
+  return p >= 100 ? '#E53935' : p >= 75 ? '#FB8C00' : '#00897B'
+}
+
+const barBgColor = (t) => {
+  const p = pct(t)
   return p >= 100
-    ? '#E53935'
+    ? 'rgba(229, 57, 53, 0.15)'
     : p >= 75
-    ? '#FB8C00'
-    : '#00897B'
+    ? 'rgba(251, 140, 0, 0.15)'
+    : 'rgba(0, 137, 123, 0.15)'
 }
 
 const handleInscripcion = async (turno) => {
