@@ -144,7 +144,7 @@
               type="button"
               @click="continuarPagoSingle(turno)"
             >
-              Continuar con el pago
+              Continuar con el pago de la clase de prueba
             </button>
           </div>
 
