@@ -12,6 +12,9 @@ const authStore = useAuthStore()
 const pendingToken = ref('')
 const loading = ref(false)
 const error = ref('')
+const fieldErrors = ref<Record<string, string>>({})
+
+const clearError = (field: string) => { fieldErrors.value[field] = '' }
 
 const formData = ref({
   phone: '',
@@ -46,6 +49,13 @@ const extractApiError = (err: any): string => {
 }
 
 const handleSubmit = async () => {
+  const e: Record<string, string> = {}
+  if (!formData.value.doc_number.trim()) e.doc_number = 'El número de documento es obligatorio.'
+  if (!formData.value.phone.trim()) e.phone = 'El teléfono es obligatorio.'
+  if (!formData.value.birth_date) e.birth_date = 'La fecha de nacimiento es obligatoria.'
+  fieldErrors.value = e
+  if (Object.values(e).some(v => v)) return
+
   error.value = ''
   loading.value = true
   try {
@@ -83,7 +93,7 @@ const handleSubmit = async () => {
 
       <p class="helper-text">Solo necesitamos algunos datos más para completar tu cuenta.</p>
 
-      <form @submit.prevent="handleSubmit" class="complete-form">
+      <form @submit.prevent="handleSubmit" class="complete-form" novalidate>
         <div class="form-row">
           <div class="form-group">
             <label class="custom-label">Tipo de Documento</label>
@@ -93,20 +103,23 @@ const handleSubmit = async () => {
             </select>
           </div>
           <div class="form-group">
-            <label class="custom-label">Número</label>
-            <input v-model="formData.doc_number" type="text" class="input-field" required :disabled="loading" />
+            <label class="custom-label" :class="{ 'label-error': fieldErrors.doc_number }">Número</label>
+            <input v-model="formData.doc_number" type="text" class="input-field" :class="{ 'input-error': fieldErrors.doc_number }" :disabled="loading" @input="clearError('doc_number')" />
+            <span v-if="fieldErrors.doc_number" class="field-error">{{ fieldErrors.doc_number }}</span>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="custom-label">Teléfono</label>
-          <input v-model="formData.phone" type="text" class="input-field" placeholder="1123456789" required :disabled="loading" />
+          <label class="custom-label" :class="{ 'label-error': fieldErrors.phone }">Teléfono</label>
+          <input v-model="formData.phone" type="text" class="input-field" :class="{ 'input-error': fieldErrors.phone }" placeholder="1123456789" :disabled="loading" @input="clearError('phone')" />
+          <span v-if="fieldErrors.phone" class="field-error">{{ fieldErrors.phone }}</span>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label class="custom-label">Fecha de Nacimiento</label>
-            <input v-model="formData.birth_date" type="date" class="input-field" required :disabled="loading" />
+            <label class="custom-label" :class="{ 'label-error': fieldErrors.birth_date }">Fecha de Nacimiento</label>
+            <input v-model="formData.birth_date" type="date" class="input-field" :class="{ 'input-error': fieldErrors.birth_date }" :disabled="loading" @input="clearError('birth_date')" />
+            <span v-if="fieldErrors.birth_date" class="field-error">{{ fieldErrors.birth_date }}</span>
           </div>
           <div class="form-group">
             <label class="custom-label">Género</label>
@@ -216,6 +229,21 @@ const handleSubmit = async () => {
 .select-field {
   height: 46px;
   cursor: pointer;
+}
+
+.input-field.input-error {
+  border-color: #e53935;
+  background-color: #fff8f8;
+}
+
+.custom-label.label-error {
+  color: #e53935;
+}
+
+.field-error {
+  font-size: 12px;
+  color: #e53935;
+  margin-left: 4px;
 }
 
 .error-message {

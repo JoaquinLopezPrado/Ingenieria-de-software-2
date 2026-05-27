@@ -6,6 +6,7 @@ defineProps<{
   placeholder?: string
   disabled?: boolean
   modelValue: string
+  error?: string
 }>()
 
 defineEmits<{
@@ -17,13 +18,14 @@ const showPassword = ref(false)
 
 <template>
   <div class="form-group">
-    <label class="custom-label">{{ label }}</label>
+    <label class="custom-label" :class="{ 'label-error': error }">{{ label }}</label>
     <div class="password-input-wrapper">
       <input
         :type="showPassword ? 'text' : 'password'"
         :value="modelValue"
         :placeholder="placeholder || '••••••••'"
         class="input-field"
+        :class="{ 'input-error': error }"
         :disabled="disabled"
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
@@ -44,6 +46,7 @@ const showPassword = ref(false)
   </svg>
 </button>
     </div>
+    <span v-if="error" class="field-error">{{ error }}</span>
   </div>
 </template>
 
@@ -105,5 +108,20 @@ const showPassword = ref(false)
 
 .toggle-password svg {
   display: block;
+}
+
+.input-field.input-error {
+  border-color: #e53935;
+  background-color: #fff8f8;
+}
+
+.custom-label.label-error {
+  color: #e53935;
+}
+
+.field-error {
+  font-size: 12px;
+  color: #e53935;
+  margin-left: 4px;
 }
 </style>

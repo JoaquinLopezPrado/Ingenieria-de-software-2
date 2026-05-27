@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import PasswordInput from './PasswordInput.vue'
 
 defineProps<{ loading?: boolean; apiError?: string }>()
@@ -18,35 +18,60 @@ const formData = ref({
   doc_number: ''
 })
 
-const error = ref('')
+const fieldErrors = ref<Record<string, string>>({})
+
+const clearError = (field: string) => { fieldErrors.value[field] = '' }
+
+watch(() => formData.value.password, () => clearError('password'))
+watch(() => formData.value.confirmPassword, () => clearError('confirmPassword'))
 
 const handleSubmit = () => {
-  if (formData.value.password !== formData.value.confirmPassword) {
-    error.value = 'Las contraseñas no coinciden'
-    return
+  const e: Record<string, string> = {}
+
+  if (!formData.value.first_name.trim()) e.first_name = 'El nombre es obligatorio.'
+  if (!formData.value.last_name.trim()) e.last_name = 'El apellido es obligatorio.'
+  if (!formData.value.email.trim()) {
+    e.email = 'El email es obligatorio.'
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.value.email)) {
+    e.email = 'El email no tiene un formato válido.'
   }
-  error.value = ''
+  if (!formData.value.doc_number.trim()) e.doc_number = 'El número de documento es obligatorio.'
+  if (!formData.value.birth_date) e.birth_date = 'La fecha de nacimiento es obligatoria.'
+  if (!formData.value.phone.trim()) e.phone = 'El teléfono es obligatorio.'
+  if (!formData.value.password) e.password = 'La contraseña es obligatoria.'
+  if (!formData.value.confirmPassword) {
+    e.confirmPassword = 'Confirmá tu contraseña.'
+  } else if (formData.value.password !== formData.value.confirmPassword) {
+    e.confirmPassword = 'Las contraseñas no coinciden.'
+  }
+
+  fieldErrors.value = e
+  if (Object.values(e).some(v => v)) return
+
   const { confirmPassword, ...dataToSubmit } = formData.value
   emit('submit', dataToSubmit)
 }
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="register-form">
+  <form @submit.prevent="handleSubmit" class="register-form" novalidate>
     <div class="form-row">
       <div class="form-group">
-        <label class="custom-label">Nombre</label>
-        <input v-model="formData.first_name" type="text" class="input-field" required />
+        <label class="custom-label" :class="{ 'label-error': fieldErrors.first_name }">Nombre</label>
+        <input v-model="formData.first_name" type="text" class="input-field" :class="{ 'input-error': fieldErrors.first_name }" @input="clearError('first_name')" />
+        <span v-if="fieldErrors.first_name" class="field-error">{{ fieldErrors.first_name }}</span>
       </div>
       <div class="form-group">
-        <label class="custom-label">Apellido</label>
-        <input v-model="formData.last_name" type="text" class="input-field" required />
+        <label class="custom-label" :class="{ 'label-error': fieldErrors.last_name }">Apellido</label>
+        <input v-model="formData.last_name" type="text" class="input-field" :class="{ 'input-error': fieldErrors.last_name }" @input="clearError('last_name')" />
+        <span v-if="fieldErrors.last_name" class="field-error">{{ fieldErrors.last_name }}</span>
       </div>
     </div>
 
     <div class="form-group">
-      <label class="custom-label">Email</label>
-      <input v-model="formData.email" type="email" class="input-field" placeholder="tu@email.com" required />
+      <label class="custom-label" :class="{ 'label-error': fieldErrors.email }">Email</label>
+      <input v-model="formData.email" type="email" class="input-field" :class="{ 'input-error': fieldErrors.email }" placeholder="tu@email.com" @input="clearError('email')" />
+      <span v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</span>
     </div>
 
     <div class="form-row">
@@ -58,15 +83,17 @@ const handleSubmit = () => {
         </select>
       </div>
       <div class="form-group">
-        <label class="custom-label">Numero</label>
-        <input v-model="formData.doc_number" type="text" class="input-field" required />
+        <label class="custom-label" :class="{ 'label-error': fieldErrors.doc_number }">Numero</label>
+        <input v-model="formData.doc_number" type="text" class="input-field" :class="{ 'input-error': fieldErrors.doc_number }" @input="clearError('doc_number')" />
+        <span v-if="fieldErrors.doc_number" class="field-error">{{ fieldErrors.doc_number }}</span>
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label class="custom-label">Nacimiento</label>
-        <input v-model="formData.birth_date" type="date" class="input-field" required />
+        <label class="custom-label" :class="{ 'label-error': fieldErrors.birth_date }">Nacimiento</label>
+        <input v-model="formData.birth_date" type="date" class="input-field" :class="{ 'input-error': fieldErrors.birth_date }" @input="clearError('birth_date')" />
+        <span v-if="fieldErrors.birth_date" class="field-error">{{ fieldErrors.birth_date }}</span>
       </div>
       <div class="form-group">
         <label class="custom-label">Genero</label>
@@ -79,14 +106,15 @@ const handleSubmit = () => {
     </div>
 
     <div class="form-group">
-      <label class="custom-label">Telefono</label>
-      <input v-model="formData.phone" type="text" class="input-field" placeholder="1123456789" required />
+      <label class="custom-label" :class="{ 'label-error': fieldErrors.phone }">Telefono</label>
+      <input v-model="formData.phone" type="text" class="input-field" :class="{ 'input-error': fieldErrors.phone }" placeholder="1123456789" @input="clearError('phone')" />
+      <span v-if="fieldErrors.phone" class="field-error">{{ fieldErrors.phone }}</span>
     </div>
 
-    <PasswordInput v-model="formData.password" label="Contraseña" :disabled="loading" />
-    <PasswordInput v-model="formData.confirmPassword" label="Confirmar Contraseña" :disabled="loading" />
+    <PasswordInput v-model="formData.password" label="Contraseña" :error="fieldErrors.password" :disabled="loading" />
+    <PasswordInput v-model="formData.confirmPassword" label="Confirmar Contraseña" :error="fieldErrors.confirmPassword" :disabled="loading" />
 
-    <div v-if="error || apiError" class="error-message">{{ error || apiError }}</div>
+    <div v-if="apiError" class="error-message">{{ apiError }}</div>
 
     <button type="submit" class="btn-primary" :disabled="loading">
       <span>{{ loading ? 'Creando cuenta' : 'Registrarse' }}</span>
@@ -126,6 +154,21 @@ const handleSubmit = () => {
   font-size: 14px;
 }
 .select-field { height: 46px; cursor: pointer; }
+.input-field.input-error {
+  border-color: #e53935;
+  background-color: #fff8f8;
+}
+
+.custom-label.label-error {
+  color: #e53935;
+}
+
+.field-error {
+  font-size: 12px;
+  color: #e53935;
+  margin-left: 4px;
+}
+
 .error-message {
   background-color: #fff5f5;
   color: #e53935;
