@@ -15,7 +15,6 @@ import {
 const allTurnos = ref<Turno[]>([])
 const allActivities = ref<ActivityOption[]>([])
 const activityMap = ref<Map<number, string>>(new Map())
-const instructorMap = ref<Map<number, string>>(new Map())
 const isLoading = ref(true)
 const errorMessage = ref('')
 const errorType = ref<'auth' | 'forbidden' | 'generic' | null>(null)
@@ -62,10 +61,10 @@ const currentPage = ref(1)
 const instructorOptions = computed(() => {
   const seen = new Set<string>()
   const opts: string[] = []
-  allActivities.value.forEach((a: ActivityOption) => {
-    if (a.instructor && !seen.has(a.instructor)) {
-      seen.add(a.instructor)
-      opts.push(a.instructor)
+  allTurnos.value.forEach((t: Turno) => {
+    if (t.instructor && !seen.has(t.instructor)) {
+      seen.add(t.instructor)
+      opts.push(t.instructor)
     }
   })
   return opts.sort()
@@ -87,10 +86,7 @@ const filteredTurnos = computed(() => {
   }
 
   if (filterInstructor.value) {
-    const ids = allActivities.value
-      .filter((a: ActivityOption) => a.instructor === filterInstructor.value)
-      .map((a: ActivityOption) => a.id)
-    result = result.filter((t: Turno) => ids.includes(t.activity_id))
+    result = result.filter((t: Turno) => t.instructor === filterInstructor.value)
   }
 
   if (filterAvailability.value === 'active') {
@@ -189,8 +185,7 @@ onMounted(async () => {
     ])
     allTurnos.value = turnosRes.items
     allActivities.value = activities
-    activityMap.value   = new Map(activities.map(a => [a.id, a.name]))
-    instructorMap.value = new Map(activities.map(a => [a.id, a.instructor]))
+    activityMap.value = new Map(activities.map(a => [a.id, a.name]))
   } catch (error: unknown) {
     const axiosError = error as { response?: { status?: number }; request?: unknown }
     const status = axiosError?.response?.status

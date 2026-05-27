@@ -49,6 +49,7 @@ export interface Turno {
   id: number
   activity_id: number
   description: string
+  instructor: string
   days: string[]      // valores del backend: "lunes", "martes", etc.
   start_time: string  // "H:MM" (sin zero-pad en la hora, ej: "9:00", "17:30")
   end_time: string
