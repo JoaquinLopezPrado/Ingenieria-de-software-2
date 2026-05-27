@@ -49,7 +49,22 @@
             <p><strong>Día:</strong> {{ option.dayLabel }}</p>
             <p><strong>Horario:</strong> {{ horaInicio }} - {{ horaFin }}</p>
             <p><strong>Sala:</strong> {{ sala }}</p>
-            <p><strong>Cupos:</strong> {{ option.availableSpots }} disponible(s)</p>
+
+            <div class="cupos-section">
+              <div class="cap-row">
+                <span class="cap-text" :style="{ color: barColor(option) }">
+                  {{ option.availableSpots === 0
+                    ? 'Sin lugares disponibles'
+                    : `${option.availableSpots} lugar${option.availableSpots !== 1 ? 'es' : ''} disponible${option.availableSpots !== 1 ? 's' : ''}` }}
+                </span>
+                <span class="cap-num" :style="{ color: barColor(option) }">
+                  {{ option.occupied }}/{{ option.capacity }}
+                </span>
+              </div>
+              <div class="bar-bg" :style="{ background: barBgColor(option) }">
+                <div class="bar-fill" :style="{ width: pct(option) + '%', background: barColor(option) }"></div>
+              </div>
+            </div>
           </button>
         </div>
 
@@ -171,7 +186,7 @@ const fetchClases = async () => {
 
     clases.value = items.map((clase) => {
       const capacity = clase.capacity ?? 0
-      const occupied = clase.occupied ?? clase.occupied_count ?? 0
+      const occupied = clase.enrolled ?? clase.occupied ?? 0
 
       return {
         id: clase.id,
@@ -201,6 +216,22 @@ const fetchClases = async () => {
 onMounted(() => {
   fetchClases()
 })
+
+const pct = (option) => Math.min(Math.round((option.occupied / option.capacity) * 100), 100)
+
+const barColor = (option) => {
+  const p = pct(option)
+  return p >= 100 ? '#E53935' : p >= 75 ? '#FB8C00' : '#00897B'
+}
+
+const barBgColor = (option) => {
+  const p = pct(option)
+  return p >= 100
+    ? 'rgba(229, 57, 53, 0.15)'
+    : p >= 75
+    ? 'rgba(251, 140, 0, 0.15)'
+    : 'rgba(0, 137, 123, 0.15)'
+}
 
 function selectOption(id) {
   selectedOptionId.value = id
@@ -504,6 +535,39 @@ async function handleSubmit() {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.cupos-section {
+  margin-top: 12px;
+}
+
+.cap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.cap-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cap-num {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bar-bg {
+  border-radius: 999px;
+  height: 7px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
 }
 
 @media (max-width: 768px) {
