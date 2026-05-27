@@ -33,7 +33,7 @@ class AbstractTurnoRepository(ABC):
         self,
         activity_id: Optional[int],
         has_availability: Optional[bool],
-        months: List[Tuple[int, int]],
+        months: Optional[List[Tuple[int, int]]],
         page: int,
         page_size: int,
         include_inactive: bool = False,
@@ -68,12 +68,14 @@ class TurnoRepository(AbstractTurnoRepository):
         self,
         activity_id: Optional[int],
         has_availability: Optional[bool],
-        months: List[Tuple[int, int]],
+        months: Optional[List[Tuple[int, int]]],
         page: int,
         page_size: int,
         include_inactive: bool = False,
     ) -> Tuple[List[Turno], int]:
-        base = select(TurnoORM).where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
+        base = select(TurnoORM)
+        if months is not None:
+            base = base.where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
         if not include_inactive:
             base = base.where(TurnoORM.is_active == True)
         base = base.order_by(TurnoORM.year, TurnoORM.month)
