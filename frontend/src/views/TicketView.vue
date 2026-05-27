@@ -80,16 +80,25 @@
  
         <div class="divider"></div>
  
-        <div class="monto-row">
+        <template v-if="route.query.precio_turno">
+          <div class="monto-row">
+            <span class="monto-label">Valor del turno</span>
+            <span class="monto-valor-base">$ {{ fmt(route.query.precio_turno) }}</span>
+          </div>
+          <div v-if="Number(route.query.clases_excluidas) > 0" class="monto-row monto-row-descuento">
+            <span class="monto-label">
+              Descuento por {{ route.query.clases_excluidas }} clase{{ Number(route.query.clases_excluidas) !== 1 ? 's' : '' }} excluida{{ Number(route.query.clases_excluidas) !== 1 ? 's' : '' }}
+            </span>
+            <span class="monto-descuento">- $ {{ fmt(Number(route.query.precio_turno) - Number(route.query.amount)) }}</span>
+          </div>
+          <div class="monto-row monto-row-total">
+            <span class="monto-label"><strong>Total a pagar</strong></span>
+            <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
+          </div>
+        </template>
+        <div v-else class="monto-row">
           <span class="monto-label">Total a pagar</span>
-          <span class="monto-valor">$ {{ Number(route.query.amount ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 }) }}</span>
-        </div>
-
-        <div v-if="Number(route.query.clases_excluidas) > 0" class="aviso aviso-alerta">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F57F17" stroke-width="2" stroke-linecap="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          {{ route.query.clases_excluidas }} clase{{ Number(route.query.clases_excluidas) !== 1 ? 's' : '' }} {{ Number(route.query.clases_excluidas) !== 1 ? 'fueron excluidas' : 'fue excluida' }} del monto (sin cupo o ya estás inscripto).
+          <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
         </div>
 
         <div class="aviso">
@@ -134,6 +143,8 @@ import { enrollmentService } from '@/services/enrollmentService'
 
 const route  = useRoute()
 const router = useRouter()
+
+const fmt = (val) => Number(val ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })
 
 const DAY_LABELS = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
@@ -300,6 +311,10 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 }
 .monto-label { font-size: 13px; color: #607D8B; font-weight: 500; }
 .monto-valor { font-size: 18px; font-weight: 800; color: #00695C; }
+.monto-valor-base { font-size: 15px; font-weight: 600; color: #37474F; }
+.monto-row-descuento { background: #FFF8E1; margin-bottom: 4px; }
+.monto-descuento { font-size: 15px; font-weight: 700; color: #F57F17; }
+.monto-row-total { border-top: 1px solid #E0F2F1; padding-top: 14px; }
 
 .aviso {
   display: flex; align-items: center; gap: 8px;
