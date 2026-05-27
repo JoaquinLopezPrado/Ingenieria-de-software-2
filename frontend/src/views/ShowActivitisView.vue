@@ -2,6 +2,22 @@
   <div class="page">
 
     <div class="main">
+      <div v-if="googleLinked" class="banner banner-success">
+        Tu cuenta de Google fue vinculada correctamente.
+      </div>
+      <div v-if="googleAlreadyInUse" class="banner banner-error">
+        Esta cuenta de Google ya está asociada a otro usuario. Por favor, utilizá una cuenta diferente.
+      </div>
+      <div v-if="googleUnlinked" class="banner banner-success">
+        Tu cuenta de Google fue desvinculada correctamente.
+      </div>
+      <div v-if="googleLinkError" class="banner banner-error">
+        No se pudo vincular la cuenta de Google. Intentá de nuevo.
+      </div>
+      <div v-if="googleUnlinkError" class="banner banner-error">
+        No se pudo desvincular la cuenta de Google. Intentá de nuevo.
+      </div>
+
       <h1>Actividades disponibles</h1>
       <p class="subtitle">Elegí tu actividad y reservá tu lugar en el turno que más te convenga.</p>
 
@@ -153,7 +169,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { enrollmentService } from '@/services/enrollmentService'
 import { turnoService } from '@/services/turnoService'
 import { getFormOptions } from '@/services/sessionService'
@@ -162,6 +178,13 @@ import ActivityBtn from '@/components/ui/ActivityBtn.vue'
 import { ACTIVITY_ICONS, DEFAULT_ACTIVITY_ICON } from '@/constants/activityIcons'
 
 const router = useRouter()
+const route = useRoute()
+
+const googleLinked = ref(route.query.google_linked === 'true')
+const googleAlreadyInUse = ref(route.query.error === 'google_already_in_use')
+const googleLinkError = ref(route.query.error === 'google_link_failed')
+const googleUnlinked = ref(route.query.google_unlinked === 'true')
+const googleUnlinkError = ref(route.query.error === 'google_unlink_failed')
 
 const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
@@ -770,5 +793,25 @@ h1 {
   h1 { font-size: 1.9rem; }
   .grid { grid-template-columns: 1fr; }
   .badge { width: 100%; }
+}
+
+.banner {
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.banner-success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.banner-error {
+  background-color: #fff5f5;
+  color: #c0392b;
+  border: 1px solid #fecaca;
 }
 </style>
