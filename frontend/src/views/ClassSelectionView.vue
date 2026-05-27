@@ -256,12 +256,13 @@ async function handleSubmit() {
       name: 'ticket',
       query: {
         enrollment_id: data.id,
-        actividad: actividad.value,
-        dia: `${selectedOption.value.dayLabel} ${selectedOption.value.displayDate}`,
-        hora: `${horaInicio.value} - ${horaFin.value}`,
-        instructor: instructor.value,
-        numero: data.id,
-        amount: data.amount,
+        actividad:     actividad.value,
+        dia:           `${selectedOption.value.dayLabel} ${selectedOption.value.displayDate}`,
+        duracion:      `${horaInicio.value} - ${horaFin.value}`,
+        instructor:    instructor.value,
+        numero:        data.id,
+        amount:        data.amount,
+        expires_at:    data.expires_at,
       },
     })
   } catch (error) {
