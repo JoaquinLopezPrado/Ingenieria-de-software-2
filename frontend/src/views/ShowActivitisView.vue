@@ -179,7 +179,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { enrollmentService } from '@/services/enrollmentService'
 import { turnoService } from '@/services/turnoService'
@@ -221,23 +221,13 @@ const tabIcons = computed(() =>
   Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON]))
 )
 
-onMounted(async () => {
+const loadTurnos = async (activityId) => {
+  if (!activityId) return
   try {
     loading.value = true
-
-    const [{ activities: acts }, turnosRes, myMonthlyRes, mySingleRes] = await Promise.all([
-      getFormOptions(),
-      turnoService.getTurnos(),
-      enrollmentService.getMyMonthly(),
-      enrollmentService.getMySingle(),
-    ])
-
-    activities.value = acts
-    if (acts.length > 0) currentTab.value = acts[0].name
-
-    const nameMap = new Map(acts.map(a => [a.id, a.name]))
+    const nameMap = new Map(activities.value.map(a => [a.id, a.name]))
+    const turnosRes = await turnoService.getTurnos({ activity_id: activityId })
     const items = turnosRes.data.items || []
-
     turnos.value = items.map((turno) => ({
       id: turno.id,
       activityId: turno.activity_id,
@@ -257,6 +247,29 @@ onMounted(async () => {
       descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
     }))
+  } catch (error) {
+    console.error('Error al cargar turnos', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(currentTab, (newTab) => {
+  const activity = activities.value.find(a => a.name === newTab)
+  if (activity) loadTurnos(activity.id)
+})
+
+onMounted(async () => {
+  try {
+    loading.value = true
+
+    const [{ activities: acts }, myMonthlyRes, mySingleRes] = await Promise.all([
+      getFormOptions(),
+      enrollmentService.getMyMonthly(),
+      enrollmentService.getMySingle(),
+    ])
+
+    activities.value = acts
 
     inscriptos.value = new Set(
       myMonthlyRes.data
@@ -275,18 +288,15 @@ onMounted(async () => {
         .filter((e) => e.status === 'confirmed' || e.status === 'pending')
         .map((e) => e.turno_id)
     )
+
+    if (acts.length > 0) currentTab.value = acts[0].name
   } catch (error) {
-    console.error('Error al cargar actividades o turnos', error)
-  } finally {
+    console.error('Error al cargar actividades', error)
     loading.value = false
   }
 })
 
-const currentTurnos = computed(() => {
-  return turnos.value.filter(
-    (t) => t.actividad === currentTab.value
-  )
-})
+const currentTurnos = computed(() => turnos.value)
 
 const disponibles = computed(() => {
   return currentTurnos.value.filter(
