@@ -19,7 +19,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import {
-  getTurnos,
+  getTurnosAll,
   getFormOptions,
   updateTurno,
   extractBackendError,
@@ -91,6 +91,7 @@ const turno        = ref<Turno | null>(null)
 const activityName = ref('')
 const isLoading    = ref(true)
 const isSaving     = ref(false)
+const isActivating = ref(false)
 const loadError    = ref('')
 const successMsg   = ref('')
 const serverError  = ref('')
@@ -141,7 +142,7 @@ onMounted(async () => {
   }
   try {
     const [turnosRes, { activities }] = await Promise.all([
-      getTurnos({ page_size: 500 } as Parameters<typeof getTurnos>[0]),
+      getTurnosAll({ page_size: 500 }),
       getFormOptions(),
     ])
 
@@ -234,6 +235,22 @@ function handleSubmit() {
   saveChanges()  // Escenario 1
 }
 
+async function activateTurno() {
+  if (!turno.value) return
+  isActivating.value = true
+  serverError.value  = ''
+  try {
+    await updateTurno(turnoId, { is_active: true })
+    turno.value.is_active = true
+    successMsg.value = 'Turno activado con éxito.'
+    setTimeout(() => router.push({ name: 'turnos-grilla' }), 1500)
+  } catch (e: unknown) {
+    serverError.value = extractBackendError(e)
+  } finally {
+    isActivating.value = false
+  }
+}
+
 async function saveChanges() {
   if (!turno.value) return
   isSaving.value = true
@@ -320,20 +337,14 @@ async function saveChanges() {
         <button class="btn-secondary" @click="router.go(0)">Reintentar</button>
       </div>
 
-      <!-- ── Turno inactivo: no editable ── -->
-      <div v-else-if="turno && !turno.is_active" class="state-panel state-panel--inactive">
-        <div class="state-icon">🔕</div>
-        <h2 class="state-title">Turno inactivo</h2>
-        <p class="state-desc">
-          Los turnos inactivos no son editables. Activá el turno desde la grilla para poder modificarlo.
-        </p>
-        <button class="btn-secondary" @click="router.push({ name: 'turnos-grilla' })">
-          Volver a la grilla
-        </button>
-      </div>
-
       <!-- ── Formulario ── -->
       <template v-else-if="turno">
+
+        <!-- Banner turno inactivo -->
+        <div v-if="turno && !turno.is_active" class="alert alert-inactive">
+          <span class="alert-icon inactive-icon">!</span>
+          <span>Este turno está <strong>inactivo</strong> y no es visible para los clientes. Podés editarlo o reactivarlo.</span>
+        </div>
 
         <!-- Banner éxito -->
         <Transition name="fade">
@@ -480,12 +491,21 @@ async function saveChanges() {
               <button
                 type="button"
                 class="btn-cancel"
-                :disabled="isSaving"
+                :disabled="isSaving || isActivating"
                 @click="router.push({ name: 'turnos-grilla' })"
               >
                 Cancelar
               </button>
-              <button type="submit" class="btn-submit" :disabled="isSaving">
+              <button
+                v-if="turno && !turno.is_active"
+                type="button"
+                class="btn-activate"
+                :disabled="isActivating || isSaving"
+                @click="activateTurno"
+              >
+                {{ isActivating ? 'Activando...' : '✓ Activar turno' }}
+              </button>
+              <button type="submit" class="btn-submit" :disabled="isSaving || isActivating">
                 {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
               </button>
             </div>
@@ -595,16 +615,18 @@ async function saveChanges() {
   margin-bottom: 1.25rem;
 }
 
-.alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.alert-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-success  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.alert-error    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-inactive { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 
 .alert-icon {
   width: 1.4rem; height: 1.4rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
 }
-.success-icon { background: #16a34a; color: white; }
-.error-icon   { background: #dc2626; color: white; }
+.success-icon  { background: #16a34a; color: white; }
+.error-icon    { background: #dc2626; color: white; }
+.inactive-icon { background: #d97706; color: white; }
 
 .alert-close {
   margin-left: auto; background: none; border: none; font-size: 1.4rem;
@@ -753,6 +775,14 @@ select:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-submit:hover:not(:disabled) { background: #0c8a70; }
 .btn-submit:active:not(:disabled) { transform: scale(0.98); }
 .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-activate {
+  background: #16a34a; color: white; font-weight: 600; font-size: 0.95rem;
+  padding: 0.7rem 1.5rem; border-radius: 8px; border: none; cursor: pointer;
+  transition: background-color 0.2s;
+}
+.btn-activate:hover:not(:disabled) { background: #15803d; }
+.btn-activate:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-primary {
   background: #11998e; color: white; font-size: 0.9rem; font-weight: 600;
