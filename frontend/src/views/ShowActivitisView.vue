@@ -168,6 +168,10 @@
             </button>
           </div>
 
+          <div v-if="avisoLleno === turno.id && errorMensaje" class="error-aviso">
+            {{ errorMensaje }}
+          </div>
+
         </div>
       </div>
     </div>
@@ -351,6 +355,7 @@ const handleInscripcion = async (turno) => {
   } catch (err) {
     const detail = err.response?.data?.errors?.general
     if (err.response?.status === 409) {
+      turno.ocup = turno.total
       errorMensaje.value = detail ?? 'No hay lugares disponibles.'
     } else if (err.response?.status === 404) {
       errorMensaje.value = 'El turno no está disponible.'
@@ -358,7 +363,7 @@ const handleInscripcion = async (turno) => {
       errorMensaje.value = 'Ocurrió un error. Intentá de nuevo.'
     }
     avisoLleno.value = turno.id
-    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 3000)
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
   } finally {
     loadingTurno.value = null
   }
@@ -864,5 +869,16 @@ h1 {
   background-color: #fff5f5;
   color: #c0392b;
   border: 1px solid #fecaca;
+}
+
+.error-aviso {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: #fff5f5;
+  color: #c0392b;
+  border: 1px solid #fecaca;
+  font-size: 13px;
+  font-weight: 500;
 }
 </style>
