@@ -149,9 +149,12 @@ const expirado = ref(false)
 const segundosRestantes = ref(0)
 let intervalo = null
 
-const fechaHoy = new Date().toLocaleDateString('es-AR', {
-  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-})
+const fechaHoy = (() => {
+  const s = new Date().toLocaleDateString('es-AR', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+})()
 
 const countdown = computed(() => {
   const s = segundosRestantes.value
@@ -238,7 +241,7 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 .comp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
 .comp-titulo { font-size: 13px; color: #90A4AE; font-weight: 500; margin-bottom: 4px; }
 .comp-numero { font-size: 18px; font-weight: 800; color: #00695C; }
-.comp-fecha { font-size: 12px; color: #90A4AE; text-align: right; text-transform: capitalize; max-width: 130px; }
+.comp-fecha { font-size: 12px; color: #90A4AE; text-align: right; max-width: 130px; }
  
 .divider { height: 1px; background: #F0F4F8; margin: 0 0 20px; }
  
