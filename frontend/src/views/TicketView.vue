@@ -85,11 +85,17 @@
             <span class="monto-label">Valor del turno</span>
             <span class="monto-valor-base">$ {{ fmt(route.query.precio_turno) }}</span>
           </div>
-          <div v-if="Number(route.query.clases_excluidas) > 0" class="monto-row monto-row-descuento">
+          <div v-if="Number(route.query.clases_sin_cupo) > 0" class="monto-row monto-row-descuento">
             <span class="monto-label">
-              Descuento por {{ route.query.clases_excluidas }} clase{{ Number(route.query.clases_excluidas) !== 1 ? 's' : '' }} excluida{{ Number(route.query.clases_excluidas) !== 1 ? 's' : '' }}
+              Descuento por {{ route.query.clases_sin_cupo }} clase{{ Number(route.query.clases_sin_cupo) !== 1 ? 's' : '' }} sin cupo
             </span>
-            <span class="monto-descuento">- $ {{ fmt(Number(route.query.precio_turno) - Number(route.query.amount)) }}</span>
+            <span class="monto-descuento">- $ {{ fmt(precioPorClase * Number(route.query.clases_sin_cupo)) }}</span>
+          </div>
+          <div v-if="Number(route.query.clases_ya_inscripto) > 0" class="monto-row monto-row-descuento">
+            <span class="monto-label">
+              Descuento por {{ route.query.clases_ya_inscripto }} clase{{ Number(route.query.clases_ya_inscripto) !== 1 ? 's' : '' }} de prueba ya reservada{{ Number(route.query.clases_ya_inscripto) !== 1 ? 's' : '' }}
+            </span>
+            <span class="monto-descuento">- $ {{ fmt(precioPorClase * Number(route.query.clases_ya_inscripto)) }}</span>
           </div>
           <div class="monto-row monto-row-total">
             <span class="monto-label"><strong>Total a pagar</strong></span>
@@ -149,6 +155,15 @@ const route  = useRoute()
 const router = useRouter()
 
 const fmt = (val) => Number(val ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })
+
+const precioPorClase = computed(() => {
+  const precioTurno = Number(route.query.precio_turno ?? 0)
+  const amount = Number(route.query.amount ?? 0)
+  const sinCupo = Number(route.query.clases_sin_cupo ?? 0)
+  const yaInscripto = Number(route.query.clases_ya_inscripto ?? 0)
+  const totalExcluidas = sinCupo + yaInscripto
+  return totalExcluidas > 0 ? (precioTurno - amount) / totalExcluidas : 0
+})
 
 const DAY_LABELS = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',

@@ -28,6 +28,8 @@ class Enrollment:
         payment_id: str | None,
         created_at: datetime,
         excluded_clase_ids: list[int] | None = None,
+        excluded_sin_cupo_ids: list[int] | None = None,
+        excluded_ya_inscripto_ids: list[int] | None = None,
     ):
         self.id = id
         self.turno_id = turno_id
@@ -39,6 +41,8 @@ class Enrollment:
         self.payment_id = payment_id
         self.created_at = created_at
         self.excluded_clase_ids = excluded_clase_ids or []
+        self.excluded_sin_cupo_ids = excluded_sin_cupo_ids or []
+        self.excluded_ya_inscripto_ids = excluded_ya_inscripto_ids or []
 
 
 class MyMonthlyEnrollment:

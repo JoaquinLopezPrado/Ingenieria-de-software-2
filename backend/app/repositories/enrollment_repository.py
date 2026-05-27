@@ -96,14 +96,15 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         already_enrolled_ids = {row[0] for row in existing_single_result.all()}
 
         clases_con_cupo = []
-        clases_excluidas = []
+        clases_sin_cupo = []
+        clases_ya_inscripto = []
         for clase in future_clases:
             if clase.id in already_enrolled_ids:
-                clases_excluidas.append(clase)
+                clases_ya_inscripto.append(clase)
             elif await self._clase_tiene_cupo(clase):
                 clases_con_cupo.append(clase)
             else:
-                clases_excluidas.append(clase)
+                clases_sin_cupo.append(clase)
 
         if not clases_con_cupo:
             raise HTTPException(
@@ -111,6 +112,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 detail="Todas las clases futuras de este turno tienen el cupo completo.",
             )
 
+        clases_excluidas = clases_sin_cupo + clases_ya_inscripto
         precio_por_clase = Decimal(turno.price) / len(all_clases)
         amount = (precio_por_clase * len(clases_con_cupo)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -129,7 +131,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
-        return self._to_domain(enrollment_orm, [c.id for c in clases_excluidas])
+        return self._to_domain(
+            enrollment_orm,
+            excluded_clase_ids=[c.id for c in clases_excluidas],
+            excluded_sin_cupo_ids=[c.id for c in clases_sin_cupo],
+            excluded_ya_inscripto_ids=[c.id for c in clases_ya_inscripto],
+        )
 
     # ------------------------------------------------------------------ #
     # Inscripción a clase suelta                                           #
@@ -456,7 +463,13 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             detail="Ya tenés un lugar reservado una clase de este turno.",
         )
 
-    def _to_domain(self, orm: EnrollmentORM, excluded_clase_ids: list[int]) -> Enrollment:
+    def _to_domain(
+        self,
+        orm: EnrollmentORM,
+        excluded_clase_ids: list[int] | None = None,
+        excluded_sin_cupo_ids: list[int] | None = None,
+        excluded_ya_inscripto_ids: list[int] | None = None,
+    ) -> Enrollment:
         return Enrollment(
             id=orm.id,
             turno_id=orm.turno_id,
@@ -467,5 +480,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             expires_at=orm.expires_at,
             payment_id=orm.payment_id,
             created_at=orm.created_at,
-            excluded_clase_ids=excluded_clase_ids,
+            excluded_clase_ids=excluded_clase_ids or [],
+            excluded_sin_cupo_ids=excluded_sin_cupo_ids or [],
+            excluded_ya_inscripto_ids=excluded_ya_inscripto_ids or [],
         )

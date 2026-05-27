@@ -23,6 +23,8 @@ class EnrollmentResponse(BaseModel):
     status: EnrollmentStatus
     expires_at: datetime | None
     excluded_clase_ids: list[int]
+    excluded_sin_cupo_ids: list[int]
+    excluded_ya_inscripto_ids: list[int]
 
     model_config = {"from_attributes": True}
 

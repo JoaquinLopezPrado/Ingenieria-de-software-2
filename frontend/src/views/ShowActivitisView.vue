@@ -360,7 +360,8 @@ const handleInscripcion = async (turno) => {
         numero:             data.id,
         amount:             data.amount,
         precio_turno:       turno.price,
-        clases_excluidas:   data.excluded_clase_ids?.length ?? 0,
+        clases_sin_cupo:       data.excluded_sin_cupo_ids?.length ?? 0,
+        clases_ya_inscripto:   data.excluded_ya_inscripto_ids?.length ?? 0,
         expires_at:         data.expires_at,
       },
     })
