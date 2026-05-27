@@ -277,6 +277,8 @@ class AuthService:
         )
         await self._profile_repo.save_client(profile_orm)
 
+        self._email_service.send_welcome(user.email, google_data["first_name"])
+
         return await self._issue_tokens(user)
 
     async def _issue_tokens(self, user: User) -> tuple[str, str]:
