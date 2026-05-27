@@ -96,6 +96,16 @@
             <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
           </div>
         </template>
+        <template v-else-if="route.query.precio_clase">
+          <div class="monto-row">
+            <span class="monto-label">Valor de la clase</span>
+            <span class="monto-valor-base">$ {{ fmt(route.query.precio_clase) }}</span>
+          </div>
+          <div class="monto-row monto-row-total">
+            <span class="monto-label"><strong>Total a pagar</strong></span>
+            <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
+          </div>
+        </template>
         <div v-else class="monto-row">
           <span class="monto-label">Total a pagar</span>
           <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>

@@ -262,6 +262,7 @@ async function handleSubmit() {
         instructor:    instructor.value,
         numero:        data.id,
         amount:        data.amount,
+        precio_clase:  data.amount,
         expires_at:    data.expires_at,
       },
     })
