@@ -353,10 +353,9 @@ const handleInscripcion = async (turno) => {
       },
     })
   } catch (err) {
-    const detail = err.response?.data?.errors?.general
     if (err.response?.status === 409) {
       turno.ocup = turno.total
-      errorMensaje.value = detail ?? 'No hay lugares disponibles.'
+      errorMensaje.value = 'Otro usuario tomó el último lugar disponible. El cupo se liberará automáticamente si no completa el pago.'
     } else if (err.response?.status === 404) {
       errorMensaje.value = 'El turno no está disponible.'
     } else {
