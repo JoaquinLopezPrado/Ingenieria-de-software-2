@@ -85,6 +85,7 @@ const now = new Date()
 const form = ref({
   activity_id:  null as number | null,
   description:  '',
+  instructor:   '',
   days:         [] as string[],
   startTime:    '',   // "HH:MM" — valores de TIME_SLOTS
   endTime:      '',   // "HH:MM" — siempre > startTime gracias a endTimeSlots
@@ -112,10 +113,11 @@ watch(() => form.value.startTime, (newStart) => {
     form.value.endTime = ''
 })
 
-// Instructor de solo lectura según la actividad elegida
-const selectedInstructor = computed(() =>
-  availableActivities.value.find(a => a.id === form.value.activity_id)?.instructor ?? ''
-)
+// Pre-llena el instructor al elegir la actividad; el admin puede editarlo luego
+watch(() => form.value.activity_id, (id) => {
+  const found = availableActivities.value.find(a => a.id === id)
+  if (found) form.value.instructor = found.instructor ?? ''
+})
 
 // Etiqueta del mes seleccionado para el badge de estado
 const selectedMonthLabel = computed(() =>
@@ -131,6 +133,9 @@ const validate = (): boolean => {
 
   if (!form.value.activity_id)
     errors.value.activity = 'Seleccioná una actividad.'
+
+  if (!form.value.instructor?.trim())
+    errors.value.instructor = 'Ingresá el nombre del instructor.'
 
   if (!form.value.description.trim())
     errors.value.description = 'Ingresá una descripción para el turno.'
@@ -168,6 +173,7 @@ const handleSubmit = () => {
   emit('submit-session', {
     activity_id:  form.value.activity_id!,
     description:  form.value.description.trim(),
+    instructor:   form.value.instructor?.trim() ?? '',
     days:         form.value.days,
     startTime:    form.value.startTime,
     endTime:      form.value.endTime,
@@ -204,9 +210,14 @@ const handleSubmit = () => {
 
         <div class="input-group">
           <label>Instructor</label>
-          <div class="readonly-field" :class="{ placeholder: !selectedInstructor }">
-            {{ selectedInstructor || 'Se asigna al elegir la actividad' }}
-          </div>
+          <input
+            type="text"
+            v-model="form.instructor"
+            maxlength="200"
+            placeholder="Nombre del instructor"
+            :class="{ 'input-error': errors.instructor }"
+          >
+          <span v-if="errors.instructor" class="field-error">{{ errors.instructor }}</span>
         </div>
       </div>
 

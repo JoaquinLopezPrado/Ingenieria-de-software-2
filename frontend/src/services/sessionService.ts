@@ -21,6 +21,7 @@ import api from './api'
 export interface SessionFormData {
   activity_id: number
   description: string
+  instructor: string
   days: string[]        // valores de visualización: "Lunes", "Miércoles", etc.
   startTime: string     // "HH:MM"
   endTime: string       // "HH:MM"
@@ -127,7 +128,7 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
     days: formData.days.map(d => DAY_TO_BACKEND[d]),
     is_active: formData.is_active,
     class_price: formData.class_price,
-    instructor: 'A', // temporal hasta que el back lo resuelva
+    instructor: formData.instructor,
   }
 
   // axios lanza una excepción automáticamente para respuestas 4xx/5xx
