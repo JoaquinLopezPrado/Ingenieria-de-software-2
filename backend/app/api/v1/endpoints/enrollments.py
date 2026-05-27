@@ -48,6 +48,18 @@ async def create_single_enrollment(
     return EnrollmentResponse.model_validate(enrollment.__dict__)
 
 
+@router.delete(
+    "/{enrollment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def cancel_enrollment(
+    enrollment_id: int,
+    current_user: User = Depends(get_current_user),
+    service: EnrollmentService = Depends(get_enrollment_service),
+):
+    await service.cancel_enrollment(enrollment_id=enrollment_id, user_id=current_user.id)
+
+
 @router.get(
     "/my/monthly",
     response_model=list[MyMonthlyEnrollmentResponse],
