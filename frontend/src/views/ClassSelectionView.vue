@@ -271,6 +271,11 @@ async function handleSubmit() {
     const detail = error.response?.data?.errors?.general
 
     if (error.response?.status === 409) {
+      const claseToUpdate = clases.value.find(c => String(c.id) === String(selectedOptionId.value))
+      if (claseToUpdate) {
+        claseToUpdate.occupied = claseToUpdate.capacity
+        claseToUpdate.availableSpots = 0
+      }
       submitError.value = detail ?? 'La clase ya no tiene lugares disponibles.'
     } else if (error.response?.status === 404) {
       submitError.value = 'La clase seleccionada no está disponible.'
