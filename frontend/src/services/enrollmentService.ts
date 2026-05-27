@@ -28,4 +28,7 @@ export const enrollmentService = {
 
   getMySingle: () =>
     apiClient.get('/enrollments/my/single'),
+
+  cancelEnrollment: (enrollment_id: number) =>
+    apiClient.delete(`/enrollments/${enrollment_id}`),
 }
