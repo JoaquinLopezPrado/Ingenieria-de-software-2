@@ -18,6 +18,8 @@ dependencies = [
     "mercadopago>=2.3.0",
     "aiosmtplib>=3.0.0",
     "httpx>=0.28.1",
+    "pyotp>=2.9.0",
+    "qrcode[pil]>=8.0",
 ]
 
 [dependency-groups]

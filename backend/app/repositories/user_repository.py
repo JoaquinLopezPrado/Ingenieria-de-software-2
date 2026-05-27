@@ -44,6 +44,14 @@ class AbstractUserRepository(ABC):
     async def increment_token_version(self, user_id: int) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def update_totp(self, user_id: int, secret: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def disable_2fa(self, user_id: int) -> None:
+        raise NotImplementedError
+
 
 class UserRepository(AbstractUserRepository):
 
@@ -109,6 +117,20 @@ class UserRepository(AbstractUserRepository):
             update(UserORM)
             .where(UserORM.id == user_id)
             .values(token_version=UserORM.token_version + 1)
+        )
+
+    async def update_totp(self, user_id: int, secret: str) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == user_id)
+            .values(totp_secret=secret, is_2fa_enabled=True)
+        )
+
+    async def disable_2fa(self, user_id: int) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == user_id)
+            .values(totp_secret=None, is_2fa_enabled=False)
         )
 
     def _to_domain(self, orm_user: UserORM) -> User:

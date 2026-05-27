@@ -17,6 +17,7 @@ from app.utils.security import (
     create_access_token,
     create_google_pending_token,
     create_google_state_token,
+    create_pre_auth_token,
     create_refresh_token,
     decode_google_pending_token,
     decode_google_state_token,
@@ -84,7 +85,7 @@ class AuthService:
 
         return user
 
-    async def login(self, data: LoginCredentials) -> tuple[User, str, str]:
+    async def login(self, data: LoginCredentials) -> dict:
         user = await self._user_repo.get_by_email(data.email)
         if not user or not user.hashed_password or not verify_password(data.password, user.hashed_password):
             raise HTTPException(
@@ -96,8 +97,10 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="El email o la contraseña ingresados son incorrectos.",
             )
+        if user.is_2fa_enabled:
+            return {"requires_2fa": True, "pre_auth_token": create_pre_auth_token(user.id)}
         access_token, refresh_token = await self._issue_tokens(user)
-        return user, access_token, refresh_token
+        return {"requires_2fa": False, "access_token": access_token, "refresh_token": refresh_token}
 
     async def refresh(self, data: RefreshTokenRequest) -> tuple[str, str]:
         try:

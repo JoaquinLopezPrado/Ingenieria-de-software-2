@@ -50,5 +50,6 @@ class UserMeResponse(BaseModel):
     email: str
     role: str
     has_google_linked: bool = False
+    is_2fa_enabled: bool = False
     client_profile: Optional[ClientProfileMeResponse] = None
     employee_profile: Optional[EmployeeProfileMeResponse] = None

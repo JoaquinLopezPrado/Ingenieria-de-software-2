@@ -71,6 +71,28 @@ def decode_refresh_token(token: str) -> int:
         raise ValueError from e
 
 
+def create_pre_auth_token(user_id: int) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "type": "pre_auth",
+        "jti": str(uuid.uuid4()),
+        "iat": now,
+        "exp": now + timedelta(minutes=5),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
+
+
+def decode_pre_auth_token(token: str) -> int:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
+        if payload.get("type") != "pre_auth":
+            raise ValueError
+        return int(payload["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        raise ValueError("Token de pre-autenticación inválido o expirado.")
+
+
 def create_google_state_token(mode: str = "login", user_id: int | None = None) -> str:
     now = datetime.now(timezone.utc)
     payload: dict = {

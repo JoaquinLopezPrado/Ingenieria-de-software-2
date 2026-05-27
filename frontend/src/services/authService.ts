@@ -43,4 +43,16 @@ export const authService = {
 
   unlinkGoogle: () =>
     apiClient.delete('/auth/google/link'),
+
+  setup2FA: () =>
+    apiClient.post('/auth/2fa/setup'),
+
+  confirm2FA: (secret: string, code: string) =>
+    apiClient.post('/auth/2fa/confirm', { secret, code }),
+
+  disable2FA: (code: string) =>
+    apiClient.post('/auth/2fa/disable', { code }),
+
+  verify2FA: (preAuthToken: string, code: string) =>
+    apiClient.post('/auth/2fa/verify', { pre_auth_token: preAuthToken, code }),
 }

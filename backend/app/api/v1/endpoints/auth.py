@@ -10,7 +10,7 @@ from app.core.dependencies import get_current_user_id, get_db, require_roles
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import GoogleCompleteRequest, LoginCredentials, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, Token
+from app.schemas.auth import GoogleCompleteRequest, LoginCredentials, LoginResponse, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, Token
 from app.services.auth_service import AuthService
 from app.utils.security import decode_google_state_token
 
@@ -36,13 +36,12 @@ async def register(
     return {"message": "Registro exitoso."}
 
 
-@router.post("/login", response_model=Token, responses=LOGIN_RESPONSES)
+@router.post("/login", response_model=LoginResponse, responses=LOGIN_RESPONSES)
 async def login(
     data: LoginCredentials,
     service: AuthService = Depends(get_auth_service),
 ):
-    _, access_token, refresh_token = await service.login(data)
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    return await service.login(data)
 
 
 @router.post("/refresh", response_model=Token, responses=REFRESH_RESPONSES)

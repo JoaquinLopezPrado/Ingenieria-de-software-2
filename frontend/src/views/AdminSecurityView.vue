@@ -1,33 +1,91 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-
-const TWO_FACTOR_STORAGE_KEY = 'admin-two-factor-enabled'
+import { authService } from '@/services/authService'
 
 const twoFactorEnabled = ref(false)
 
-const readStoredTwoFactor = () => {
-  if (typeof window === 'undefined') return false
+// Setup flow
+const showSetupModal = ref(false)
+const setupQr = ref('')
+const setupSecret = ref('')
+const setupCode = ref('')
+const setupError = ref('')
+const setupLoading = ref(false)
 
-  return localStorage.getItem(TWO_FACTOR_STORAGE_KEY) === 'true'
+// Disable flow
+const showDisableModal = ref(false)
+const disableCode = ref('')
+const disableError = ref('')
+const disableLoading = ref(false)
+
+onMounted(async () => {
+  const { data } = await authService.getMe()
+  twoFactorEnabled.value = data.is_2fa_enabled
+})
+
+const handleToggle = async () => {
+  if (!twoFactorEnabled.value) {
+    // Quiere habilitar → abrir flujo de setup
+    twoFactorEnabled.value = true
+    try {
+      const { data } = await authService.setup2FA()
+      setupQr.value = data.qr
+      setupSecret.value = data.secret
+      setupCode.value = ''
+      setupError.value = ''
+      showSetupModal.value = true
+    } catch {
+      twoFactorEnabled.value = false
+    }
+  } else {
+    // Quiere deshabilitar → pedir código primero
+    twoFactorEnabled.value = false
+    disableCode.value = ''
+    disableError.value = ''
+    showDisableModal.value = true
+  }
 }
 
-const twoFactorLabel = computed(() => (twoFactorEnabled.value ? 'Habilitado' : 'Deshabilitado'))
-const twoFactorDescription = computed(() =>
-  twoFactorEnabled.value
-    ? 'El acceso de administrador pedira un segundo factor cuando se conecte con el backend.'
-    : 'El acceso de administrador seguira funcionando solo con la autenticacion actual.'
-)
+const confirmSetup = async () => {
+  setupLoading.value = true
+  setupError.value = ''
+  try {
+    await authService.confirm2FA(setupSecret.value, setupCode.value)
+    showSetupModal.value = false
+    twoFactorEnabled.value = true
+  } catch (err: any) {
+    setupError.value = err?.response?.data?.detail || 'Código inválido. Intentá de nuevo.'
+    setupCode.value = ''
+  } finally {
+    setupLoading.value = false
+  }
+}
 
-onMounted(() => {
-  twoFactorEnabled.value = readStoredTwoFactor()
-})
+const cancelSetup = () => {
+  showSetupModal.value = false
+  twoFactorEnabled.value = false
+}
 
-watch(twoFactorEnabled, (value: boolean) => {
-  if (typeof window === 'undefined') return
+const confirmDisable = async () => {
+  disableLoading.value = true
+  disableError.value = ''
+  try {
+    await authService.disable2FA(disableCode.value)
+    showDisableModal.value = false
+    twoFactorEnabled.value = false
+  } catch (err: any) {
+    disableError.value = err?.response?.data?.detail || 'Código inválido. Intentá de nuevo.'
+    disableCode.value = ''
+  } finally {
+    disableLoading.value = false
+  }
+}
 
-  localStorage.setItem(TWO_FACTOR_STORAGE_KEY, String(value))
-})
+const cancelDisable = () => {
+  showDisableModal.value = false
+  twoFactorEnabled.value = true
+}
 </script>
 
 <template>
@@ -43,28 +101,97 @@ watch(twoFactorEnabled, (value: boolean) => {
         <div class="toggle-panel">
           <div class="toggle-copy">
             <span class="toggle-title">Estado del 2FA</span>
-            <span class="toggle-description">{{ twoFactorDescription }}</span>
+            <span class="toggle-description">
+              {{ twoFactorEnabled
+                ? 'El acceso de administrador pedirá un segundo factor cuando inicie sesión.'
+                : 'El acceso de administrador funcionará solo con email y contraseña.' }}
+            </span>
           </div>
 
           <label class="toggle-row">
             <input
-              v-model="twoFactorEnabled"
               type="checkbox"
               class="toggle-input"
+              :checked="twoFactorEnabled"
               aria-label="Habilitar o deshabilitar 2FA"
+              @change="handleToggle"
             />
             <span class="toggle-track" :class="twoFactorEnabled ? 'is-on' : 'is-off'">
               <span class="toggle-thumb"></span>
             </span>
             <span class="toggle-state" :class="twoFactorEnabled ? 'active' : 'inactive'">
-              {{ twoFactorLabel }}
+              {{ twoFactorEnabled ? 'Habilitado' : 'Deshabilitado' }}
             </span>
           </label>
         </div>
-
-    
       </div>
     </section>
+
+    <!-- Modal: activar 2FA -->
+    <div v-if="showSetupModal" class="modal-backdrop">
+      <div class="modal">
+        <h2>Activar autenticación en dos pasos</h2>
+        <p class="modal-intro">Escaneá este código QR con tu app de autenticación (MS Authenticator, Google Authenticator, etc.).</p>
+
+        <img :src="setupQr" alt="QR code 2FA" class="qr-img" />
+
+        <p class="manual-key-label">O ingresá la clave manual:</p>
+        <code class="manual-key">{{ setupSecret }}</code>
+
+        <p class="modal-intro" style="margin-top: 20px;">Luego ingresá el código de 6 dígitos para confirmar:</p>
+        <input
+          v-model="setupCode"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="000000"
+          class="totp-input"
+          autofocus
+        />
+        <p v-if="setupError" class="modal-error">{{ setupError }}</p>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" @click="cancelSetup">Cancelar</button>
+          <button
+            class="btn-primary"
+            :disabled="setupLoading || setupCode.length !== 6"
+            @click="confirmSetup"
+          >
+            {{ setupLoading ? 'Verificando...' : 'Activar 2FA' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: desactivar 2FA -->
+    <div v-if="showDisableModal" class="modal-backdrop">
+      <div class="modal">
+        <h2>Desactivar autenticación en dos pasos</h2>
+        <p class="modal-intro">Ingresá el código de tu app de autenticación para confirmar.</p>
+
+        <input
+          v-model="disableCode"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="000000"
+          class="totp-input"
+          autofocus
+        />
+        <p v-if="disableError" class="modal-error">{{ disableError }}</p>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" @click="cancelDisable">Cancelar</button>
+          <button
+            class="btn-danger"
+            :disabled="disableLoading || disableCode.length !== 6"
+            @click="confirmDisable"
+          >
+            {{ disableLoading ? 'Verificando...' : 'Desactivar 2FA' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </AdminLayout>
 </template>
 
@@ -161,13 +288,8 @@ h1 {
   transition: background-color 0.2s ease;
 }
 
-.toggle-track.is-on {
-  background-color: #11998e;
-}
-
-.toggle-track.is-off {
-  background-color: #cbd5e1;
-}
+.toggle-track.is-on { background-color: #11998e; }
+.toggle-track.is-off { background-color: #cbd5e1; }
 
 .toggle-thumb {
   display: block;
@@ -180,41 +302,127 @@ h1 {
   transition: transform 0.2s ease;
 }
 
-.toggle-track.is-on .toggle-thumb {
-  transform: translateX(22px);
+.toggle-track.is-on .toggle-thumb { transform: translateX(22px); }
+
+.toggle-state { font-size: 0.95rem; font-weight: 700; }
+.toggle-state.active { color: #0c8a70; }
+.toggle-state.inactive { color: #64748b; }
+
+/* MODAL */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
 }
 
-.toggle-state {
-  font-size: 0.95rem;
-  font-weight: 700;
+.modal {
+  background: #fff;
+  border-radius: 24px;
+  padding: 2rem;
+  width: min(100%, 440px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.toggle-state.active {
-  color: #0c8a70;
+.modal h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  color: #0f172a;
 }
 
-.toggle-state.inactive {
+.modal-intro {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.qr-img {
+  width: 200px;
+  height: 200px;
+  align-self: center;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.manual-key-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
   color: #64748b;
 }
 
-.status-note {
-  margin: 1rem 0 0;
-  color: #475569;
-  font-size: 0.92rem;
+.manual-key {
+  display: block;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  word-break: break-all;
+  margin-bottom: 0.5rem;
 }
 
+.totp-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-align: center;
+  border: 1.5px solid #d1d5db;
+  border-radius: 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  margin-top: 0.5rem;
+}
+
+.totp-input:focus { border-color: #00897b; }
+
+.modal-error {
+  margin: 0.5rem 0 0;
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 1.25rem;
+}
+
+.btn-primary, .btn-secondary, .btn-danger {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.btn-primary { background: #00897b; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #00695c; }
+
+.btn-secondary { background: #f1f5f9; color: #334155; }
+.btn-secondary:hover { background: #e2e8f0; }
+
+.btn-danger { background: #dc2626; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+
+.btn-primary:disabled, .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
+
 @media (max-width: 640px) {
-  .security-card {
-    padding: 1.5rem;
-    border-radius: 22px;
-  }
-
-  .toggle-panel {
-    padding: 1rem;
-  }
-
-  .toggle-row {
-    align-items: flex-start;
-  }
+  .security-card { padding: 1.5rem; border-radius: 22px; }
+  .toggle-panel { padding: 1rem; }
+  .toggle-row { align-items: flex-start; }
 }
 </style>

@@ -13,6 +13,33 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class LoginResponse(BaseModel):
+    requires_2fa: bool
+    access_token: str | None = None
+    refresh_token: str | None = None
+    pre_auth_token: str | None = None
+    token_type: str = "bearer"
+
+
+class Setup2FAResponse(BaseModel):
+    secret: str
+    qr: str
+
+
+class Confirm2FARequest(BaseModel):
+    secret: str
+    code: str
+
+
+class Disable2FARequest(BaseModel):
+    code: str
+
+
+class Verify2FARequest(BaseModel):
+    pre_auth_token: str
+    code: str
+
+
 class LoginCredentials(BaseModel):
     email: EmailStr
     password: str

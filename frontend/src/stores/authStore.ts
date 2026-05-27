@@ -19,15 +19,28 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const login = async (credentials: any) => {
+  const login = async (credentials: any): Promise<{ requires_2fa: boolean; pre_auth_token?: string }> => {
     const response = await authService.login(credentials)
+    const data = response.data
+
+    if (data.requires_2fa) {
+      return { requires_2fa: true, pre_auth_token: data.pre_auth_token }
+    }
+
+    localStorage.setItem('access_token', data.access_token)
+    localStorage.setItem('refresh_token', data.refresh_token)
+    isAuthenticated.value = true
+    await fetchUser()
+    return { requires_2fa: false }
+  }
+
+  const loginWith2FA = async (preAuthToken: string, code: string) => {
+    const response = await authService.verify2FA(preAuthToken, code)
     const { access_token, refresh_token } = response.data
-    
     localStorage.setItem('access_token', access_token)
     localStorage.setItem('refresh_token', refresh_token)
     isAuthenticated.value = true
-    
-    await fetchUser() // Cargamos los datos del perfil (nombre, rol, etc.)
+    await fetchUser()
   }
 
   const register = async (userData: any) => {
@@ -66,5 +79,5 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchUser()
   }
 
-  return { user, isAuthenticated, login, register, logout, fetchUser, forgotPassword, loginWithTokens, googleComplete, unlinkGoogle }
+  return { user, isAuthenticated, login, loginWith2FA, register, logout, fetchUser, forgotPassword, loginWithTokens, googleComplete, unlinkGoogle }
 })
