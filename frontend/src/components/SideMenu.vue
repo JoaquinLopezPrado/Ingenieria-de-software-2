@@ -52,8 +52,9 @@ const handleLinkGoogle = async () => {
   try {
     const { data } = await authService.getGoogleLinkUrl()
     window.location.href = data.url
-  } catch {
-    router.push('/list?error=google_link_failed')
+  } catch (err: any) {
+    const reason = err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'
+    router.push(`/list?error=google_link_failed&reason=${encodeURIComponent(reason)}`)
   }
 }
 

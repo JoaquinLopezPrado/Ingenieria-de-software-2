@@ -12,7 +12,7 @@
         Tu cuenta de Google fue desvinculada correctamente.
       </div>
       <div v-if="googleLinkError" class="banner banner-error">
-        No se pudo vincular la cuenta de Google. Intentá de nuevo.
+        {{ googleErrorReason ?? 'No se pudo vincular la cuenta de Google. Intentá de nuevo.' }}
       </div>
       <div v-if="googleUnlinkError" class="banner banner-error">
         No se pudo desvincular la cuenta de Google. Intentá de nuevo.
@@ -185,6 +185,7 @@ const googleAlreadyInUse = computed(() => route.query.error === 'google_already_
 const googleLinkError = computed(() => route.query.error === 'google_link_failed')
 const googleUnlinked = computed(() => route.query.google_unlinked === 'true')
 const googleUnlinkError = computed(() => route.query.error === 'google_unlink_failed')
+const googleErrorReason = computed(() => googleLinkError.value && route.query.reason ? String(route.query.reason) : null)
 
 const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
