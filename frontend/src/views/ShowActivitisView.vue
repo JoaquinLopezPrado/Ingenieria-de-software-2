@@ -180,11 +180,11 @@ import { ACTIVITY_ICONS, DEFAULT_ACTIVITY_ICON } from '@/constants/activityIcons
 const router = useRouter()
 const route = useRoute()
 
-const googleLinked = ref(route.query.google_linked === 'true')
-const googleAlreadyInUse = ref(route.query.error === 'google_already_in_use')
-const googleLinkError = ref(route.query.error === 'google_link_failed')
-const googleUnlinked = ref(route.query.google_unlinked === 'true')
-const googleUnlinkError = ref(route.query.error === 'google_unlink_failed')
+const googleLinked = computed(() => route.query.google_linked === 'true')
+const googleAlreadyInUse = computed(() => route.query.error === 'google_already_in_use')
+const googleLinkError = computed(() => route.query.error === 'google_link_failed')
+const googleUnlinked = computed(() => route.query.google_unlinked === 'true')
+const googleUnlinkError = computed(() => route.query.error === 'google_unlink_failed')
 
 const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
