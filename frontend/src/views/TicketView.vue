@@ -224,6 +224,21 @@ const pagar = async () => {
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 20px;
   box-shadow: 0 8px 24px rgba(0,137,123,0.3);
+  animation: pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.success-icon svg {
+  animation: draw-check 0.4s ease 0.4s both;
+}
+
+@keyframes pop-in {
+  0%   { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes draw-check {
+  0%   { stroke-dasharray: 30; stroke-dashoffset: 30; opacity: 0; }
+  100% { stroke-dasharray: 30; stroke-dashoffset: 0;  opacity: 1; }
 }
  
 h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-align: center; }
