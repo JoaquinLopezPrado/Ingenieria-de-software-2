@@ -62,6 +62,8 @@ class MyMonthlyEnrollment:
         instructor: str,
         activity_name: str,
         days: List[str],
+        excluded_sin_cupo_count: int = 0,
+        excluded_ya_inscripto_count: int = 0,
     ):
         self.enrollment_id = enrollment_id
         self.status = status
@@ -77,6 +79,8 @@ class MyMonthlyEnrollment:
         self.instructor = instructor
         self.activity_name = activity_name
         self.days = days
+        self.excluded_sin_cupo_count = excluded_sin_cupo_count
+        self.excluded_ya_inscripto_count = excluded_ya_inscripto_count
 
 
 class MySingleEnrollment:

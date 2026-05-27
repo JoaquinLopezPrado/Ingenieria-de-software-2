@@ -123,6 +123,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             amount=amount,
             status=EnrollmentStatus.PENDING,
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
+            excluded_sin_cupo_count=len(clases_sin_cupo),
+            excluded_ya_inscripto_count=len(clases_ya_inscripto),
         )
         self._session.add(enrollment_orm)
         await self._session.flush()
@@ -262,6 +264,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 instructor=e.turno.instructor,
                 activity_name=e.turno.activity.name,
                 days=[d.dia for d in e.turno.days],
+                excluded_sin_cupo_count=e.excluded_sin_cupo_count or 0,
+                excluded_ya_inscripto_count=e.excluded_ya_inscripto_count or 0,
             )
             for e in result.scalars()
         ]

@@ -48,6 +48,8 @@ class MyMonthlyEnrollmentResponse(BaseModel):
     instructor: str
     activity_name: str
     days: List[str]
+    excluded_sin_cupo_count: int
+    excluded_ya_inscripto_count: int
 
     model_config = {"from_attributes": True}
 
