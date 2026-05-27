@@ -73,9 +73,9 @@ const confirmLogout = async () => {
           <a href="#" class="nav-item">
             <span class="nav-icon">✓</span> Asistencia
           </a>
-          <a href="#" class="nav-item">
+          <RouterLink to="/admin/configuracion" class="nav-item" active-class="active">
             <span class="nav-icon">⚙</span> Configuración
-          </a>
+          </RouterLink>
         </div>
       </nav>
 
