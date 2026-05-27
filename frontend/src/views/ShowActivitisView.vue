@@ -70,7 +70,14 @@
               <div class="hora-row">
                 <span class="hora">{{ turno.descripcion }}</span>
               </div>
-              <div class="dia">{{ turno.dur }} · {{ turno.dia }}</div>
+              <div class="dia">{{ turno.dur }}</div>
+              <div class="day-chips">
+                <span
+                  v-for="day in turno.days"
+                  :key="day"
+                  class="day-chip"
+                >{{ DAY_LABELS[day] ?? day }}</span>
+              </div>
             </div>
             <span
               v-if="turno.ocup >= turno.total"
@@ -188,6 +195,11 @@ const googleUnlinkError = computed(() => route.query.error === 'google_unlink_fa
 const googleErrorReason = computed(() => googleLinkError.value && route.query.reason ? String(route.query.reason) : null)
 const googleUnlinkErrorReason = computed(() => googleUnlinkError.value && route.query.reason ? String(route.query.reason) : null)
 
+const DAY_LABELS = {
+  lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
+  jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
+}
+
 const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
 const currentTab = ref('')
@@ -230,6 +242,7 @@ onMounted(async () => {
         .replace(/:/g, '')
         .trim(),
       dia: turno.days?.join(' / ') || 'Sin días',
+      days: turno.days || [],
       hora: turno.start_time,
       horaFin: turno.end_time,
       dur: `${turno.start_time} - ${turno.end_time}`,
@@ -595,6 +608,23 @@ h1 {
   font-weight: 500;
   margin-top: 3px;
   line-height: 1.4;
+}
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.day-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background-color: rgba(0, 137, 123, 0.1);
+  color: #00897b;
+  letter-spacing: 0.03em;
 }
 
 .agotado-badge {
