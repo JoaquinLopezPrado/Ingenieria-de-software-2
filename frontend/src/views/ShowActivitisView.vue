@@ -79,11 +79,11 @@
                 >{{ DAY_LABELS[day] ?? day }}</span>
               </div>
             </div>
-            <span
-              v-if="turno.ocup >= turno.total"
-              class="agotado-badge"
-            >
+            <span v-if="turno.ocup >= turno.total" class="agotado-badge">
               AGOTADO
+            </span>
+            <span v-else-if="pct(turno) >= 70" class="ultimos-badge">
+              ¡Últimos lugares!
             </span>
           </div>
 
@@ -97,7 +97,7 @@
 
             <div>
               <div class="inst-label">Instructor/a</div>
-              <div class="inst-name">{{ turno.inst }}</div>
+              <div class="inst-name">{{ turno.inst.charAt(0).toUpperCase() + turno.inst.slice(1) }}</div>
             </div>
           </div>
 
@@ -643,6 +643,19 @@ h1 {
   white-space: nowrap;
   flex-shrink: 0;
   border: 1px solid #FFCDD2;
+}
+
+.ultimos-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #FFF3E0;
+  color: #E65100;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid #FFE0B2;
 }
 
 /* INSTRUCTOR */
