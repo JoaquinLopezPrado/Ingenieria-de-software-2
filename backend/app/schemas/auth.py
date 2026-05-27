@@ -50,11 +50,6 @@ class TokenPayload(BaseModel):
     exp: int = None
 
 
-class Verify2FARequest(BaseModel):
-    temp_token: str
-    code: str
-
-
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
