@@ -329,10 +329,10 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
   padding: 12px 16px; margin-bottom: 12px;
 }
 .monto-label { font-size: 13px; color: #607D8B; font-weight: 500; }
-.monto-valor { font-size: 18px; font-weight: 800; color: #00695C; }
-.monto-valor-base { font-size: 15px; font-weight: 600; color: #37474F; }
+.monto-valor { font-size: 18px; font-weight: 800; color: #00695C; white-space: nowrap; flex-shrink: 0; }
+.monto-valor-base { font-size: 15px; font-weight: 600; color: #37474F; white-space: nowrap; flex-shrink: 0; }
 .monto-row-descuento { background: #FFF8E1; margin-bottom: 4px; }
-.monto-descuento { font-size: 15px; font-weight: 700; color: #F57F17; }
+.monto-descuento { font-size: 15px; font-weight: 700; color: #F57F17; white-space: nowrap; flex-shrink: 0; }
 .monto-row-total { border-top: 1px solid #E0F2F1; padding-top: 14px; }
 
 .aviso {
