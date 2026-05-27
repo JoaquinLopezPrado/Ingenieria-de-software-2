@@ -83,13 +83,27 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 detail="No quedan clases futuras en este turno.",
             )
 
+        existing_single_result = await self._session.execute(
+            select(EnrollmentSlotORM.clase_id)
+            .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
+            .where(
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.enrollment_type == EnrollmentType.SINGLE,
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+                EnrollmentSlotORM.clase_id.in_([c.id for c in future_clases]),
+            )
+        )
+        already_enrolled_ids = {row[0] for row in existing_single_result.all()}
+
         clases_con_cupo = []
-        clases_sin_cupo = []
+        clases_excluidas = []
         for clase in future_clases:
-            if await self._clase_tiene_cupo(clase):
+            if clase.id in already_enrolled_ids:
+                clases_excluidas.append(clase)
+            elif await self._clase_tiene_cupo(clase):
                 clases_con_cupo.append(clase)
             else:
-                clases_sin_cupo.append(clase)
+                clases_excluidas.append(clase)
 
         if not clases_con_cupo:
             raise HTTPException(
@@ -115,7 +129,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
-        return self._to_domain(enrollment_orm, [c.id for c in clases_sin_cupo])
+        return self._to_domain(enrollment_orm, [c.id for c in clases_excluidas])
 
     # ------------------------------------------------------------------ #
     # Inscripción a clase suelta                                           #
