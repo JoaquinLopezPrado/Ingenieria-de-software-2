@@ -36,7 +36,11 @@
             </div>
             <div>
               <div class="dato-label">Días</div>
-              <div class="dato-valor">{{ route.query.dia }}</div>
+              <div class="day-chips">
+                <span v-for="day in diasArray" :key="day" class="day-chip">
+                  {{ DAY_LABELS[day] ?? day }}
+                </span>
+              </div>
             </div>
           </div>
  
@@ -130,6 +134,15 @@ import { enrollmentService } from '@/services/enrollmentService'
 
 const route  = useRoute()
 const router = useRouter()
+
+const DAY_LABELS = {
+  lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
+  jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
+}
+
+const diasArray = computed(() =>
+  String(route.query.dia || '').split(' / ').filter(Boolean)
+)
 
 const pagando  = ref(false)
 const expirado = ref(false)
@@ -240,6 +253,23 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 .dato { display: flex; align-items: flex-start; gap: 10px; }
 .dato-label { font-size: 11px; color: #90A4AE; margin-bottom: 2px; }
 .dato-valor { font-size: 14px; font-weight: 600; color: #37474F; }
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.day-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background-color: rgba(0, 137, 123, 0.1);
+  color: #00897b;
+  letter-spacing: 0.03em;
+}
  
 .monto-row {
   display: flex; justify-content: space-between; align-items: center;
