@@ -138,6 +138,16 @@
             </button>
           </div>
 
+          <div v-else-if="turnosPendienteSingle.has(turno.id)" class="acciones-card">
+            <button
+              class="continuar-btn"
+              type="button"
+              @click="continuarPagoSingle(turno)"
+            >
+              Continuar con el pago
+            </button>
+          </div>
+
           <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
             <button
               class="accion-btn"
@@ -210,6 +220,7 @@ const currentTab = ref('')
 const inscriptos = ref(new Set())
 const turnosConClaseSuelta = ref(new Set())
 const turnosPendienteMensual = ref(new Map())
+const turnosPendienteSingle = ref(new Map())
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
@@ -288,6 +299,12 @@ onMounted(async () => {
       mySingleRes.data
         .filter((e) => e.status === 'confirmed' || e.status === 'pending')
         .map((e) => e.turno_id)
+    )
+
+    turnosPendienteSingle.value = new Map(
+      mySingleRes.data
+        .filter((e) => e.status === 'pending')
+        .map((e) => [e.turno_id, e])
     )
 
     if (acts.length > 0) currentTab.value = acts[0].name
@@ -401,6 +418,28 @@ const continuarPago = (turno) => {
       clases_sin_cupo:       enrollment.excluded_sin_cupo_count ?? 0,
       clases_ya_inscripto:   enrollment.excluded_ya_inscripto_count ?? 0,
       expires_at:            enrollment.expires_at,
+    },
+  })
+}
+
+const continuarPagoSingle = (turno) => {
+  const enrollment = turnosPendienteSingle.value.get(turno.id)
+  if (!enrollment) return
+  const d = new Date(`${enrollment.clase_date}T00:00:00`)
+  const dayLabel = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(d)
+  const displayDate = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
+  router.push({
+    name: 'ticket',
+    query: {
+      enrollment_id: enrollment.enrollment_id,
+      actividad:     turno.actividad,
+      dia:           `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,
+      duracion:      `${enrollment.start_time} - ${enrollment.end_time}`,
+      instructor:    enrollment.instructor,
+      numero:        enrollment.enrollment_id,
+      amount:        enrollment.amount,
+      precio_clase:  enrollment.amount,
+      expires_at:    enrollment.expires_at,
     },
   })
 }
