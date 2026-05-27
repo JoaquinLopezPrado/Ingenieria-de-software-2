@@ -116,7 +116,7 @@
 
       <!-- Botones -->
       <div class="botones">
-        <button class="btn-mp" :disabled="pagando || expirado" @click="pagar">
+        <button v-if="!expirado" class="btn-mp" :disabled="pagando" @click="pagar">
           {{ pagando ? 'Redirigiendo...' : 'Pagar con Mercado Pago' }}
         </button>
         <button class="btn-volver" @click="router.push({ name: 'list' })">
