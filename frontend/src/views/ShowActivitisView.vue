@@ -392,6 +392,7 @@ const goToClassSelection = (turno) => {
   min-height: 100vh;
   background: linear-gradient(135deg, #e4f3f0 0%, #edf7f5 50%, #f3faf8 100%);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding-top: 60px;
 }
 
 /* HEADER */
@@ -453,7 +454,7 @@ const goToClassSelection = (turno) => {
 .main {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 42px 24px 70px;
+  padding: 24px 24px 70px;
 }
 
 h1 {
@@ -790,7 +791,7 @@ h1 {
 @media (max-width: 768px) {
   .header { padding: 0 18px; }
   .header-inner { height: 64px; }
-  .main { padding: 28px 18px 50px; }
+  .main { padding: 20px 18px 50px; }
   h1 { font-size: 1.9rem; }
   .grid { grid-template-columns: 1fr; }
   .badge { width: 100%; }
