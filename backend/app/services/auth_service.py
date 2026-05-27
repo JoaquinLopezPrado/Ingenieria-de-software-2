@@ -225,7 +225,7 @@ class AuthService:
         if user.hashed_password is None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="No podés desvincular Google si no tenés contraseña configurada.",
+                detail="No podés desvincular Google porque es tu único método de acceso a la cuenta.",
             )
         await self._user_repo.unlink_google(user_id)
 

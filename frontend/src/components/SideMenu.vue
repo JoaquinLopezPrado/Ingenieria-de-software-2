@@ -53,7 +53,7 @@ const handleLinkGoogle = async () => {
     const { data } = await authService.getGoogleLinkUrl()
     window.location.href = data.url
   } catch (err: any) {
-    const reason = err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'
+    const reason = err?.response?.data?.errors?.general ?? err?.message ?? 'Error desconocido'
     router.push(`/list?error=google_link_failed&reason=${encodeURIComponent(reason)}`)
   }
 }
@@ -63,8 +63,9 @@ const handleUnlinkGoogle = async () => {
   try {
     await authStore.unlinkGoogle()
     router.push('/list?google_unlinked=true')
-  } catch {
-    router.push('/list?error=google_unlink_failed')
+  } catch (err: any) {
+    const reason = err?.response?.data?.errors?.general ?? err?.message ?? 'Error desconocido'
+    router.push(`/list?error=google_unlink_failed&reason=${encodeURIComponent(reason)}`)
   }
 }
 
