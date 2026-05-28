@@ -280,6 +280,50 @@ export const createActivity = async (
   return res.data
 }
 
+export interface UpdateActivityPayload {
+  name?:        string
+  description?: string
+  is_active?:   boolean
+}
+
+export interface DeactivationImpact {
+  affected_clients: number
+}
+
+/**
+ * Obtiene una actividad por ID.
+ * Como el backend no expone GET /activities/{id}, se usa GET /activities/all
+ * (disponible para admins) y se filtra localmente por ID.
+ */
+export const getActivityById = async (id: number): Promise<ActivityOption> => {
+  const res = await api.get('/activities/all')
+  const activities: ActivityOption[] = res.data
+  const found = activities.find(a => a.id === id)
+  if (!found) throw new Error(`Actividad con id ${id} no encontrada.`)
+  return found
+}
+
+/**
+ * Actualiza una actividad con PATCH /api/v1/activities/{id}.
+ * Si is_active cambia a false, el backend cancela clases futuras y notifica clientes.
+ */
+export const updateActivity = async (
+  id: number,
+  payload: UpdateActivityPayload
+): Promise<{ message?: string }> => {
+  const res = await api.patch(`/activities/${id}`, payload)
+  return res.data
+}
+
+/**
+ * Consulta cuántos clientes se verían afectados al desactivar una actividad.
+ * GET /api/v1/activities/{id}/deactivation-impact
+ */
+export const getDeactivationImpact = async (id: number): Promise<DeactivationImpact> => {
+  const res = await api.get(`/activities/${id}/deactivation-impact`)
+  return res.data
+}
+
 export const getClasesByTurno = async (turnoId: number): Promise<Clase[]> => {
   const res = await api.get(`/turnos/${turnoId}/clases`)
   return res.data
