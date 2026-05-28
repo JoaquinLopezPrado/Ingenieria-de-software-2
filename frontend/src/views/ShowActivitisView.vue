@@ -135,6 +135,9 @@
 
           <template v-else>
             <div v-if="turnosPendienteMensual.has(turno.id)" class="acciones-card">
+              <p class="pago-pendiente-info">
+                Inscripción mensual pendiente<span v-if="turno.periodo"> · {{ turno.periodo }}</span>
+              </p>
               <button
                 class="continuar-btn"
                 type="button"
@@ -145,6 +148,9 @@
             </div>
 
             <div v-else-if="turnosPendienteSingle.has(turno.id)" class="acciones-card">
+              <p class="pago-pendiente-info">
+                Clase de prueba pendiente · {{ formatFechaSingle(turnosPendienteSingle.get(turno.id).clase_date) }}
+              </p>
               <button
                 class="continuar-btn"
                 type="button"
@@ -243,6 +249,11 @@ const formatPeriodo = (month, year) => {
   if (!month || !year) return ''
   const mes = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(year, month - 1, 1))
   return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${year}`
+}
+
+const formatFechaSingle = (dateStr) => {
+  if (!dateStr) return ''
+  return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${dateStr}T00:00:00`))
 }
 
 const loadTurnos = async (activityId) => {
@@ -873,6 +884,18 @@ h1 {
 .accion-btn.espera:hover:not(:disabled) {
   background: #E65100;
   transform: translateY(-1px);
+}
+
+.pago-pendiente-info {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78909c;
+  text-align: center;
+  padding: 6px 10px;
+  background: rgba(245, 124, 0, 0.07);
+  border: 1px solid rgba(245, 124, 0, 0.2);
+  border-radius: 8px;
 }
 
 .continuar-btn {
