@@ -13,3 +13,7 @@ export function isAdminUser(user: any): boolean {
 
     return roleName === 'admin' || roleName === 'administrador'
 }
+
+export function isEmployeeUser(user: any): boolean {
+    return normalizeRole(user) === 'empleado'
+}

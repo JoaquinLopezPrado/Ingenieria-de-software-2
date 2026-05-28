@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { isAdminUser } from '@/utils/role'
+import { isAdminUser, isEmployeeUser } from '@/utils/role'
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
@@ -131,6 +131,12 @@ const router = createRouter({
       name: 'pagos',
       component: () => import('../views/PagosView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/empleado',
+      name: 'employee-home',
+      component: () => import('../views/EmployeeHomeView.vue'),
+      meta: { requiresAuth: true, requiresEmployee: true },
     }
   ]
 })
@@ -148,6 +154,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
 
   const isAuthenticated = Boolean(localStorage.getItem('access_token'))
   const isAdmin = isAdminUser(authStore.user)
+  const isEmployee = isEmployeeUser(authStore.user)
 
   if (!isAuthenticated && !isPublicRoute) {
     return {
@@ -157,11 +164,17 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   }
 
   if (to.meta.requiresAdmin && !isAdmin) {
-    return { name: 'list' }
+    return { name: isEmployee ? 'employee-home' : 'list' }
+  }
+
+  if (isAuthenticated && isEmployee && to.name !== 'employee-home') {
+    return { name: 'employee-home' }
   }
 
   if (isAuthenticated && isPublicRoute) {
-    return { name: isAdmin ? 'admin-home' : 'list' }
+    if (isAdmin) return { name: 'admin-home' }
+    if (isEmployee) return { name: 'employee-home' }
+    return { name: 'list' }
   }
 })
 
