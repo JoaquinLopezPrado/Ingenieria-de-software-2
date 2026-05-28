@@ -309,6 +309,9 @@ onMounted(async () => {
 
     activities.value = acts
 
+    const now = Date.now()
+    const notExpired = (e) => !e.expires_at || new Date(e.expires_at).getTime() > now
+
     inscriptos.value = new Set(
       myMonthlyRes.data
         .filter((e) => e.status === 'confirmed')
@@ -317,19 +320,19 @@ onMounted(async () => {
 
     turnosPendienteMensual.value = new Map(
       myMonthlyRes.data
-        .filter((e) => e.status === 'pending')
+        .filter((e) => e.status === 'pending' && notExpired(e))
         .map((e) => [e.turno_id, e])
     )
 
     turnosConClaseSuelta.value = new Set(
       mySingleRes.data
-        .filter((e) => e.status === 'confirmed' || e.status === 'pending')
+        .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
         .map((e) => e.turno_id)
     )
 
     turnosPendienteSingle.value = new Map(
       mySingleRes.data
-        .filter((e) => e.status === 'pending')
+        .filter((e) => e.status === 'pending' && notExpired(e))
         .map((e) => [e.turno_id, e])
     )
 

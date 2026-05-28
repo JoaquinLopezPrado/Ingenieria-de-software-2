@@ -209,10 +209,12 @@ const fetchClases = async () => {
       }
     })
 
+    const now = Date.now()
     hasActiveSingleEnrollment.value = mySingleRes.data
       .some((e) =>
         (e.status === 'confirmed' || e.status === 'pending') &&
-        String(e.turno_id) === turnoId.value
+        String(e.turno_id) === turnoId.value &&
+        (e.status === 'confirmed' || !e.expires_at || new Date(e.expires_at).getTime() > now)
       )
   } catch (error) {
     console.error('Error al obtener clases', error)
