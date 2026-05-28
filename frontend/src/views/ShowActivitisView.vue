@@ -78,6 +78,7 @@
                   class="day-chip"
                 >{{ DAY_LABELS[day] ?? day }}</span>
               </div>
+              <div v-if="turno.periodo" class="periodo-chip">{{ turno.periodo }}</div>
             </div>
             <span v-if="turno.ocup >= turno.total" class="agotado-badge">
               AGOTADO
@@ -232,6 +233,12 @@ const tabIcons = computed(() =>
   Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON]))
 )
 
+const formatPeriodo = (month, year) => {
+  if (!month || !year) return ''
+  const mes = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(year, month - 1, 1))
+  return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${year}`
+}
+
 const loadTurnos = async (activityId) => {
   if (!activityId) return
   try {
@@ -258,6 +265,7 @@ const loadTurnos = async (activityId) => {
       nivel: turno.level || 'Todos los niveles',
       descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
+      periodo: formatPeriodo(turno.month, turno.year),
     }))
   } catch (error) {
     console.error('Error al cargar turnos', error)
@@ -689,6 +697,18 @@ h1 {
   background-color: rgba(0, 137, 123, 0.1);
   color: #00897b;
   letter-spacing: 0.03em;
+}
+
+.periodo-chip {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background-color: rgba(69, 90, 100, 0.09);
+  color: #546e7a;
+  letter-spacing: 0.04em;
 }
 
 .agotado-badge {

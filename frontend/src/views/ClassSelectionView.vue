@@ -46,6 +46,7 @@
               </span>
             </div>
 
+            <p><strong>Período:</strong> {{ option.period }}</p>
             <p><strong>Día:</strong> {{ option.dayLabel }}</p>
             <p><strong>Horario:</strong> {{ horaInicio }} - {{ horaFin }}</p>
             <p><strong>Sala:</strong> {{ sala }}</p>
@@ -153,6 +154,13 @@ const formatDate = (value) => {
   }).format(date)
 }
 
+const formatPeriod = (value) => {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00`)
+  const mes = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(date)
+  return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${date.getFullYear()}`
+}
+
 const formatDay = (value) => {
   if (!value) return ''
 
@@ -193,6 +201,7 @@ const fetchClases = async () => {
         rawDate: clase.date,
         displayDate: formatDate(clase.date),
         dayLabel: formatDay(clase.date),
+        period: formatPeriod(clase.date),
         capacity,
         occupied,
         availableSpots: Math.max(capacity - occupied, 0),
