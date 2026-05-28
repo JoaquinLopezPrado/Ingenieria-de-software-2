@@ -54,7 +54,7 @@
           v-for="turno in currentTurnos"
           :key="turno.id"
           class="card"
-          :class="{ inscripto: inscriptos.has(turno.id) }"
+          :class="{ inscripto: inscriptos.has(turno.id), 'sin-clases': !turno.hasRemainingClasses }"
         >
 
           <div
@@ -129,55 +129,61 @@
             </div>
           </div>
 
-          <div v-if="turnosPendienteMensual.has(turno.id)" class="acciones-card">
-            <button
-              class="continuar-btn"
-              type="button"
-              @click="continuarPago(turno)"
-            >
-              Continuar con el pago
-            </button>
+          <div v-if="!turno.hasRemainingClasses" class="sin-clases-aviso">
+            No quedan clases disponibles para este período. Las inscripciones para el próximo período estarán disponibles próximamente.
           </div>
 
-          <div v-else-if="turnosPendienteSingle.has(turno.id)" class="acciones-card">
-            <button
-              class="continuar-btn"
-              type="button"
-              @click="continuarPagoSingle(turno)"
-            >
-              Continuar con el pago de la clase de prueba
-            </button>
-          </div>
+          <template v-else>
+            <div v-if="turnosPendienteMensual.has(turno.id)" class="acciones-card">
+              <button
+                class="continuar-btn"
+                type="button"
+                @click="continuarPago(turno)"
+              >
+                Continuar con el pago
+              </button>
+            </div>
 
-          <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
-            <button
-              class="accion-btn"
-              :disabled="inscriptos.has(turno.id)"
-              :class="{
-                espera: turno.ocup >= turno.total && !inscriptos.has(turno.id),
-                inscripto: inscriptos.has(turno.id)
-              }"
-              @click="handleInscripcion(turno)"
-            >
-              {{ inscriptos.has(turno.id)
-                ? 'Cancelar inscripción'
-                : turno.ocup >= turno.total
-                ? 'Inscribirse a la lista de espera'
-                : 'Inscribirse' }}
-            </button>
+            <div v-else-if="turnosPendienteSingle.has(turno.id)" class="acciones-card">
+              <button
+                class="continuar-btn"
+                type="button"
+                @click="continuarPagoSingle(turno)"
+              >
+                Continuar con el pago de la clase de prueba
+              </button>
+            </div>
 
-            <button
-              v-if="!turnosConClaseSuelta.has(turno.id)"
-              class="secondary-btn"
-              :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
-              type="button"
-              @click="goToClassSelection(turno)"
-            >
-              {{ turno.ocup >= turno.total
-                ? 'Anotarse en lista de espera para clase de prueba'
-                : 'Ver clases de prueba individual' }}
-            </button>
-          </div>
+            <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
+              <button
+                class="accion-btn"
+                :disabled="inscriptos.has(turno.id)"
+                :class="{
+                  espera: turno.ocup >= turno.total && !inscriptos.has(turno.id),
+                  inscripto: inscriptos.has(turno.id)
+                }"
+                @click="handleInscripcion(turno)"
+              >
+                {{ inscriptos.has(turno.id)
+                  ? 'Cancelar inscripción'
+                  : turno.ocup >= turno.total
+                  ? 'Inscribirse a la lista de espera'
+                  : 'Inscribirse' }}
+              </button>
+
+              <button
+                v-if="!turnosConClaseSuelta.has(turno.id)"
+                class="secondary-btn"
+                :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
+                type="button"
+                @click="goToClassSelection(turno)"
+              >
+                {{ turno.ocup >= turno.total
+                  ? 'Anotarse en lista de espera para clase de prueba'
+                  : 'Ver clases de prueba individual' }}
+              </button>
+            </div>
+          </template>
 
           <div v-if="avisoLleno === turno.id && errorMensaje" class="error-aviso">
             {{ errorMensaje }}
@@ -266,6 +272,7 @@ const loadTurnos = async (activityId) => {
       descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
       periodo: formatPeriodo(turno.month, turno.year),
+      hasRemainingClasses: turno.has_remaining_classes ?? true,
     }))
   } catch (error) {
     console.error('Error al cargar turnos', error)
@@ -623,6 +630,23 @@ h1 {
 
 .card.inscripto {
   border: 2px solid #00897b;
+}
+
+.card.sin-clases {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
+.sin-clases-aviso {
+  background-color: #f5f5f5;
+  color: #78909c;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .inscripto-badge {

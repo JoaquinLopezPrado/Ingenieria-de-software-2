@@ -97,6 +97,7 @@ class TurnoResponse(BaseModel):
     is_active: bool
     days: List[DiaSemana]
     enrolled: int
+    has_remaining_classes: bool
 
     @field_serializer("start_time", "end_time")
     def serialize_time(self, value: time) -> str:

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from datetime import time
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import exists, func, select, tuple_
+from sqlalchemy import and_, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -105,15 +105,35 @@ class TurnoRepository(AbstractTurnoRepository):
             .scalar_subquery()
         )
 
+        today = date.today()
+        now_time = datetime.now(timezone.utc).time()
+        remaining_subq = (
+            select(func.count(ClaseORM.id))
+            .where(
+                ClaseORM.turno_id == TurnoORM.id,
+                ClaseORM.is_active == True,
+                or_(
+                    ClaseORM.date > today,
+                    and_(
+                        ClaseORM.date == today,
+                        TurnoORM.start_time > now_time,
+                    ),
+                ),
+            )
+            .correlate(TurnoORM)
+            .scalar_subquery()
+        )
+
         rows = (await self._session.execute(
             base
             .options(selectinload(TurnoORM.days))
             .add_columns(enrolled_subq.label("enrolled"))
+            .add_columns(remaining_subq.label("remaining"))
             .offset((page - 1) * page_size)
             .limit(page_size)
         )).all()
 
-        return [self._to_domain(orm, enrolled) for orm, enrolled in rows], total
+        return [self._to_domain(orm, enrolled, remaining > 0) for orm, enrolled, remaining in rows], total
 
     async def get_by_id(self, turno_id: int) -> Optional[Turno]:
         result = await self._session.execute(
@@ -179,7 +199,7 @@ class TurnoRepository(AbstractTurnoRepository):
         await self._session.refresh(orm, ["days"])
         return self._to_domain(orm)
 
-    def _to_domain(self, orm: TurnoORM, enrolled: int = 0) -> Turno:
+    def _to_domain(self, orm: TurnoORM, enrolled: int = 0, has_remaining_classes: bool = True) -> Turno:
         return Turno(
             id=orm.id,
             activity_id=orm.activity_id,
@@ -195,4 +215,5 @@ class TurnoRepository(AbstractTurnoRepository):
             is_active=orm.is_active,
             days=[DiaSemana(dia_orm.dia) for dia_orm in orm.days],
             enrolled=enrolled,
+            has_remaining_classes=has_remaining_classes,
         )
