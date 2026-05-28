@@ -74,13 +74,17 @@ const COLOR_ACTIVA     = '#16a34a'   // verde (mismo familia, distinto del teal 
 const COLOR_SUSPENDIDA = '#9ca3af'
 
 /**
- * El backend serializa la hora como "H:MM" (sin zero-pad en la hora, ej: "8:00").
- * FullCalendar necesita ISO 8601 estricto: "08:00". Sin esto, new Date("...T8:00:00")
+ * El backend serializa la hora como "H:MM" o "HH:MM" (sin zero-pad garantizado).
+ * FullCalendar necesita ISO 8601 estricto: "HH:MM". Sin esto, new Date("...T8:00:00")
  * devuelve Invalid Date y el evento se descarta silenciosamente.
+ * También se hace zero-pad en minutos por si el backend envía "17:5" en lugar de "17:05".
  */
 function padTime(t: string): string {
-  const [h, m] = t.split(':')
-  return `${String(h).padStart(2, '0')}:${m ?? '00'}`
+  if (!t) return '00:00'
+  const parts = t.split(':')
+  const h = parts[0] ?? '0'
+  const m = parts[1] ?? '0'
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 /** "2026-05-04" → "Lunes 4 de Mayo de 2026" */
@@ -144,6 +148,13 @@ const calendarOptions = computed<CalendarOptions>(() => ({
   height:      'auto',
   // En vista mes mostrar el título del evento (horario)
   eventDisplay: 'block',
+  slotMinTime:  '05:00:00',
+  slotMaxTime:  '23:00:00',
+  // Vista semanal/diaria arranca mostrando desde las 07:00
+  scrollTime:   '07:00:00',
+  // Altura de cada franja horaria en vista semana/día (más compacto = más horas visibles)
+  slotDuration: '00:30:00',
+  slotLabelInterval: '01:00:00',
 }))
 
 // ─── Click en evento ──────────────────────────────────────────────────────────
@@ -249,6 +260,16 @@ onMounted(async () => {
       <div v-else-if="isLoading" class="skeleton-wrapper" aria-label="Cargando clases...">
         <div class="skeleton-header"></div>
         <div class="skeleton-calendar"></div>
+      </div>
+
+      <!-- ── Sin clases próximas ── -->
+      <div v-else-if="clases.length === 0" class="state-card state-empty">
+        <div class="state-icon">📅</div>
+        <h2 class="state-title">Sin clases próximas</h2>
+        <p class="state-desc">
+          Este turno no tiene clases programadas a futuro.<br>
+          El sistema solo muestra las clases que aún no ocurrieron.
+        </p>
       </div>
 
       <!-- ── Calendario ── -->
