@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import PasswordInput from './PasswordInput.vue'
 
 const props = defineProps<{
@@ -14,40 +14,55 @@ const emit = defineEmits<{
 
 const email = ref('')
 const password = ref('')
-const validationError = ref('')
+const fieldErrors = ref<Record<string, string>>({})
+
+const clearError = (field: string) => { fieldErrors.value[field] = '' }
+
+watch(email, () => clearError('email'))
+watch(password, () => clearError('password'))
 
 const handleSubmit = () => {
-  if (!email.value || !password.value) {
-    validationError.value = 'Por favor completa todos los campos'
-    return
+  const e: Record<string, string> = {}
+
+  if (!email.value.trim()) {
+    e.email = 'El email es obligatorio.'
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+    e.email = 'El email no tiene un formato válido.'
   }
-  validationError.value = ''
+  if (!password.value) e.password = 'La contraseña es obligatoria.'
+
+  fieldErrors.value = e
+  if (Object.values(e).some(v => v)) return
+
   emit('submit', email.value, password.value)
 }
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="login-form">
+  <form @submit.prevent="handleSubmit" class="login-form" novalidate>
     <div class="form-group">
-      <label for="email" class="custom-label">Email</label>
+      <label for="email" class="custom-label" :class="{ 'label-error': fieldErrors.email }">Email</label>
       <input
         id="email"
         v-model="email"
         type="email"
         placeholder="tu@email.com"
         class="input-field"
+        :class="{ 'input-error': fieldErrors.email }"
         :disabled="loading"
       />
+      <span v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</span>
     </div>
 
     <PasswordInput
       v-model="password"
       label="Contraseña"
+      :error="fieldErrors.password"
       :disabled="loading"
     />
 
-    <div v-if="validationError || apiError" class="error-message">
-      {{ validationError || apiError }}
+    <div v-if="apiError" class="error-message">
+      {{ apiError }}
     </div>
 
     <button type="submit" class="btn-primary" :disabled="loading">
@@ -109,6 +124,21 @@ const handleSubmit = () => {
   border-color: #11a691;
   background-color: #fff;
   box-shadow: 0 4px 12px rgba(17, 166, 145, 0.08);
+}
+
+.input-field.input-error {
+  border-color: #e53935;
+  background-color: #fff8f8;
+}
+
+.custom-label.label-error {
+  color: #e53935;
+}
+
+.field-error {
+  font-size: 12px;
+  color: #e53935;
+  margin-left: 4px;
 }
 
 .error-message {
