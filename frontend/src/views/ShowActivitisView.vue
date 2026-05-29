@@ -102,7 +102,7 @@
             </div>
           </div>
 
-          <div>
+          <div v-if="turno.hasRemainingClasses">
             <div class="cap-row">
               <span class="cap-text" :style="{ color: barColor(turno) }">
                 {{ turno.ocup >= turno.total

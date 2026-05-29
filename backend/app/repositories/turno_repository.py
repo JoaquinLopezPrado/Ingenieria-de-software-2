@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.domain.enrollment import EnrollmentStatus, EnrollmentType
 from app.domain.turno import DiaSemana, Turno
 from app.models.clase import Clase as ClaseORM
-from app.models.enrollment import Enrollment as EnrollmentORM
+from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as EnrollmentSlotORM
 from app.models.turno import Turno as TurnoORM, TurnoDia as TurnoDiaORM
 
 _MONTHLY_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
@@ -109,11 +109,24 @@ class TurnoRepository(AbstractTurnoRepository):
         now_art = datetime.now(_ART)
         today = now_art.date()
         now_time = now_art.time()
+
+        active_slots_subq = (
+            select(func.count(EnrollmentSlotORM.id))
+            .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
+            .where(
+                EnrollmentSlotORM.clase_id == ClaseORM.id,
+                EnrollmentORM.status.in_(_MONTHLY_ACTIVE_STATUSES),
+            )
+            .correlate(ClaseORM)
+            .scalar_subquery()
+        )
+
         remaining_subq = (
             select(func.count(ClaseORM.id))
             .where(
                 ClaseORM.turno_id == TurnoORM.id,
                 ClaseORM.is_active == True,
+                ClaseORM.capacity > active_slots_subq,
                 or_(
                     ClaseORM.date > today,
                     and_(
