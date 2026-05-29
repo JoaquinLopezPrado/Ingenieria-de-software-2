@@ -80,10 +80,10 @@
               </div>
               <div v-if="turno.periodo" class="periodo-chip">{{ turno.periodo }}</div>
             </div>
-            <span v-if="turno.ocup >= turno.total" class="agotado-badge">
+            <span v-if="turno.hasRemainingClasses && turno.ocup >= turno.total" class="agotado-badge">
               AGOTADO
             </span>
-            <span v-else-if="pct(turno) >= 70" class="ultimos-badge">
+            <span v-else-if="turno.hasRemainingClasses && pct(turno) >= 70" class="ultimos-badge">
               ¡Últimos lugares!
             </span>
           </div>
