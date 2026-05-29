@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
@@ -105,8 +105,10 @@ class TurnoRepository(AbstractTurnoRepository):
             .scalar_subquery()
         )
 
-        today = date.today()
-        now_time = datetime.now(timezone.utc).time()
+        _ART = timezone(timedelta(hours=-3))
+        now_art = datetime.now(_ART)
+        today = now_art.date()
+        now_time = now_art.time()
         remaining_subq = (
             select(func.count(ClaseORM.id))
             .where(

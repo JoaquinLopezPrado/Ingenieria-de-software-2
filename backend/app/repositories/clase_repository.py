@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Tuple
 
 from sqlalchemy import and_, func, or_, select, tuple_
@@ -59,6 +59,7 @@ class ClaseRepository(AbstractClaseRepository):
         return [self._to_domain(orm) for orm in result.scalars()]
 
     async def list_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
+        now_art = datetime.now(timezone(timedelta(hours=-3)))
         enrolled_subquery = (
             select(func.count())
             .select_from(EnrollmentSlotORM)
@@ -76,10 +77,10 @@ class ClaseRepository(AbstractClaseRepository):
                 ClaseORM.turno_id == turno_id,
                 ClaseORM.is_active == True,
                 or_(
-                    ClaseORM.date > datetime.now(timezone.utc).date(),
+                    ClaseORM.date > now_art.date(),
                     and_(
-                        ClaseORM.date == datetime.now(timezone.utc).date(),
-                        TurnoORM.start_time > datetime.now(timezone.utc).time(),
+                        ClaseORM.date == now_art.date(),
+                        TurnoORM.start_time > now_art.time(),
                     ),
                 ),
             )
