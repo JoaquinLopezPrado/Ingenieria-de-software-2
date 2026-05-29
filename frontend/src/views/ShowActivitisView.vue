@@ -177,8 +177,12 @@
                   : 'Inscribirse' }}
               </button>
 
+              <div v-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
+                Tenés una clase de prueba el {{ formatFechaSingle(turnosConClaseSuelta.get(turno.id).clase_date) }}
+              </div>
+
               <button
-                v-if="!turnosConClaseSuelta.has(turno.id)"
+                v-else
                 class="secondary-btn"
                 :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
                 type="button"
@@ -231,7 +235,7 @@ const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
 const currentTab = ref('')
 const inscriptos = ref(new Set())
-const turnosConClaseSuelta = ref(new Set())
+const turnosConClaseSuelta = ref(new Map())
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
 const avisoLleno = ref(null)
@@ -313,10 +317,10 @@ const loadEnrollments = async () => {
       .map((e) => [e.turno_id, e])
   )
 
-  turnosConClaseSuelta.value = new Set(
+  turnosConClaseSuelta.value = new Map(
     mySingleRes.data
       .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
-      .map((e) => e.turno_id)
+      .map((e) => [e.turno_id, e])
   )
 
   turnosPendienteSingle.value = new Map(
@@ -954,6 +958,18 @@ h1 {
 
 .secondary-btn--espera:hover {
   background: rgba(245, 124, 0, 0.08);
+}
+
+.clase-suelta-chip {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #E8F5E9;
+  border: 1px solid #A5D6A7;
+  color: #2E7D32;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .aviso-lleno {
