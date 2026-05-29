@@ -49,13 +49,13 @@ ACTIVITIES = [
 USERS = [
     {
         "email": "admin@admin.com",
-        "password": "admin1234",
+        "password": "MiPass12#",
         "role": "admin",
         "profile": None,
     },
     {
         "email": "empleado@centro.com",
-        "password": "empleado1234",
+        "password": "MiPass12#",
         "role": "empleado",
         "profile": {
             "type": "employee",
@@ -66,7 +66,7 @@ USERS = [
     },
     {
         "email": "cliente@centro.com",
-        "password": "cliente1234",
+        "password": "MiPass12#",
         "role": "cliente",
         "profile": {
             "type": "client",
