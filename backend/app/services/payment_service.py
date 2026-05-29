@@ -138,6 +138,17 @@ class PaymentService:
             )
             await self._send_payment_email(enrollment_id, payment_id)
 
+    async def get_mp_status_detail(self, payment_id: str) -> str | None:
+        if not payment_id or payment_id == "0":
+            return None
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(
+            None, partial(self._sdk.payment().get, payment_id)
+        )
+        if response["status"] != 200:
+            return None
+        return response["response"].get("status_detail")
+
     async def _send_payment_email(self, enrollment_id: int, payment_id: str) -> None:
         details = await self._enrollment_repo.get_payment_details(enrollment_id)
         user = await self._user_repo.get_by_id(details.user_id)

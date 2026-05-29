@@ -31,4 +31,7 @@ export const enrollmentService = {
 
   cancelEnrollment: (enrollment_id: number) =>
     apiClient.delete(`/enrollments/${enrollment_id}`),
+
+  getMpStatusDetail: (payment_id: string) =>
+    apiClient.get<{ status_detail: string | null }>(`/payments/mp-status`, { params: { payment_id } }),
 }

@@ -6,7 +6,7 @@ from app.domain.user import User
 from app.repositories.enrollment_repository import EnrollmentRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.payment import CreatePreferenceRequest, PreferenceResponse
+from app.schemas.payment import CreatePreferenceRequest, MpStatusResponse, PreferenceResponse
 from app.services.payment_service import PaymentService
 
 router = APIRouter()
@@ -35,6 +35,16 @@ async def create_preference(
         user_id=current_user.id,
     )
     return PreferenceResponse(init_point=init_point)
+
+
+@router.get("/mp-status", response_model=MpStatusResponse, status_code=status.HTTP_200_OK)
+async def get_mp_payment_status(
+    payment_id: str,
+    current_user: User = Depends(get_current_user),
+    service: PaymentService = Depends(get_payment_service),
+):
+    detail = await service.get_mp_status_detail(payment_id)
+    return MpStatusResponse(status_detail=detail)
 
 
 @router.post("/webhook", status_code=status.HTTP_200_OK)

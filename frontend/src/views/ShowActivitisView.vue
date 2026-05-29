@@ -292,49 +292,56 @@ const loadTurnos = async (activityId) => {
   }
 }
 
+const loadEnrollments = async () => {
+  const [myMonthlyRes, mySingleRes] = await Promise.all([
+    enrollmentService.getMyMonthly(),
+    enrollmentService.getMySingle(),
+  ])
+
+  const now = Date.now()
+  const notExpired = (e) => !e.expires_at || new Date(e.expires_at).getTime() > now
+
+  inscriptos.value = new Set(
+    myMonthlyRes.data
+      .filter((e) => e.status === 'confirmed')
+      .map((e) => e.turno_id)
+  )
+
+  turnosPendienteMensual.value = new Map(
+    myMonthlyRes.data
+      .filter((e) => e.status === 'pending' && notExpired(e))
+      .map((e) => [e.turno_id, e])
+  )
+
+  turnosConClaseSuelta.value = new Set(
+    mySingleRes.data
+      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
+      .map((e) => e.turno_id)
+  )
+
+  turnosPendienteSingle.value = new Map(
+    mySingleRes.data
+      .filter((e) => e.status === 'pending' && notExpired(e))
+      .map((e) => [e.turno_id, e])
+  )
+}
+
 watch(currentTab, (newTab) => {
   const activity = activities.value.find(a => a.name === newTab)
-  if (activity) loadTurnos(activity.id)
+  if (activity) {
+    loadTurnos(activity.id)
+    loadEnrollments()
+  }
 })
 
 onMounted(async () => {
   try {
     loading.value = true
 
-    const [{ activities: acts }, myMonthlyRes, mySingleRes] = await Promise.all([
-      getFormOptions(),
-      enrollmentService.getMyMonthly(),
-      enrollmentService.getMySingle(),
-    ])
-
+    const { activities: acts } = await getFormOptions()
     activities.value = acts
 
-    const now = Date.now()
-    const notExpired = (e) => !e.expires_at || new Date(e.expires_at).getTime() > now
-
-    inscriptos.value = new Set(
-      myMonthlyRes.data
-        .filter((e) => e.status === 'confirmed')
-        .map((e) => e.turno_id)
-    )
-
-    turnosPendienteMensual.value = new Map(
-      myMonthlyRes.data
-        .filter((e) => e.status === 'pending' && notExpired(e))
-        .map((e) => [e.turno_id, e])
-    )
-
-    turnosConClaseSuelta.value = new Set(
-      mySingleRes.data
-        .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
-        .map((e) => e.turno_id)
-    )
-
-    turnosPendienteSingle.value = new Map(
-      mySingleRes.data
-        .filter((e) => e.status === 'pending' && notExpired(e))
-        .map((e) => [e.turno_id, e])
-    )
+    await loadEnrollments()
 
     if (acts.length > 0) currentTab.value = acts[0].name
   } catch (error) {

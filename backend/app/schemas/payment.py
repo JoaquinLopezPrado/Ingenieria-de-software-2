@@ -7,3 +7,7 @@ class CreatePreferenceRequest(BaseModel):
 
 class PreferenceResponse(BaseModel):
     init_point: str
+
+
+class MpStatusResponse(BaseModel):
+    status_detail: str | None
