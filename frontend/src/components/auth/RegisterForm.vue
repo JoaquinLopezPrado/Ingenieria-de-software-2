@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import PasswordInput from './PasswordInput.vue'
 
-defineProps<{ loading?: boolean; apiError?: string }>()
+const props = defineProps<{ loading?: boolean; apiError?: string; showPasswordRequirements?: boolean }>()
 const emit = defineEmits(['submit', 'google-register'])
 
 const formData = ref({
@@ -22,7 +22,10 @@ const fieldErrors = ref<Record<string, string>>({})
 
 const clearError = (field: string) => { fieldErrors.value[field] = '' }
 
-watch(() => formData.value.password, () => clearError('password'))
+const showReqs = ref(false)
+
+watch(() => props.showPasswordRequirements, (val) => { if (val) showReqs.value = true })
+watch(() => formData.value.password, () => { clearError('password'); showReqs.value = false })
 watch(() => formData.value.confirmPassword, () => clearError('confirmPassword'))
 
 const handleSubmit = () => {
@@ -120,6 +123,14 @@ const handleSubmit = () => {
       <span>{{ loading ? 'Creando cuenta' : 'Registrarse' }}</span>
     </button>
 
+    <ul v-if="showReqs" class="password-requirements">
+      <li>Al menos 8 caracteres</li>
+      <li>Al menos una letra mayúscula</li>
+      <li>Al menos una letra minúscula</li>
+      <li>Al menos un número</li>
+      <li>Al menos un carácter especial</li>
+    </ul>
+
     <div class="oauth-divider">
       <span>o</span>
     </div>
@@ -167,6 +178,21 @@ const handleSubmit = () => {
   font-size: 12px;
   color: #e53935;
   margin-left: 4px;
+}
+
+.password-requirements {
+  margin: 0;
+  padding: 10px 14px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 10px;
+  list-style: disc;
+  list-style-position: inside;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #795548;
 }
 
 .error-message {

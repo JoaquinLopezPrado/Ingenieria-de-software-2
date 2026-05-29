@@ -10,6 +10,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const loading = ref(false)
 const apiError = ref('')
+const showPasswordRequirements = ref(false)
 
 const googleErrorMessages: Record<string, string> = {
   google_token_expired: 'El proceso de registro expiró. Iniciá el registro nuevamente.',
@@ -26,11 +27,17 @@ const extractErrorMessage = (err: any): string => {
 const handleRegister = async (userData: any) => {
   loading.value = true
   apiError.value = ''
+  showPasswordRequirements.value = false
   try {
     await authStore.register(userData)
     router.push('/?registered=true')
   } catch (err: any) {
-    apiError.value = extractErrorMessage(err)
+    const errors = err.response?.data?.errors
+    if (errors?.password) {
+      showPasswordRequirements.value = true
+    } else {
+      apiError.value = extractErrorMessage(err)
+    }
   } finally {
     loading.value = false
   }
@@ -52,6 +59,7 @@ const handleGoogleRegister = () => {
       <RegisterForm
         :loading="loading"
         :api-error="apiError"
+        :show-password-requirements="showPasswordRequirements"
         @submit="handleRegister"
         @google-register="handleGoogleRegister"
       />

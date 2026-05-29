@@ -115,7 +115,7 @@ REGISTER_RESPONSES: _Responses = {
             "application/json": {
                 "example": {
                     "errors": {
-                        "password": "La contraseña no cumple con los requisitos mínimos de seguridad.",
+                        "password": "La contraseña debe contener al menos un carácter especial.",
                         "birth_date": "Debe ser mayor de edad para registrarse.",
                     }
                 }
