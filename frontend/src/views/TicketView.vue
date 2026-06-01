@@ -90,6 +90,20 @@
             <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
           </div>
         </template>
+        <template v-else-if="tieneDescuento">
+          <div class="monto-row">
+            <span class="monto-label">Precio mensual</span>
+            <span class="monto-valor-base">$ {{ fmt(route.query.original_amount) }}</span>
+          </div>
+          <div class="monto-row monto-row-descuento">
+            <span class="monto-label">Descuento por clases sueltas ya abonadas</span>
+            <span class="monto-descuento">- $ {{ fmt(descuento) }}</span>
+          </div>
+          <div class="monto-row monto-row-total">
+            <span class="monto-label"><strong>Total a pagar</strong></span>
+            <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
+          </div>
+        </template>
         <div v-else class="monto-row">
           <span class="monto-label">Total a pagar</span>
           <span class="monto-valor">$ {{ fmt(route.query.amount) }}</span>
@@ -113,9 +127,16 @@
 
       <!-- Botones -->
       <div class="botones">
-        <button v-if="!expirado" class="btn-mp" :disabled="pagando" @click="pagar">
-          {{ pagando ? 'Redirigiendo...' : 'Pagar con Mercado Pago' }}
-        </button>
+        <template v-if="esSinCosto">
+          <button class="btn-mp" :disabled="pagando" @click="confirmarGratis">
+            {{ pagando ? 'Confirmando...' : 'Confirmar suscripción (sin costo)' }}
+          </button>
+        </template>
+        <template v-else>
+          <button v-if="!expirado" class="btn-mp" :disabled="pagando" @click="pagar">
+            {{ pagando ? 'Redirigiendo...' : 'Pagar con Mercado Pago' }}
+          </button>
+        </template>
         <button class="btn-volver" @click="router.push({ name: 'list' })">
           ← Volver a actividades
         </button>
@@ -133,6 +154,18 @@ const route  = useRoute()
 const router = useRouter()
 
 const fmt = (val) => Number(val ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })
+
+const esSinCosto = computed(() => Number(route.query.amount ?? 0) === 0)
+
+const tieneDescuento = computed(() => {
+  const orig = Number(route.query.original_amount ?? 0)
+  const amt  = Number(route.query.amount ?? 0)
+  return orig > 0 && orig > amt
+})
+
+const descuento = computed(() =>
+  Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0)
+)
 
 const DAY_LABELS = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
@@ -188,6 +221,20 @@ onMounted(() => {
 })
 
 onUnmounted(() => clearInterval(intervalo))
+
+const confirmarGratis = async () => {
+  const enrollmentId = Number(route.query.enrollment_id)
+  if (!enrollmentId) return
+  pagando.value = true
+  try {
+    await enrollmentService.freeConfirm(enrollmentId)
+    router.push({ name: 'list' })
+  } catch {
+    alert('No se pudo confirmar la inscripción. Intentá de nuevo.')
+  } finally {
+    pagando.value = false
+  }
+}
 
 const pagar = async () => {
   if (expirado.value) return

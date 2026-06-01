@@ -138,6 +138,30 @@ class PaymentService:
             )
             await self._send_payment_email(enrollment_id, payment_id)
 
+    async def free_confirm(self, enrollment_id: int, user_id: int) -> None:
+        details = await self._enrollment_repo.get_payment_details(enrollment_id)
+
+        if details.user_id != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permisos.")
+
+        if details.status != EnrollmentStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="La inscripción no está en estado pendiente.",
+            )
+
+        if details.price != 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Esta inscripción requiere pago a través de Mercado Pago.",
+            )
+
+        await self._enrollment_repo.update_payment(
+            enrollment_id=enrollment_id,
+            new_status=EnrollmentStatus.CONFIRMED,
+            payment_id="free",
+        )
+
     async def get_mp_status_detail(self, payment_id: str) -> str | None:
         if not payment_id or payment_id == "0":
             return None

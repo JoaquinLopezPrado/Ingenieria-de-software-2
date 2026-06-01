@@ -28,6 +28,7 @@ class Enrollment:
         payment_id: str | None,
         created_at: datetime,
         last_payment_date: date | None = None,
+        original_amount: Decimal | None = None,
     ):
         self.id = id
         self.turno_id = turno_id
@@ -39,6 +40,7 @@ class Enrollment:
         self.payment_id = payment_id
         self.created_at = created_at
         self.last_payment_date = last_payment_date
+        self.original_amount = original_amount if original_amount is not None else amount
 
 
 class MySubscriptionEnrollment:

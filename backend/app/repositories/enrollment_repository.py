@@ -87,25 +87,19 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             first_key = (future_clases[0].date.month, future_clases[0].date.year)
             reference_clases = [c for c in future_clases if (c.date.month, c.date.year) == first_key]
 
-        # Monto = clases del mes de referencia que NO están cubiertas por sueltas
+        # Monto original (sin descuento) = todas las clases del mes de referencia
+        original_amount = Decimal(turno.class_price) * len(reference_clases)
+        # Monto final = solo las clases NO cubiertas por sueltas
         payment_clases = [c for c in reference_clases if c.id not in single_covered_ids]
         amount = Decimal(turno.class_price) * len(payment_clases)
-
-        # Si el monto es 0 (todo el mes ya cubierto por sueltas) se confirma directo sin pago
-        if amount == 0:
-            enrollment_status = EnrollmentStatus.CONFIRMED
-            enrollment_expires_at = None
-        else:
-            enrollment_status = EnrollmentStatus.PENDING
-            enrollment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
 
         enrollment_orm = EnrollmentORM(
             turno_id=turno_id,
             user_id=user_id,
             enrollment_type=EnrollmentType.SUBSCRIPTION,
             amount=amount,
-            status=enrollment_status,
-            expires_at=enrollment_expires_at,
+            status=EnrollmentStatus.PENDING,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
         )
         self._session.add(enrollment_orm)
         await self._session.flush()
@@ -116,7 +110,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
-        return self._to_domain(enrollment_orm)
+        return self._to_domain(enrollment_orm, original_amount=original_amount)
 
     # ------------------------------------------------------------------ #
     # Inscripción a clase suelta                                           #
@@ -495,7 +489,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             detail="Ya tenés un lugar reservado en esta clase.",
         )
 
-    def _to_domain(self, orm: EnrollmentORM) -> Enrollment:
+    def _to_domain(self, orm: EnrollmentORM, original_amount=None) -> Enrollment:
         return Enrollment(
             id=orm.id,
             turno_id=orm.turno_id,
@@ -507,4 +501,5 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             payment_id=orm.payment_id,
             created_at=orm.created_at,
             last_payment_date=orm.last_payment_date,
+            original_amount=original_amount,
         )

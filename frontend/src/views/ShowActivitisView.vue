@@ -393,26 +393,21 @@ const handleInscripcion = async (turno) => {
     turno.ocup++
     inscriptos.value = s
 
-    // Si el monto es 0 (todo el mes cubierto por clases sueltas), la suscripción
-    // queda confirmada directamente sin necesidad de pago
-    if (Number(data.amount) === 0 || data.status === 'confirmed') {
-      return
-    }
-
     router.push({
       name: 'ticket',
       query: {
-        enrollment_id: data.id,
-        actividad:     turno.actividad,
-        descripcion:   turno.descripcion,
-        dia:           turno.dia,
-        hora:          turno.hora,
-        duracion:      turno.dur,
-        instructor:    turno.inst,
-        nivel:         turno.nivel,
-        numero:        data.id,
-        amount:        data.amount,
-        expires_at:    data.expires_at,
+        enrollment_id:   data.id,
+        actividad:       turno.actividad,
+        descripcion:     turno.descripcion,
+        dia:             turno.dia,
+        hora:            turno.hora,
+        duracion:        turno.dur,
+        instructor:      turno.inst,
+        nivel:           turno.nivel,
+        numero:          data.id,
+        amount:          data.amount,
+        original_amount: data.original_amount,
+        expires_at:      data.expires_at,
       },
     })
   } catch (err) {

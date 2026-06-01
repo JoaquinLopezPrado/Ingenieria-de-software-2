@@ -34,4 +34,7 @@ export const enrollmentService = {
 
   getMpStatusDetail: (payment_id: string) =>
     apiClient.get<{ status_detail: string | null }>(`/payments/mp-status`, { params: { payment_id } }),
+
+  freeConfirm: (enrollment_id: number) =>
+    apiClient.post('/payments/free-confirm', { enrollment_id }),
 }

@@ -20,6 +20,7 @@ class EnrollmentResponse(BaseModel):
     turno_id: int
     enrollment_type: EnrollmentType
     amount: Decimal
+    original_amount: Decimal
     status: EnrollmentStatus
     expires_at: datetime | None
 

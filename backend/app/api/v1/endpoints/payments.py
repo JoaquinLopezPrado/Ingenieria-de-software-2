@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
@@ -45,6 +46,20 @@ async def get_mp_payment_status(
 ):
     detail = await service.get_mp_status_detail(payment_id)
     return MpStatusResponse(status_detail=detail)
+
+
+class FreeConfirmRequest(BaseModel):
+    enrollment_id: int
+
+
+@router.post("/free-confirm", status_code=status.HTTP_200_OK)
+async def free_confirm_enrollment(
+    body: FreeConfirmRequest,
+    current_user: User = Depends(get_current_user),
+    service: PaymentService = Depends(get_payment_service),
+):
+    await service.free_confirm(enrollment_id=body.enrollment_id, user_id=current_user.id)
+    return {"ok": True}
 
 
 @router.post("/webhook", status_code=status.HTTP_200_OK)
