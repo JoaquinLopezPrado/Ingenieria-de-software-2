@@ -253,22 +253,23 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         )
         enrollments = []
         for e in result.scalars():
-            clase = e.slots[0].clase
-            enrollments.append(MySingleEnrollment(
-                enrollment_id=e.id,
-                status=e.status,
-                amount=e.amount,
-                expires_at=e.expires_at,
-                created_at=e.created_at,
-                turno_id=e.turno_id,
-                clase_id=clase.id,
-                clase_date=clase.date,
-                start_time=e.turno.start_time,
-                end_time=e.turno.end_time,
-                turno_description=e.turno.description,
-                instructor=e.turno.instructor,
-                activity_name=e.turno.activity.name,
-            ))
+            for slot in e.slots:
+                clase = slot.clase
+                enrollments.append(MySingleEnrollment(
+                    enrollment_id=e.id,
+                    status=e.status,
+                    amount=e.amount,
+                    expires_at=e.expires_at,
+                    created_at=e.created_at,
+                    turno_id=e.turno_id,
+                    clase_id=clase.id,
+                    clase_date=clase.date,
+                    start_time=e.turno.start_time,
+                    end_time=e.turno.end_time,
+                    turno_description=e.turno.description,
+                    instructor=e.turno.instructor,
+                    activity_name=e.turno.activity.name,
+                ))
         return enrollments
 
     async def cancel_expired(self) -> int:
