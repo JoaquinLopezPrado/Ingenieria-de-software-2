@@ -90,7 +90,7 @@ const fetchInscripcionesData = async () => {
 
     clases.value = resSingle.data.map((item: any) => ({
       id: item.id,
-      actividad: item.actividad || item.activity_name || 'Clase Suelta',
+      actividad: item.actividad || item.activity_name || 'Clase Individual',
       instructor: item.instructor || 'Profesor',
       fecha: formatearFecha(item.fecha || item.date),
       horario: item.horario || item.start_time?.slice(0, 5) || '00:00',

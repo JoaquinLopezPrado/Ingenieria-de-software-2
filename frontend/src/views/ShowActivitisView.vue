@@ -148,14 +148,14 @@
 
             <div v-else-if="turnosPendienteSingle.has(turno.id)" class="acciones-card">
               <p class="pago-pendiente-info">
-                Clase suelta pendiente · {{ formatFechaSingle(turnosPendienteSingle.get(turno.id).clase_date) }}
+                Clase individual pendiente · {{ formatFechaSingle(turnosPendienteSingle.get(turno.id).clase_date) }}
               </p>
               <button
                 class="continuar-btn"
                 type="button"
                 @click="continuarPagoSingle(turno)"
               >
-                Continuar con el pago de la clase suelta
+                Continuar con el pago de la clase individual
               </button>
             </div>
 
@@ -187,8 +187,8 @@
                 @click="goToClassSelection(turno)"
               >
                 {{ turno.ocup >= turno.total
-                  ? 'Anotarse en lista de espera para clase suelta'
-                  : 'Ver clases sueltas' }}
+                  ? 'Anotarse en lista de espera para clase individual'
+                  : 'Ver clases individuales' }}
               </button>
             </div>
           </template>

@@ -94,7 +94,7 @@ const pagosClases = ref<PagoClase[]>([
 
           <div class="cards-stack">
             <div v-if="pagosClases.length === 0" class="empty-column">
-              <span>No hay registros de clases sueltas</span>
+              <span>No hay registros de clases individuales</span>
             </div>
             <template v-else>
               <ItemCard

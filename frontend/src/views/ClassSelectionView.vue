@@ -1,7 +1,7 @@
 <template>
   <div class="class-page">
     <div class="class-card">
-      <h1 class="title">Clases sueltas</h1>
+      <h1 class="title">Clases individuales</h1>
       <p class="subtitle">
         Seleccioná una o más fechas para inscribirte a clases individuales del turno.
       </p>
