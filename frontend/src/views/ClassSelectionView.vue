@@ -271,47 +271,21 @@ async function handleSubmit() {
   submitting.value = true
   submitError.value = ''
 
-  const created = []
+  try {
+    const clase_ids = selectedOptions.value.map(o => o.id)
+    const { data } = await enrollmentService.createSingle(clase_ids)
 
-  for (const option of selectedOptions.value) {
-    try {
-      const { data } = await enrollmentService.createSingle(option.id)
-      created.push({ data, option })
-      option.isEnrolled = true
-      const s = new Set(selectedIds.value)
-      s.delete(option.id)
-      selectedIds.value = s
-    } catch (error) {
-      if (error.response?.status === 409) {
-        const backendMsg = error.response?.data?.errors?.general || error.response?.data?.detail
-        const isCapacityError = !backendMsg || backendMsg.includes('cupo') || backendMsg.includes('lugar')
-        if (isCapacityError) {
-          const claseToUpdate = clases.value.find(c => c.id === option.id)
-          if (claseToUpdate) { claseToUpdate.occupied = claseToUpdate.capacity; claseToUpdate.availableSpots = 0 }
-          submitError.value = `Sin cupo para el ${option.displayDate}. El lugar se liberará si no se completa el pago.`
-        } else {
-          submitError.value = backendMsg
-        }
-      } else if (error.response?.status === 404) {
-        submitError.value = `La clase del ${option.displayDate} ya no está disponible.`
-      } else {
-        submitError.value = 'Ocurrió un error al procesar una de las inscripciones.'
-      }
-      submitting.value = false
-      return
-    }
-  }
+    const count = selectedOptions.value.length
+    const diaLabel = count === 1
+      ? `${selectedOptions.value[0].dayLabel} ${selectedOptions.value[0].displayDate}`
+      : `${count} clases`
 
-  submitting.value = false
-
-  if (created.length === 1) {
-    const { data, option } = created[0]
     router.push({
       name: 'ticket',
       query: {
         enrollment_id: data.id,
         actividad:     actividad.value,
-        dia:           `${option.dayLabel} ${option.displayDate}`,
+        dia:           diaLabel,
         duracion:      `${horaInicio.value} - ${horaFin.value}`,
         instructor:    instructor.value,
         numero:        data.id,
@@ -320,8 +294,22 @@ async function handleSubmit() {
         expires_at:    data.expires_at,
       },
     })
-  } else {
-    router.push({ name: 'list' })
+  } catch (error) {
+    if (error.response?.status === 409) {
+      const backendMsg = error.response?.data?.errors?.general || error.response?.data?.detail
+      const isCapacityError = !backendMsg || backendMsg.includes('cupo') || backendMsg.includes('lugar')
+      if (isCapacityError) {
+        submitError.value = 'Una de las clases ya no tiene cupo disponible. El lugar se liberará si no se completa el pago.'
+      } else {
+        submitError.value = backendMsg
+      }
+    } else if (error.response?.status === 404) {
+      submitError.value = 'Una de las clases seleccionadas ya no está disponible.'
+    } else {
+      submitError.value = 'Ocurrió un error al generar la inscripción.'
+    }
+  } finally {
+    submitting.value = false
   }
 }
 </script>

@@ -10,8 +10,8 @@ class EnrollmentService:
     async def create_subscription(self, turno_id: int, user_id: int) -> Enrollment:
         return await self._enrollment_repo.create_subscription(turno_id=turno_id, user_id=user_id)
 
-    async def create_single(self, clase_id: int, user_id: int) -> Enrollment:
-        return await self._enrollment_repo.create_single(clase_id=clase_id, user_id=user_id)
+    async def create_single(self, clase_ids: list[int], user_id: int) -> Enrollment:
+        return await self._enrollment_repo.create_single(clase_ids=clase_ids, user_id=user_id)
 
     async def get_subscriptions_by_user(self, user_id: int) -> list[MySubscriptionEnrollment]:
         return await self._enrollment_repo.get_subscriptions_by_user(user_id=user_id)

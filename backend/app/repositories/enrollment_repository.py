@@ -25,7 +25,7 @@ class AbstractEnrollmentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create_single(self, clase_id: int, user_id: int) -> Enrollment:
+    async def create_single(self, clase_ids: list[int], user_id: int) -> Enrollment:
         raise NotImplementedError
 
     @abstractmethod
@@ -106,17 +106,22 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
     # Inscripción a clase suelta                                           #
     # ------------------------------------------------------------------ #
 
-    async def create_single(self, clase_id: int, user_id: int) -> Enrollment:
-        clase = await self._lock_clase(clase_id)
-        await self._check_clase_capacity(clase)
-        turno = await self._get_turno(clase.turno_id)
-        await self._check_schedule_conflict_single(user_id, clase.date, turno.start_time, turno.end_time)
-        await self._check_duplicate_single(clase_id, user_id)
+    async def create_single(self, clase_ids: list[int], user_id: int) -> Enrollment:
+        clases = []
+        turno = None
+        for clase_id in sorted(clase_ids):
+            clase = await self._lock_clase(clase_id)
+            await self._check_clase_capacity(clase)
+            if turno is None:
+                turno = await self._get_turno(clase.turno_id)
+            await self._check_schedule_conflict_single(user_id, clase.date, turno.start_time, turno.end_time)
+            await self._check_duplicate_single(clase_id, user_id)
+            clases.append(clase)
 
-        amount = Decimal(turno.class_price)
+        amount = Decimal(turno.class_price) * len(clases)
 
         enrollment_orm = EnrollmentORM(
-            turno_id=clase.turno_id,
+            turno_id=turno.id,
             user_id=user_id,
             enrollment_type=EnrollmentType.SINGLE,
             amount=amount,
@@ -126,7 +131,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         self._session.add(enrollment_orm)
         await self._session.flush()
 
-        self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase_id))
+        for clase in clases:
+            self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
         return self._to_domain(enrollment_orm)

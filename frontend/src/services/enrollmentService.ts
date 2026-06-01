@@ -17,8 +17,8 @@ export const enrollmentService = {
   createSubscription: (turno_id: number) =>
     apiClient.post('/enrollments/subscription', { turno_id }),
 
-  createSingle: (clase_id: number) =>
-    apiClient.post('/enrollments/single', { clase_id }),
+  createSingle: (clase_ids: number[]) =>
+    apiClient.post('/enrollments/single', { clase_ids }),
 
   createPaymentPreference: (enrollment_id: number) =>
     apiClient.post('/payments/preference', { enrollment_id }),

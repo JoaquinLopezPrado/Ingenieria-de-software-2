@@ -44,7 +44,7 @@ async def create_single_enrollment(
     current_user: User = Depends(get_current_user),
     service: EnrollmentService = Depends(get_enrollment_service),
 ):
-    enrollment = await service.create_single(clase_id=body.clase_id, user_id=current_user.id)
+    enrollment = await service.create_single(clase_ids=body.clase_ids, user_id=current_user.id)
     return EnrollmentResponse.model_validate(enrollment.__dict__)
 
 

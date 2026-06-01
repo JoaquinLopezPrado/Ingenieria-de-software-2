@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import List
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from app.domain.enrollment import EnrollmentStatus, EnrollmentType
 
@@ -12,7 +12,7 @@ class CreateSubscriptionEnrollmentRequest(BaseModel):
 
 
 class CreateSingleEnrollmentRequest(BaseModel):
-    clase_id: int
+    clase_ids: list[int] = Field(min_length=1)
 
 
 class EnrollmentResponse(BaseModel):
