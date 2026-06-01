@@ -181,7 +181,6 @@
               </div>
 
               <button
-                v-else
                 class="secondary-btn"
                 :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
                 type="button"
