@@ -66,8 +66,10 @@ onMounted(async () => {
 
   try {
     const res = await enrollmentService.getMpStatusDetail(String(rawId))
+    console.log('[MP failure] payment_id:', rawId)
+    console.log('[MP failure] res.data:', res.data)
     const detail = res.data.status_detail
-    console.log('status_detail:', detail)
+    console.log('[MP failure] status_detail:', detail)
     motivoRechazo.value = detail
       ? (MOTIVOS[detail] ?? 'El pago fue rechazado por Mercado Pago.')
       : 'Tiempo para realizar la compra expirado.'
