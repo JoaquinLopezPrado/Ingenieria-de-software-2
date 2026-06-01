@@ -114,19 +114,32 @@ class TurnoRepository(AbstractTurnoRepository):
             .scalar_subquery()
         )
 
+        future_date_filter = or_(
+            ClaseORM.date > today,
+            and_(
+                ClaseORM.date == today,
+                TurnoORM.start_time > now_time,
+            ),
+        )
+
         remaining_subq = (
             select(func.count(ClaseORM.id))
             .where(
                 ClaseORM.turno_id == TurnoORM.id,
                 ClaseORM.is_active == True,
                 ClaseORM.capacity > active_slots_subq,
-                or_(
-                    ClaseORM.date > today,
-                    and_(
-                        ClaseORM.date == today,
-                        TurnoORM.start_time > now_time,
-                    ),
-                ),
+                future_date_filter,
+            )
+            .correlate(TurnoORM)
+            .scalar_subquery()
+        )
+
+        future_subq = (
+            select(func.count(ClaseORM.id))
+            .where(
+                ClaseORM.turno_id == TurnoORM.id,
+                ClaseORM.is_active == True,
+                future_date_filter,
             )
             .correlate(TurnoORM)
             .scalar_subquery()
@@ -137,11 +150,15 @@ class TurnoRepository(AbstractTurnoRepository):
             .options(selectinload(TurnoORM.days))
             .add_columns(enrolled_subq.label("enrolled"))
             .add_columns(remaining_subq.label("remaining"))
+            .add_columns(future_subq.label("future_count"))
             .offset((page - 1) * page_size)
             .limit(page_size)
         )).all()
 
-        return [self._to_domain(orm, enrolled, remaining > 0) for orm, enrolled, remaining in rows], total
+        return [
+            self._to_domain(orm, enrolled, remaining > 0, future_count > 0)
+            for orm, enrolled, remaining, future_count in rows
+        ], total
 
     async def get_by_id(self, turno_id: int) -> Optional[Turno]:
         result = await self._session.execute(
@@ -201,7 +218,13 @@ class TurnoRepository(AbstractTurnoRepository):
         await self._session.refresh(orm, ["days"])
         return self._to_domain(orm)
 
-    def _to_domain(self, orm: TurnoORM, enrolled: int = 0, has_remaining_classes: bool = True) -> Turno:
+    def _to_domain(
+        self,
+        orm: TurnoORM,
+        enrolled: int = 0,
+        has_remaining_classes: bool = True,
+        has_future_classes: bool = True,
+    ) -> Turno:
         return Turno(
             id=orm.id,
             activity_id=orm.activity_id,
@@ -215,4 +238,5 @@ class TurnoRepository(AbstractTurnoRepository):
             days=[DiaSemana(dia_orm.dia) for dia_orm in orm.days],
             enrolled=enrolled,
             has_remaining_classes=has_remaining_classes,
+            has_future_classes=has_future_classes,
         )

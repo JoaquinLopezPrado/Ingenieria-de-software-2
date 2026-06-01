@@ -128,7 +128,7 @@
             </div>
           </div>
 
-          <div v-if="!turno.hasRemainingClasses" class="sin-clases-aviso">
+          <div v-if="!turno.hasFutureClasses" class="sin-clases-aviso">
             Este turno no tiene clases disponibles próximamente. Consultá con el centro para más información.
           </div>
 
@@ -278,6 +278,7 @@ const loadTurnos = async (activityId) => {
       descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
       hasRemainingClasses: turno.has_remaining_classes ?? true,
+      hasFutureClasses: turno.has_future_classes ?? true,
     }))
   } catch (error) {
     console.error('Error al cargar turnos', error)

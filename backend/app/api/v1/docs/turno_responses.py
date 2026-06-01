@@ -21,6 +21,7 @@ LIST_TURNOS_RESPONSES: _Responses = {
                             "days": ["lunes", "miercoles", "viernes"],
                             "enrolled": 5,
                             "has_remaining_classes": True,
+                            "has_future_classes": True,
                         }
                     ],
                     "total": 1,
