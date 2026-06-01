@@ -129,7 +129,7 @@
           </div>
 
           <div v-if="!turno.hasRemainingClasses" class="sin-clases-aviso">
-            No quedan clases disponibles para este período. Las inscripciones para el próximo período estarán disponibles próximamente.
+            Este turno no tiene clases disponibles próximamente. Consultá con el centro para más información.
           </div>
 
           <template v-else>
