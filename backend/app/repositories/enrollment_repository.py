@@ -74,30 +74,46 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 detail="El turno no tiene clases futuras disponibles.",
             )
 
+        # Clases ya cubiertas por inscripciones sueltas activas del mismo usuario en este turno
+        single_covered_ids = await self._get_single_covered_clase_ids(
+            user_id, [c.id for c in future_clases]
+        )
+
         today = date.today()
         this_month_clases = [c for c in future_clases if c.date.month == today.month and c.date.year == today.year]
         if this_month_clases:
-            payment_clases = this_month_clases
+            reference_clases = this_month_clases
         else:
-            # Tomar el próximo mes disponible entre las clases futuras
             first_key = (future_clases[0].date.month, future_clases[0].date.year)
-            payment_clases = [c for c in future_clases if (c.date.month, c.date.year) == first_key]
+            reference_clases = [c for c in future_clases if (c.date.month, c.date.year) == first_key]
 
+        # Monto = clases del mes de referencia que NO están cubiertas por sueltas
+        payment_clases = [c for c in reference_clases if c.id not in single_covered_ids]
         amount = Decimal(turno.class_price) * len(payment_clases)
+
+        # Si el monto es 0 (todo el mes ya cubierto por sueltas) se confirma directo sin pago
+        if amount == 0:
+            enrollment_status = EnrollmentStatus.CONFIRMED
+            enrollment_expires_at = None
+        else:
+            enrollment_status = EnrollmentStatus.PENDING
+            enrollment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
 
         enrollment_orm = EnrollmentORM(
             turno_id=turno_id,
             user_id=user_id,
             enrollment_type=EnrollmentType.SUBSCRIPTION,
             amount=amount,
-            status=EnrollmentStatus.PENDING,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
+            status=enrollment_status,
+            expires_at=enrollment_expires_at,
         )
         self._session.add(enrollment_orm)
         await self._session.flush()
 
+        # Crear slots solo para clases NO cubiertas por inscripciones sueltas
         for clase in future_clases:
-            self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
+            if clase.id not in single_covered_ids:
+                self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
         return self._to_domain(enrollment_orm)
@@ -401,6 +417,22 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya tenés una suscripción activa para este turno.",
         )
+
+    async def _get_single_covered_clase_ids(self, user_id: int, clase_ids: list[int]) -> set[int]:
+        """IDs de clases del turno que ya tienen un slot de inscripción suelta activa del usuario."""
+        if not clase_ids:
+            return set()
+        result = await self._session.execute(
+            select(EnrollmentSlotORM.clase_id)
+            .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
+            .where(
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.enrollment_type == EnrollmentType.SINGLE,
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+                EnrollmentSlotORM.clase_id.in_(clase_ids),
+            )
+        )
+        return {row[0] for row in result.all()}
 
     async def _check_schedule_conflict_single(
         self, user_id: int, clase_date: date, start_time: time, end_time: time

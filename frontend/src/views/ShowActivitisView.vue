@@ -393,6 +393,12 @@ const handleInscripcion = async (turno) => {
     turno.ocup++
     inscriptos.value = s
 
+    // Si el monto es 0 (todo el mes cubierto por clases sueltas), la suscripción
+    // queda confirmada directamente sin necesidad de pago
+    if (Number(data.amount) === 0 || data.status === 'confirmed') {
+      return
+    }
+
     router.push({
       name: 'ticket',
       query: {
