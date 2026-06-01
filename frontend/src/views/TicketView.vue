@@ -93,11 +93,15 @@
         <template v-else-if="tieneDescuento">
           <div class="monto-row">
             <span class="monto-label">Precio mensual</span>
-            <span class="monto-valor-base">$ {{ fmt(route.query.original_amount) }}</span>
+            <span class="monto-valor-base">$ {{ fmt(precioBase) }}</span>
           </div>
-          <div class="monto-row monto-row-descuento">
-            <span class="monto-label">Descuento por clases sueltas ya abonadas</span>
-            <span class="monto-descuento">- $ {{ fmt(descuento) }}</span>
+          <div v-if="discountFull > 0" class="monto-row monto-row-descuento">
+            <span class="monto-label">Descuento por clase con cupo lleno</span>
+            <span class="monto-descuento">- $ {{ fmt(discountFull) }}</span>
+          </div>
+          <div v-if="discountSingle > 0" class="monto-row monto-row-descuento">
+            <span class="monto-label">Descuento por clases individuales ya abonadas</span>
+            <span class="monto-descuento">- $ {{ fmt(discountSingle) }}</span>
           </div>
           <div class="monto-row monto-row-total">
             <span class="monto-label"><strong>Total a pagar</strong></span>
@@ -157,15 +161,11 @@ const fmt = (val) => Number(val ?? 0).toLocaleString('es-AR', { minimumFractionD
 
 const esSinCosto = computed(() => Number(route.query.amount ?? 0) === 0)
 
-const tieneDescuento = computed(() => {
-  const orig = Number(route.query.original_amount ?? 0)
-  const amt  = Number(route.query.amount ?? 0)
-  return orig > 0 && orig > amt
-})
+const discountFull   = computed(() => Number(route.query.discount_full_classes ?? 0))
+const discountSingle = computed(() => Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0))
+const precioBase     = computed(() => Number(route.query.original_amount ?? 0) + discountFull.value)
 
-const descuento = computed(() =>
-  Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0)
-)
+const tieneDescuento = computed(() => discountFull.value > 0 || discountSingle.value > 0)
 
 const DAY_LABELS = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',

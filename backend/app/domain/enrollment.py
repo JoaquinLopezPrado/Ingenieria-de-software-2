@@ -29,6 +29,7 @@ class Enrollment:
         created_at: datetime,
         last_payment_date: date | None = None,
         original_amount: Decimal | None = None,
+        discount_full_classes: Decimal | None = None,
     ):
         self.id = id
         self.turno_id = turno_id
@@ -41,6 +42,7 @@ class Enrollment:
         self.created_at = created_at
         self.last_payment_date = last_payment_date
         self.original_amount = original_amount if original_amount is not None else amount
+        self.discount_full_classes = discount_full_classes if discount_full_classes is not None else Decimal(0)
 
 
 class MySubscriptionEnrollment:
@@ -59,6 +61,8 @@ class MySubscriptionEnrollment:
         activity_name: str,
         days: List[str],
         last_payment_date: date | None = None,
+        original_amount: Decimal | None = None,
+        discount_full_classes: Decimal | None = None,
     ):
         self.enrollment_id = enrollment_id
         self.status = status
@@ -73,6 +77,8 @@ class MySubscriptionEnrollment:
         self.activity_name = activity_name
         self.days = days
         self.last_payment_date = last_payment_date
+        self.original_amount = original_amount if original_amount is not None else amount
+        self.discount_full_classes = discount_full_classes if discount_full_classes is not None else Decimal(0)
 
 
 class MySingleEnrollment:

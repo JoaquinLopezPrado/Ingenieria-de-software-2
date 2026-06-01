@@ -82,10 +82,14 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 detail="El turno no tiene clases futuras disponibles.",
             )
 
+        clase_ids = [c.id for c in future_clases]
+
         # Clases ya cubiertas por inscripciones sueltas activas del mismo usuario en este turno
-        single_covered_ids = await self._get_single_covered_clase_ids(
-            user_id, [c.id for c in future_clases]
-        )
+        single_covered_ids = await self._get_single_covered_clase_ids(user_id, clase_ids)
+        # Clases sin cupo disponible por inscripciones de otros clientes
+        full_clase_ids = await self._get_full_clase_ids(clase_ids)
+        # IDs excluidos de slots y pago
+        excluded_ids = single_covered_ids | full_clase_ids
 
         today = date.today()
         this_month_clases = [c for c in future_clases if c.date.month == today.month and c.date.year == today.year]
@@ -95,10 +99,14 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             first_key = (future_clases[0].date.month, future_clases[0].date.year)
             reference_clases = [c for c in future_clases if (c.date.month, c.date.year) == first_key]
 
-        # Monto original (sin descuento) = todas las clases del mes de referencia
-        original_amount = Decimal(turno.class_price) * len(reference_clases)
-        # Monto final = solo las clases NO cubiertas por sueltas
-        payment_clases = [c for c in reference_clases if c.id not in single_covered_ids]
+        # original_amount: precio de las clases del mes que tienen cupo (excluyendo clases llenas)
+        available_reference = [c for c in reference_clases if c.id not in full_clase_ids]
+        original_amount = Decimal(turno.class_price) * len(available_reference)
+        # discount_full_classes: monto descontado por clases sin cupo disponible
+        full_in_reference = [c for c in reference_clases if c.id in full_clase_ids]
+        discount_full_classes = Decimal(turno.class_price) * len(full_in_reference)
+        # amount: de las disponibles, quitar las ya pagadas por el usuario con clase suelta
+        payment_clases = [c for c in available_reference if c.id not in single_covered_ids]
         amount = Decimal(turno.class_price) * len(payment_clases)
 
         enrollment_orm = EnrollmentORM(
@@ -106,19 +114,21 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             user_id=user_id,
             enrollment_type=EnrollmentType.SUBSCRIPTION,
             amount=amount,
+            original_amount=original_amount,
+            discount_full_classes=discount_full_classes,
             status=EnrollmentStatus.PENDING,
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
         )
         self._session.add(enrollment_orm)
         await self._session.flush()
 
-        # Crear slots solo para clases NO cubiertas por inscripciones sueltas
+        # Crear slots solo para clases disponibles (con cupo y no cubiertas por suelta propia)
         for clase in future_clases:
-            if clase.id not in single_covered_ids:
+            if clase.id not in excluded_ids:
                 self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
-        return self._to_domain(enrollment_orm, original_amount=original_amount)
+        return self._to_domain(enrollment_orm, original_amount=original_amount, discount_full_classes=discount_full_classes)
 
     # ------------------------------------------------------------------ #
     # Inscripción a clase suelta                                           #
@@ -241,6 +251,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 enrollment_id=e.id,
                 status=e.status,
                 amount=e.amount,
+                original_amount=e.original_amount if e.original_amount is not None else e.amount,
+                discount_full_classes=e.discount_full_classes if e.discount_full_classes is not None else Decimal(0),
                 expires_at=e.expires_at,
                 created_at=e.created_at,
                 turno_id=e.turno.id,
@@ -436,6 +448,30 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             detail="Ya tenés una suscripción activa para este turno.",
         )
 
+    async def _get_full_clase_ids(self, clase_ids: list[int]) -> set[int]:
+        """IDs de clases que ya no tienen cupo disponible (slots activos >= capacidad)."""
+        if not clase_ids:
+            return set()
+        slots_subq = (
+            select(EnrollmentSlotORM.clase_id, func.count(EnrollmentSlotORM.id).label("cnt"))
+            .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
+            .where(
+                EnrollmentSlotORM.clase_id.in_(clase_ids),
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+            )
+            .group_by(EnrollmentSlotORM.clase_id)
+            .subquery()
+        )
+        result = await self._session.execute(
+            select(ClaseORM.id)
+            .outerjoin(slots_subq, slots_subq.c.clase_id == ClaseORM.id)
+            .where(
+                ClaseORM.id.in_(clase_ids),
+                func.coalesce(slots_subq.c.cnt, 0) >= ClaseORM.capacity,
+            )
+        )
+        return {row[0] for row in result.all()}
+
     async def _get_single_covered_clase_ids(self, user_id: int, clase_ids: list[int]) -> set[int]:
         """IDs de clases del turno que ya tienen un slot de inscripción suelta activa del usuario."""
         if not clase_ids:
@@ -513,7 +549,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             detail="Ya tenés un lugar reservado en esta clase.",
         )
 
-    def _to_domain(self, orm: EnrollmentORM, original_amount=None) -> Enrollment:
+    def _to_domain(self, orm: EnrollmentORM, original_amount=None, discount_full_classes=None) -> Enrollment:
         return Enrollment(
             id=orm.id,
             turno_id=orm.turno_id,
@@ -526,4 +562,5 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             created_at=orm.created_at,
             last_payment_date=orm.last_payment_date,
             original_amount=original_amount,
+            discount_full_classes=discount_full_classes,
         )

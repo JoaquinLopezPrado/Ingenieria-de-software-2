@@ -21,6 +21,7 @@ class EnrollmentResponse(BaseModel):
     enrollment_type: EnrollmentType
     amount: Decimal
     original_amount: Decimal
+    discount_full_classes: Decimal
     status: EnrollmentStatus
     expires_at: datetime | None
 
@@ -35,6 +36,8 @@ class MySubscriptionEnrollmentResponse(BaseModel):
     enrollment_id: int
     status: EnrollmentStatus
     amount: Decimal
+    original_amount: Decimal
+    discount_full_classes: Decimal
     expires_at: datetime | None
     created_at: datetime
     turno_id: int

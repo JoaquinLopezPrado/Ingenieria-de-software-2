@@ -16,6 +16,8 @@ class Enrollment(IDMixin, TimestampMixin, Base):
         nullable=False,
     )
     amount = Column(Numeric(10, 2), nullable=False)
+    original_amount = Column(Numeric(10, 2), nullable=True)
+    discount_full_classes = Column(Numeric(10, 2), nullable=True)
     status = Column(
         Enum(EnrollmentStatus, name="enrollment_status_enum", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
