@@ -1,9 +1,9 @@
 <template>
   <div class="class-page">
     <div class="class-card">
-      <h1 class="title">Clase suelta</h1>
+      <h1 class="title">Clases sueltas</h1>
       <p class="subtitle">
-        Elegí una fecha disponible para tu clase suelta del turno seleccionado.
+        Seleccioná una o más fechas para inscribirte a clases individuales del turno.
       </p>
 
       <div class="selected-turno-box">
@@ -31,11 +31,11 @@
             :key="option.id"
             class="option-card"
             :class="{
-              selected: String(selectedOptionId) === String(option.id),
+              selected: selectedIds.has(option.id),
               enrolled: option.isEnrolled,
             }"
             :disabled="option.isEnrolled"
-            @click="!option.isEnrolled && selectOption(option.id)"
+            @click="!option.isEnrolled && toggleOption(option.id)"
             type="button"
           >
             <div class="option-header">
@@ -43,6 +43,9 @@
 
               <span v-if="option.isEnrolled" class="status-badge inscripto">
                 Inscripto
+              </span>
+              <span v-else-if="selectedIds.has(option.id)" class="status-badge seleccionado">
+                ✓ Seleccionado
               </span>
               <span v-else class="status-badge available">
                 Disponible
@@ -97,7 +100,11 @@
           @click="handleSubmit"
           type="button"
         >
-          {{ submitting ? 'Procesando...' : 'Inscribirse' }}
+          {{ submitting
+            ? 'Procesando...'
+            : selectedIds.size === 0
+              ? 'Inscribirse'
+              : `Inscribirse a ${selectedIds.size} clase${selectedIds.size !== 1 ? 's' : ''}` }}
         </button>
       </div>
     </div>
@@ -113,7 +120,7 @@ import { enrollmentService } from '@/services/enrollmentService'
 const route = useRoute()
 const router = useRouter()
 
-const selectedOptionId = ref(null)
+const selectedIds = ref(new Set())
 const loading = ref(false)
 const submitting = ref(false)
 const errorMessage = ref('')
@@ -134,15 +141,11 @@ const availableOptions = computed(() => {
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
 })
 
-const selectedOption = computed(() => {
-  return clases.value.find(
-    (clase) => String(clase.id) === String(selectedOptionId.value),
-  ) || null
-})
+const selectedOptions = computed(() =>
+  availableOptions.value.filter(o => !o.isEnrolled && selectedIds.value.has(o.id))
+)
 
-const canSubmit = computed(() => {
-  return !!selectedOption.value && selectedOption.value.availableSpots > 0 && !selectedOption.value.isEnrolled
-})
+const canSubmit = computed(() => selectedOptions.value.length > 0)
 
 const formatDate = (value) => {
   if (!value) return ''
@@ -250,9 +253,12 @@ const barBgColor = (option) => {
     : 'rgba(0, 137, 123, 0.15)'
 }
 
-function selectOption(id) {
-  selectedOptionId.value = id
+function toggleOption(id) {
   submitError.value = ''
+  const s = new Set(selectedIds.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedIds.value = s
 }
 
 function goBack() {
@@ -260,21 +266,52 @@ function goBack() {
 }
 
 async function handleSubmit() {
-  if (!selectedOption.value) return
-  if (selectedOption.value.availableSpots <= 0) return
+  if (selectedOptions.value.length === 0) return
 
-  try {
-    submitting.value = true
-    submitError.value = ''
+  submitting.value = true
+  submitError.value = ''
 
-    const { data } = await enrollmentService.createSingle(selectedOption.value.id)
+  const created = []
 
+  for (const option of selectedOptions.value) {
+    try {
+      const { data } = await enrollmentService.createSingle(option.id)
+      created.push({ data, option })
+      option.isEnrolled = true
+      const s = new Set(selectedIds.value)
+      s.delete(option.id)
+      selectedIds.value = s
+    } catch (error) {
+      if (error.response?.status === 409) {
+        const backendMsg = error.response?.data?.errors?.general || error.response?.data?.detail
+        const isCapacityError = !backendMsg || backendMsg.includes('cupo') || backendMsg.includes('lugar')
+        if (isCapacityError) {
+          const claseToUpdate = clases.value.find(c => c.id === option.id)
+          if (claseToUpdate) { claseToUpdate.occupied = claseToUpdate.capacity; claseToUpdate.availableSpots = 0 }
+          submitError.value = `Sin cupo para el ${option.displayDate}. El lugar se liberará si no se completa el pago.`
+        } else {
+          submitError.value = backendMsg
+        }
+      } else if (error.response?.status === 404) {
+        submitError.value = `La clase del ${option.displayDate} ya no está disponible.`
+      } else {
+        submitError.value = 'Ocurrió un error al procesar una de las inscripciones.'
+      }
+      submitting.value = false
+      return
+    }
+  }
+
+  submitting.value = false
+
+  if (created.length === 1) {
+    const { data, option } = created[0]
     router.push({
       name: 'ticket',
       query: {
         enrollment_id: data.id,
         actividad:     actividad.value,
-        dia:           `${selectedOption.value.dayLabel} ${selectedOption.value.displayDate}`,
+        dia:           `${option.dayLabel} ${option.displayDate}`,
         duracion:      `${horaInicio.value} - ${horaFin.value}`,
         instructor:    instructor.value,
         numero:        data.id,
@@ -283,29 +320,8 @@ async function handleSubmit() {
         expires_at:    data.expires_at,
       },
     })
-  } catch (error) {
-    console.error('Error al crear inscripción individual', error)
-
-    if (error.response?.status === 409) {
-      const backendMsg = error.response?.data?.errors?.general || error.response?.data?.detail
-      const isCapacityError = !backendMsg || backendMsg.includes('cupo') || backendMsg.includes('lugar')
-      if (isCapacityError) {
-        const claseToUpdate = clases.value.find(c => String(c.id) === String(selectedOptionId.value))
-        if (claseToUpdate) {
-          claseToUpdate.occupied = claseToUpdate.capacity
-          claseToUpdate.availableSpots = 0
-        }
-        submitError.value = 'Otro usuario tomó el último lugar disponible. El cupo se liberará automáticamente si no completa el pago.'
-      } else {
-        submitError.value = backendMsg
-      }
-    } else if (error.response?.status === 404) {
-      submitError.value = 'La clase seleccionada no está disponible.'
-    } else {
-      submitError.value = 'Ocurrió un error al generar la inscripción individual.'
-    }
-  } finally {
-    submitting.value = false
+  } else {
+    router.push({ name: 'list' })
   }
 }
 </script>
@@ -475,6 +491,12 @@ async function handleSubmit() {
 .status-badge.inscripto {
   background: rgba(0, 137, 123, 0.12);
   color: #00695c;
+}
+
+.status-badge.seleccionado {
+  background: rgba(17, 166, 145, 0.15);
+  color: #00695c;
+  font-weight: 800;
 }
 
 .option-card.enrolled {
