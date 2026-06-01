@@ -177,7 +177,7 @@
               </button>
 
               <div v-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
-                Tenés una clase suelta el {{ formatFechaSingle(turnosConClaseSuelta.get(turno.id).clase_date) }}
+                Tenés inscripciones a clases individuales
               </div>
 
               <button
