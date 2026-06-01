@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -109,10 +109,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
     async def create_single(self, clase_id: int, user_id: int) -> Enrollment:
         clase = await self._lock_clase(clase_id)
         await self._check_clase_capacity(clase)
-        await self._check_single_limit(user_id)
+        turno = await self._get_turno(clase.turno_id)
+        await self._check_schedule_conflict_single(user_id, clase.date, turno.start_time, turno.end_time)
         await self._check_duplicate_single(clase_id, user_id)
 
-        turno = await self._get_turno(clase.turno_id)
         amount = Decimal(turno.class_price)
 
         enrollment_orm = EnrollmentORM(
@@ -395,12 +395,21 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             detail="Ya tenés una suscripción activa para este turno.",
         )
 
-    async def _check_single_limit(self, user_id: int) -> None:
+    async def _check_schedule_conflict_single(
+        self, user_id: int, clase_date: date, start_time: time, end_time: time
+    ) -> None:
         result = await self._session.execute(
-            select(EnrollmentORM).where(
+            select(EnrollmentORM)
+            .join(EnrollmentSlotORM, EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
+            .join(ClaseORM, ClaseORM.id == EnrollmentSlotORM.clase_id)
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .where(
                 EnrollmentORM.user_id == user_id,
                 EnrollmentORM.enrollment_type == EnrollmentType.SINGLE,
                 EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+                ClaseORM.date == clase_date,
+                TurnoORM.start_time < end_time,
+                TurnoORM.end_time > start_time,
             )
         )
         existing = result.scalar_one_or_none()
@@ -417,7 +426,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ya tenés una clase suelta activa. Cancelala antes de anotarte a otra.",
+            detail="Ya tenés otra clase suelta en ese día y horario.",
         )
 
     async def _check_duplicate_single(self, clase_id: int, user_id: int) -> None:

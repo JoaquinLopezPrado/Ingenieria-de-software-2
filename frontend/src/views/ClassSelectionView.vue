@@ -22,10 +22,6 @@
         {{ errorMessage }}
       </div>
 
-      <div v-else-if="hasActiveSingleEnrollment" class="state-box error">
-        Ya tenés una clase suelta activa. Cancelala antes de anotarte a otra.
-      </div>
-
       <div v-else class="field-group">
         <label class="label">Opciones disponibles</label>
 
@@ -116,7 +112,6 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const submitError = ref('')
 const clases = ref([])
-const hasActiveSingleEnrollment = ref(false)
 
 const turnoId = computed(() => String(route.query.turnoId || ''))
 const actividad = computed(() => String(route.query.actividad || 'Clase'))
@@ -183,10 +178,7 @@ const fetchClases = async () => {
       return
     }
 
-    const [clasesRes, mySingleRes] = await Promise.all([
-      turnoService.getClasesByTurno(turnoId.value),
-      enrollmentService.getMySingle(),
-    ])
+    const clasesRes = await turnoService.getClasesByTurno(turnoId.value)
 
     const items = Array.isArray(clasesRes.data)
       ? clasesRes.data
@@ -209,12 +201,6 @@ const fetchClases = async () => {
       }
     })
 
-    const now = Date.now()
-    hasActiveSingleEnrollment.value = mySingleRes.data
-      .some((e) =>
-        (e.status === 'confirmed' || e.status === 'pending') &&
-        (e.status === 'confirmed' || !e.expires_at || new Date(e.expires_at).getTime() > now)
-      )
   } catch (error) {
     console.error('Error al obtener clases', error)
     errorMessage.value = 'No se pudieron cargar las clases disponibles.'
