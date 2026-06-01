@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.domain.enrollment import Enrollment, EnrollmentStatus, EnrollmentType, MyMonthlyEnrollment, MySingleEnrollment
+from app.domain.enrollment import Enrollment, EnrollmentStatus, EnrollmentType, MySubscriptionEnrollment, MySingleEnrollment
 from app.domain.payment import EnrollmentPaymentDetails
 from app.models.activity import Activity as ActivityORM
 from app.models.clase import Clase as ClaseORM
@@ -21,7 +21,7 @@ _ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
 class AbstractEnrollmentRepository(ABC):
 
     @abstractmethod
-    async def create_monthly(self, turno_id: int, user_id: int) -> Enrollment:
+    async def create_subscription(self, turno_id: int, user_id: int) -> Enrollment:
         raise NotImplementedError
 
     @abstractmethod
@@ -37,7 +37,7 @@ class AbstractEnrollmentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_monthly_by_user(self, user_id: int) -> list[MyMonthlyEnrollment]:
+    async def get_subscriptions_by_user(self, user_id: int) -> list[MySubscriptionEnrollment]:
         raise NotImplementedError
 
     @abstractmethod
@@ -59,86 +59,48 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         self._session = session
 
     # ------------------------------------------------------------------ #
-    # Inscripción mensual                                                  #
+    # Suscripción mensual                                                  #
     # ------------------------------------------------------------------ #
 
-    async def create_monthly(self, turno_id: int, user_id: int) -> Enrollment:
+    async def create_subscription(self, turno_id: int, user_id: int) -> Enrollment:
         turno = await self._lock_turno(turno_id)
         await self._check_turno_capacity(turno)
-        await self._check_duplicate_monthly(turno_id, user_id)
+        await self._check_duplicate_subscription(turno_id, user_id)
 
-        # Todas las clases del turno, ordenadas por id (orden fijo → sin deadlocks).
-        all_clases = await self._lock_clases_of_turno(turno_id)
-        if not all_clases:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="El turno no tiene clases configuradas.",
-            )
-
-        today = date.today()
-        future_clases = [c for c in all_clases if c.date >= today]
+        future_clases = await self._get_future_clases(turno_id)
         if not future_clases:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="No quedan clases futuras en este turno.",
+                detail="El turno no tiene clases futuras disponibles.",
             )
 
-        existing_single_result = await self._session.execute(
-            select(EnrollmentSlotORM.clase_id)
-            .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
-            .where(
-                EnrollmentORM.user_id == user_id,
-                EnrollmentORM.enrollment_type == EnrollmentType.SINGLE,
-                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
-                EnrollmentSlotORM.clase_id.in_([c.id for c in future_clases]),
-            )
-        )
-        already_enrolled_ids = {row[0] for row in existing_single_result.all()}
+        today = date.today()
+        this_month_clases = [c for c in future_clases if c.date.month == today.month and c.date.year == today.year]
+        if this_month_clases:
+            payment_clases = this_month_clases
+        else:
+            # Tomar el próximo mes disponible entre las clases futuras
+            first_key = (future_clases[0].date.month, future_clases[0].date.year)
+            payment_clases = [c for c in future_clases if (c.date.month, c.date.year) == first_key]
 
-        clases_con_cupo = []
-        clases_sin_cupo = []
-        clases_ya_inscripto = []
-        for clase in future_clases:
-            if clase.id in already_enrolled_ids:
-                clases_ya_inscripto.append(clase)
-            elif await self._clase_tiene_cupo(clase):
-                clases_con_cupo.append(clase)
-            else:
-                clases_sin_cupo.append(clase)
-
-        if not clases_con_cupo:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Todas las clases futuras de este turno tienen el cupo completo.",
-            )
-
-        clases_excluidas = clases_sin_cupo + clases_ya_inscripto
-        precio_por_clase = Decimal(turno.price) / len(all_clases)
-        amount = (precio_por_clase * len(clases_con_cupo)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        amount = Decimal(turno.class_price) * len(payment_clases)
 
         enrollment_orm = EnrollmentORM(
             turno_id=turno_id,
             user_id=user_id,
-            enrollment_type=EnrollmentType.MONTHLY,
+            enrollment_type=EnrollmentType.SUBSCRIPTION,
             amount=amount,
             status=EnrollmentStatus.PENDING,
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
-            excluded_sin_cupo_count=len(clases_sin_cupo),
-            excluded_ya_inscripto_count=len(clases_ya_inscripto),
         )
         self._session.add(enrollment_orm)
         await self._session.flush()
 
-        for clase in clases_con_cupo:
+        for clase in future_clases:
             self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
-        return self._to_domain(
-            enrollment_orm,
-            excluded_clase_ids=[c.id for c in clases_excluidas],
-            excluded_sin_cupo_ids=[c.id for c in clases_sin_cupo],
-            excluded_ya_inscripto_ids=[c.id for c in clases_ya_inscripto],
-        )
+        return self._to_domain(enrollment_orm)
 
     # ------------------------------------------------------------------ #
     # Inscripción a clase suelta                                           #
@@ -150,14 +112,13 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         await self._check_duplicate_single(clase_id, user_id)
 
         turno = await self._get_turno(clase.turno_id)
-        total_clases = await self._count_active_clases(clase.turno_id)
-        precio_por_clase = (Decimal(turno.price) / total_clases).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        amount = Decimal(turno.class_price)
 
         enrollment_orm = EnrollmentORM(
             turno_id=clase.turno_id,
             user_id=user_id,
             enrollment_type=EnrollmentType.SINGLE,
-            amount=precio_por_clase,
+            amount=amount,
             status=EnrollmentStatus.PENDING,
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
         )
@@ -167,7 +128,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase_id))
         await self._session.flush()
 
-        return self._to_domain(enrollment_orm, [])
+        return self._to_domain(enrollment_orm)
 
     # ------------------------------------------------------------------ #
     # Pagos                                                                #
@@ -192,8 +153,6 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 TurnoORM.class_price,
                 num_classes_subq.label("num_classes"),
                 TurnoORM.activity_id,
-                TurnoORM.month,
-                TurnoORM.year,
                 EnrollmentORM.enrollment_type,
             )
             .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
@@ -206,6 +165,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Inscripción no encontrada.",
             )
+        today = date.today()
         return EnrollmentPaymentDetails(
             enrollment_id=row[0],
             user_id=row[1],
@@ -217,16 +177,19 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             class_price_snapshot=row[7],
             num_classes_snapshot=row[8] or 1,
             activity_id=row[9],
-            month=row[10],
-            year=row[11],
-            enrollment_type=row[12],
+            month=today.month,
+            year=today.year,
+            enrollment_type=row[10],
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:
+        values: dict = {"status": new_status, "payment_id": payment_id}
+        if new_status == EnrollmentStatus.CONFIRMED:
+            values["last_payment_date"] = date.today()
         result = await self._session.execute(
             update(EnrollmentORM)
             .where(EnrollmentORM.id == enrollment_id, EnrollmentORM.status == EnrollmentStatus.PENDING)
-            .values(status=new_status, payment_id=payment_id)
+            .values(**values)
         )
         return result.rowcount > 0
 
@@ -234,7 +197,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
     # Consultas por usuario                                                #
     # ------------------------------------------------------------------ #
 
-    async def get_monthly_by_user(self, user_id: int) -> list[MyMonthlyEnrollment]:
+    async def get_subscriptions_by_user(self, user_id: int) -> list[MySubscriptionEnrollment]:
         result = await self._session.execute(
             select(EnrollmentORM)
             .options(
@@ -243,13 +206,13 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             )
             .where(
                 EnrollmentORM.user_id == user_id,
-                EnrollmentORM.enrollment_type == EnrollmentType.MONTHLY,
+                EnrollmentORM.enrollment_type == EnrollmentType.SUBSCRIPTION,
                 EnrollmentORM.status.in_(_ACTIVE_STATUSES),
             )
             .order_by(EnrollmentORM.created_at.desc())
         )
         return [
-            MyMonthlyEnrollment(
+            MySubscriptionEnrollment(
                 enrollment_id=e.id,
                 status=e.status,
                 amount=e.amount,
@@ -257,15 +220,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 created_at=e.created_at,
                 turno_id=e.turno.id,
                 turno_description=e.turno.description,
-                month=e.turno.month,
-                year=e.turno.year,
                 start_time=e.turno.start_time,
                 end_time=e.turno.end_time,
                 instructor=e.turno.instructor,
                 activity_name=e.turno.activity.name,
                 days=[d.dia for d in e.turno.days],
-                excluded_sin_cupo_count=e.excluded_sin_cupo_count or 0,
-                excluded_ya_inscripto_count=e.excluded_ya_inscripto_count or 0,
+                last_payment_date=e.last_payment_date,
             )
             for e in result.scalars()
         ]
@@ -362,11 +322,15 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             )
         return clase
 
-    async def _lock_clases_of_turno(self, turno_id: int) -> list[ClaseORM]:
-        """Bloquea todas las clases del turno en orden ascendente de id para evitar deadlocks."""
+    async def _get_future_clases(self, turno_id: int) -> list[ClaseORM]:
+        today = date.today()
         result = await self._session.execute(
             select(ClaseORM)
-            .where(ClaseORM.turno_id == turno_id, ClaseORM.is_active == True)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+                ClaseORM.date >= today,
+            )
             .order_by(ClaseORM.id)
             .with_for_update()
         )
@@ -376,7 +340,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         result = await self._session.execute(
             select(func.count(EnrollmentORM.id)).where(
                 EnrollmentORM.turno_id == turno.id,
-                EnrollmentORM.enrollment_type == EnrollmentType.MONTHLY,
+                EnrollmentORM.enrollment_type == EnrollmentType.SUBSCRIPTION,
                 EnrollmentORM.status.in_(_ACTIVE_STATUSES),
             )
         )
@@ -404,21 +368,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 detail="No hay lugares disponibles en esta clase.",
             )
 
-    async def _count_active_clases(self, turno_id: int) -> int:
-        result = await self._session.execute(
-            select(func.count(ClaseORM.id)).where(
-                ClaseORM.turno_id == turno_id,
-                ClaseORM.is_active == True,
-            )
-        )
-        return result.scalar_one()
-
-    async def _check_duplicate_monthly(self, turno_id: int, user_id: int) -> None:
+    async def _check_duplicate_subscription(self, turno_id: int, user_id: int) -> None:
         result = await self._session.execute(
             select(EnrollmentORM).where(
                 EnrollmentORM.turno_id == turno_id,
                 EnrollmentORM.user_id == user_id,
-                EnrollmentORM.enrollment_type == EnrollmentType.MONTHLY,
+                EnrollmentORM.enrollment_type == EnrollmentType.SUBSCRIPTION,
                 EnrollmentORM.status.in_(_ACTIVE_STATUSES),
             )
         )
@@ -436,11 +391,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ya tenés una inscripción activa para este turno.",
+            detail="Ya tenés una suscripción activa para este turno.",
         )
 
     async def _check_duplicate_single(self, clase_id: int, user_id: int) -> None:
-        """Rechaza si el usuario ya tiene un slot activo para esta clase (sea por mensual o suelta)."""
         result = await self._session.execute(
             select(EnrollmentORM)
             .join(EnrollmentSlotORM, EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
@@ -464,16 +418,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ya tenés un lugar reservado una clase de este turno.",
+            detail="Ya tenés un lugar reservado en esta clase.",
         )
 
-    def _to_domain(
-        self,
-        orm: EnrollmentORM,
-        excluded_clase_ids: list[int] | None = None,
-        excluded_sin_cupo_ids: list[int] | None = None,
-        excluded_ya_inscripto_ids: list[int] | None = None,
-    ) -> Enrollment:
+    def _to_domain(self, orm: EnrollmentORM) -> Enrollment:
         return Enrollment(
             id=orm.id,
             turno_id=orm.turno_id,
@@ -484,7 +432,5 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             expires_at=orm.expires_at,
             payment_id=orm.payment_id,
             created_at=orm.created_at,
-            excluded_clase_ids=excluded_clase_ids or [],
-            excluded_sin_cupo_ids=excluded_sin_cupo_ids or [],
-            excluded_ya_inscripto_ids=excluded_ya_inscripto_ids or [],
+            last_payment_date=orm.last_payment_date,
         )

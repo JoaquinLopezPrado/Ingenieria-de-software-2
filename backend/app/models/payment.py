@@ -9,7 +9,7 @@ from app.models.mixins import IDMixin
 class Payment(IDMixin, Base):
     __tablename__ = "payments"
 
-    enrollment_id = Column(Integer, ForeignKey("enrollments.id"), unique=True, nullable=False)
+    enrollment_id = Column(Integer, ForeignKey("enrollments.id"), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
     class_price_snapshot = Column(Numeric(10, 2), nullable=False)
     num_classes_snapshot = Column(Integer, nullable=False)
@@ -25,4 +25,4 @@ class Payment(IDMixin, Base):
         nullable=False,
     )
 
-    enrollment = relationship("Enrollment", back_populates="payment")
+    enrollment = relationship("Enrollment", back_populates="payments")

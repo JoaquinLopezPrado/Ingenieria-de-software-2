@@ -15,10 +15,7 @@ class Turno(IDMixin, TimestampMixin, Base):
     start_time = Column(Time(timezone=False), nullable=False)
     end_time = Column(Time(timezone=False), nullable=False)
     capacity = Column(Integer, nullable=False)
-    price = Column(Numeric(10, 2), nullable=False)
     class_price = Column(Numeric(10, 2), nullable=False)
-    month = Column(Integer, nullable=False)
-    year = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=False, nullable=False)
 
     activity = relationship("Activity", back_populates="turnos")
@@ -27,7 +24,7 @@ class Turno(IDMixin, TimestampMixin, Base):
     enrollments = relationship("Enrollment", back_populates="turno")
 
     __table_args__ = (
-        UniqueConstraint("activity_id", "month", "year", "description", name="uq_turno_actividad_mes_descripcion"),
+        UniqueConstraint("activity_id", "description", "start_time", "end_time", name="uq_turno_actividad_descripcion_horario"),
     )
 
 

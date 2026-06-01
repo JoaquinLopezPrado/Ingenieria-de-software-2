@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, exists, func, or_, select, tuple_
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,7 +13,7 @@ from app.models.clase import Clase as ClaseORM
 from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as EnrollmentSlotORM
 from app.models.turno import Turno as TurnoORM, TurnoDia as TurnoDiaORM
 
-_MONTHLY_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
+_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
 
 
 class AbstractTurnoRepository(ABC):
@@ -23,8 +23,8 @@ class AbstractTurnoRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_by_activity_month_year_description(
-        self, activity_id: int, month: int, year: int, description: str
+    async def get_by_activity_description_time(
+        self, activity_id: int, description: str, start_time: time, end_time: time
     ) -> Optional[Turno]:
         raise NotImplementedError
 
@@ -33,7 +33,6 @@ class AbstractTurnoRepository(ABC):
         self,
         activity_id: Optional[int],
         has_availability: Optional[bool],
-        months: Optional[List[Tuple[int, int]]],
         page: int,
         page_size: int,
         include_inactive: bool = False,
@@ -49,10 +48,7 @@ class AbstractTurnoRepository(ABC):
         start_time: time,
         end_time: time,
         capacity: int,
-        price: Decimal,
         class_price: Decimal,
-        month: int,
-        year: int,
         days: List[DiaSemana],
         is_active: bool = False,
     ) -> Turno:
@@ -68,17 +64,14 @@ class TurnoRepository(AbstractTurnoRepository):
         self,
         activity_id: Optional[int],
         has_availability: Optional[bool],
-        months: Optional[List[Tuple[int, int]]],
         page: int,
         page_size: int,
         include_inactive: bool = False,
     ) -> Tuple[List[Turno], int]:
         base = select(TurnoORM)
-        if months is not None:
-            base = base.where(tuple_(TurnoORM.month, TurnoORM.year).in_(months))
         if not include_inactive:
             base = base.where(TurnoORM.is_active == True)
-        base = base.order_by(TurnoORM.year, TurnoORM.month)
+        base = base.order_by(TurnoORM.start_time, TurnoORM.description)
 
         if activity_id is not None:
             base = base.where(TurnoORM.activity_id == activity_id)
@@ -98,8 +91,8 @@ class TurnoRepository(AbstractTurnoRepository):
             select(func.count(EnrollmentORM.id))
             .where(
                 EnrollmentORM.turno_id == TurnoORM.id,
-                EnrollmentORM.enrollment_type == EnrollmentType.MONTHLY,
-                EnrollmentORM.status.in_(_MONTHLY_ACTIVE_STATUSES),
+                EnrollmentORM.enrollment_type == EnrollmentType.SUBSCRIPTION,
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
             )
             .correlate(TurnoORM)
             .scalar_subquery()
@@ -115,7 +108,7 @@ class TurnoRepository(AbstractTurnoRepository):
             .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
             .where(
                 EnrollmentSlotORM.clase_id == ClaseORM.id,
-                EnrollmentORM.status.in_(_MONTHLY_ACTIVE_STATUSES),
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
             )
             .correlate(ClaseORM)
             .scalar_subquery()
@@ -159,17 +152,17 @@ class TurnoRepository(AbstractTurnoRepository):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def get_by_activity_month_year_description(
-        self, activity_id: int, month: int, year: int, description: str
+    async def get_by_activity_description_time(
+        self, activity_id: int, description: str, start_time: time, end_time: time
     ) -> Optional[Turno]:
         result = await self._session.execute(
             select(TurnoORM)
             .options(selectinload(TurnoORM.days))
             .where(
                 TurnoORM.activity_id == activity_id,
-                TurnoORM.month == month,
-                TurnoORM.year == year,
                 TurnoORM.description == description,
+                TurnoORM.start_time == start_time,
+                TurnoORM.end_time == end_time,
                 TurnoORM.is_active == True,
             )
         )
@@ -184,10 +177,7 @@ class TurnoRepository(AbstractTurnoRepository):
         start_time: time,
         end_time: time,
         capacity: int,
-        price: Decimal,
         class_price: Decimal,
-        month: int,
-        year: int,
         days: List[DiaSemana],
         is_active: bool = False,
     ) -> Turno:
@@ -198,10 +188,7 @@ class TurnoRepository(AbstractTurnoRepository):
             start_time=start_time,
             end_time=end_time,
             capacity=capacity,
-            price=price,
             class_price=class_price,
-            month=month,
-            year=year,
             is_active=is_active,
         )
         self._session.add(orm)
@@ -223,10 +210,7 @@ class TurnoRepository(AbstractTurnoRepository):
             start_time=orm.start_time,
             end_time=orm.end_time,
             capacity=orm.capacity,
-            price=orm.price,
             class_price=orm.class_price,
-            month=orm.month,
-            year=orm.year,
             is_active=orm.is_active,
             days=[DiaSemana(dia_orm.dia) for dia_orm in orm.days],
             enrolled=enrolled,

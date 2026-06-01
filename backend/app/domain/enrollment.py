@@ -11,7 +11,7 @@ class EnrollmentStatus(str, enum.Enum):
 
 
 class EnrollmentType(str, enum.Enum):
-    MONTHLY = "monthly"
+    SUBSCRIPTION = "subscription"
     SINGLE = "single"
 
 
@@ -27,9 +27,7 @@ class Enrollment:
         expires_at: datetime | None,
         payment_id: str | None,
         created_at: datetime,
-        excluded_clase_ids: list[int] | None = None,
-        excluded_sin_cupo_ids: list[int] | None = None,
-        excluded_ya_inscripto_ids: list[int] | None = None,
+        last_payment_date: date | None = None,
     ):
         self.id = id
         self.turno_id = turno_id
@@ -40,12 +38,10 @@ class Enrollment:
         self.expires_at = expires_at
         self.payment_id = payment_id
         self.created_at = created_at
-        self.excluded_clase_ids = excluded_clase_ids or []
-        self.excluded_sin_cupo_ids = excluded_sin_cupo_ids or []
-        self.excluded_ya_inscripto_ids = excluded_ya_inscripto_ids or []
+        self.last_payment_date = last_payment_date
 
 
-class MyMonthlyEnrollment:
+class MySubscriptionEnrollment:
     def __init__(
         self,
         enrollment_id: int,
@@ -55,15 +51,12 @@ class MyMonthlyEnrollment:
         created_at: datetime,
         turno_id: int,
         turno_description: str,
-        month: int,
-        year: int,
         start_time: time,
         end_time: time,
         instructor: str,
         activity_name: str,
         days: List[str],
-        excluded_sin_cupo_count: int = 0,
-        excluded_ya_inscripto_count: int = 0,
+        last_payment_date: date | None = None,
     ):
         self.enrollment_id = enrollment_id
         self.status = status
@@ -72,15 +65,12 @@ class MyMonthlyEnrollment:
         self.created_at = created_at
         self.turno_id = turno_id
         self.turno_description = turno_description
-        self.month = month
-        self.year = year
         self.start_time = start_time
         self.end_time = end_time
         self.instructor = instructor
         self.activity_name = activity_name
         self.days = days
-        self.excluded_sin_cupo_count = excluded_sin_cupo_count
-        self.excluded_ya_inscripto_count = excluded_ya_inscripto_count
+        self.last_payment_date = last_payment_date
 
 
 class MySingleEnrollment:

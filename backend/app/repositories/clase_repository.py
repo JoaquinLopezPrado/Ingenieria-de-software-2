@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Tuple
+from typing import List
 
-from sqlalchemy import and_, func, or_, select, tuple_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
@@ -19,9 +19,7 @@ class AbstractClaseRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def list_by_activity_and_months(
-        self, activity_id: int, months: List[Tuple[int, int]]
-    ) -> List[Clase]:
+    async def list_by_activity(self, activity_id: int) -> List[Clase]:
         raise NotImplementedError
 
     @abstractmethod
@@ -42,17 +40,16 @@ class ClaseRepository(AbstractClaseRepository):
         self._session.add_all(clases)
         await self._session.flush()
 
-    async def list_by_activity_and_months(
-        self, activity_id: int, months: List[Tuple[int, int]]
-    ) -> List[Clase]:
+    async def list_by_activity(self, activity_id: int) -> List[Clase]:
+        today = date.today()
         result = await self._session.execute(
             select(ClaseORM)
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
             .where(
                 TurnoORM.activity_id == activity_id,
-                TurnoORM.is_active,
-                ClaseORM.is_active,
-                tuple_(TurnoORM.month, TurnoORM.year).in_(months),
+                TurnoORM.is_active == True,
+                ClaseORM.is_active == True,
+                ClaseORM.date >= today,
             )
             .order_by(ClaseORM.date)
         )

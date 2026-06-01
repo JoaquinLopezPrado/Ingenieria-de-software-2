@@ -13,18 +13,7 @@ from app.repositories.config_repository import AbstractConfigRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
 
 _DEFAULT_PAGE_SIZE = 20
-_DEFAULT_NEXT_MONTH_PREVIEW_DAYS = 10
-
-
-def _months_to_show(today: date, preview_days: int) -> List[Tuple[int, int]]:
-    _, days_in_month = calendar.monthrange(today.year, today.month)
-    days_remaining = days_in_month - today.day
-    months = [(today.month, today.year)]
-    if days_remaining <= preview_days:
-        next_month = today.month % 12 + 1
-        next_year = today.year + (1 if today.month == 12 else 0)
-        months.append((next_month, next_year))
-    return months
+_MONTHS_AHEAD = 3
 
 _DIA_A_WEEKDAY = {
     DiaSemana.LUNES: 0,
@@ -37,14 +26,24 @@ _DIA_A_WEEKDAY = {
 }
 
 
-def _generate_dates(month: int, year: int, days: List[DiaSemana]) -> List[date]:
+def _generate_dates_in_range(start: date, end: date, days: List[DiaSemana]) -> List[date]:
+    from datetime import timedelta
     target_weekdays = {_DIA_A_WEEKDAY[d] for d in days}
-    _, days_in_month = calendar.monthrange(year, month)
-    return [
-        date(year, month, day)
-        for day in range(1, days_in_month + 1)
-        if date(year, month, day).weekday() in target_weekdays
-    ]
+    result = []
+    current = start
+    while current <= end:
+        if current.weekday() in target_weekdays:
+            result.append(current)
+        current += timedelta(days=1)
+    return result
+
+
+def _end_date_months_ahead(start: date, months: int) -> date:
+    target_month = start.month + months
+    target_year = start.year + (target_month - 1) // 12
+    target_month = ((target_month - 1) % 12) + 1
+    last_day = calendar.monthrange(target_year, target_month)[1]
+    return date(target_year, target_month, last_day)
 
 
 class TurnoService:
@@ -68,9 +67,7 @@ class TurnoService:
         page: int,
     ) -> Tuple[List[Turno], int, int]:
         page_size = await self._config_repo.get_int("turnos_page_size", _DEFAULT_PAGE_SIZE)
-        preview_days = await self._config_repo.get_int("next_month_preview_days", _DEFAULT_NEXT_MONTH_PREVIEW_DAYS)
-        months = _months_to_show(date.today(), preview_days)
-        items, total = await self._turno_repo.list(activity_id, has_availability, months, page, page_size)
+        items, total = await self._turno_repo.list(activity_id, has_availability, page, page_size)
         return items, total, page_size
 
     async def list_all(
@@ -80,7 +77,7 @@ class TurnoService:
         page: int,
     ) -> Tuple[List[Turno], int, int]:
         page_size = await self._config_repo.get_int("turnos_page_size", _DEFAULT_PAGE_SIZE)
-        items, total = await self._turno_repo.list(activity_id, has_availability, None, page, page_size, include_inactive=True)
+        items, total = await self._turno_repo.list(activity_id, has_availability, page, page_size, include_inactive=True)
         return items, total, page_size
 
     async def create(
@@ -92,8 +89,7 @@ class TurnoService:
         end_time: time,
         capacity: int,
         class_price: Decimal,
-        month: int,
-        year: int,
+        start_date: date,
         days: List[DiaSemana],
         is_active: bool = False,
     ) -> Turno:
@@ -104,23 +100,23 @@ class TurnoService:
                 detail="Actividad no encontrada.",
             )
 
-        existing = await self._turno_repo.get_by_activity_month_year_description(
-            activity_id, month, year, description
+        existing = await self._turno_repo.get_by_activity_description_time(
+            activity_id, description, start_time, end_time
         )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un turno con esa actividad, descripción y período (mes y año)",
+                detail="Ya existe un turno activo con esa actividad, descripción y horario.",
             )
 
-        dates = _generate_dates(month, year, days)
-        price = class_price * len(dates)
-
         turno = await self._turno_repo.create(
-            activity_id, description, instructor, start_time, end_time, capacity, price, class_price, month, year, days, is_active
+            activity_id, description, instructor, start_time, end_time, capacity, class_price, days, is_active
         )
 
-        await self._clase_repo.create_many(turno.id, dates, capacity)
+        end_date = _end_date_months_ahead(start_date, _MONTHS_AHEAD)
+        dates = _generate_dates_in_range(start_date, end_date, days)
+        if dates:
+            await self._clase_repo.create_many(turno.id, dates, capacity)
 
         return turno
 
@@ -140,6 +136,4 @@ class TurnoService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Actividad no encontrada.",
             )
-        preview_days = await self._config_repo.get_int("next_month_preview_days", _DEFAULT_NEXT_MONTH_PREVIEW_DAYS)
-        months = _months_to_show(date.today(), preview_days)
-        return await self._clase_repo.list_by_activity_and_months(activity_id, months)
+        return await self._clase_repo.list_by_activity(activity_id)

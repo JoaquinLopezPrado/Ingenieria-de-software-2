@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -22,12 +22,11 @@ class Enrollment(IDMixin, TimestampMixin, Base):
     )
     expires_at = Column(DateTime(timezone=True), nullable=True)
     payment_id = Column(String, nullable=True)
-    excluded_sin_cupo_count = Column(Integer, nullable=False, default=0, server_default="0")
-    excluded_ya_inscripto_count = Column(Integer, nullable=False, default=0, server_default="0")
+    last_payment_date = Column(Date, nullable=True)
 
     turno = relationship("Turno", back_populates="enrollments")
     slots = relationship("EnrollmentSlot", back_populates="enrollment", cascade="all, delete-orphan")
-    payment = relationship("Payment", back_populates="enrollment", uselist=False)
+    payments = relationship("Payment", back_populates="enrollment")
 
 
 class EnrollmentSlot(IDMixin, Base):

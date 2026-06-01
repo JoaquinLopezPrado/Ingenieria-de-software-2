@@ -5,10 +5,10 @@ from app.core.dependencies import get_current_user, get_db
 from app.domain.user import User
 from app.repositories.enrollment_repository import EnrollmentRepository
 from app.schemas.enrollment import (
-    CreateMonthlyEnrollmentRequest,
+    CreateSubscriptionEnrollmentRequest,
     CreateSingleEnrollmentRequest,
     EnrollmentResponse,
-    MyMonthlyEnrollmentResponse,
+    MySubscriptionEnrollmentResponse,
     MySingleEnrollmentResponse,
 )
 from app.services.enrollment_service import EnrollmentService
@@ -21,16 +21,16 @@ def get_enrollment_service(db: AsyncSession = Depends(get_db)) -> EnrollmentServ
 
 
 @router.post(
-    "/monthly",
+    "/subscription",
     response_model=EnrollmentResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_monthly_enrollment(
-    body: CreateMonthlyEnrollmentRequest,
+async def create_subscription_enrollment(
+    body: CreateSubscriptionEnrollmentRequest,
     current_user: User = Depends(get_current_user),
     service: EnrollmentService = Depends(get_enrollment_service),
 ):
-    enrollment = await service.create_monthly(turno_id=body.turno_id, user_id=current_user.id)
+    enrollment = await service.create_subscription(turno_id=body.turno_id, user_id=current_user.id)
     return EnrollmentResponse.model_validate(enrollment.__dict__)
 
 
@@ -61,16 +61,16 @@ async def cancel_enrollment(
 
 
 @router.get(
-    "/my/monthly",
-    response_model=list[MyMonthlyEnrollmentResponse],
+    "/my/subscription",
+    response_model=list[MySubscriptionEnrollmentResponse],
     status_code=status.HTTP_200_OK,
 )
-async def list_my_monthly_enrollments(
+async def list_my_subscriptions(
     current_user: User = Depends(get_current_user),
     service: EnrollmentService = Depends(get_enrollment_service),
 ):
-    items = await service.get_monthly_by_user(user_id=current_user.id)
-    return [MyMonthlyEnrollmentResponse.model_validate(e.__dict__) for e in items]
+    items = await service.get_subscriptions_by_user(user_id=current_user.id)
+    return [MySubscriptionEnrollmentResponse.model_validate(e.__dict__) for e in items]
 
 
 @router.get(

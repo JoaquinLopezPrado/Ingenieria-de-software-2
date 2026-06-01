@@ -16,10 +16,11 @@ LIST_TURNOS_RESPONSES: _Responses = {
                             "start_time": "9:00",
                             "end_time": "10:30",
                             "capacity": 20,
-                            "month": 5,
-                            "year": 2026,
+                            "class_price": "3500.00",
                             "is_active": True,
                             "days": ["lunes", "miercoles", "viernes"],
+                            "enrolled": 5,
+                            "has_remaining_classes": True,
                         }
                     ],
                     "total": 1,
@@ -52,10 +53,11 @@ CREATE_TURNO_RESPONSES: _Responses = {
                     "start_time": "9:00",
                     "end_time": "10:30",
                     "capacity": 20,
-                    "month": 5,
-                    "year": 2026,
+                    "class_price": "3500.00",
                     "is_active": True,
                     "days": ["lunes", "miercoles", "viernes"],
+                    "enrolled": 0,
+                    "has_remaining_classes": True,
                 }
             }
         },
@@ -85,10 +87,10 @@ CREATE_TURNO_RESPONSES: _Responses = {
         },
     },
     409: {
-        "description": "Ya existe un turno con esa actividad, descripción y período (mes y año)",
+        "description": "Ya existe un turno activo con esa actividad, descripción y horario.",
         "content": {
             "application/json": {
-                "example": {"errors": {"general": "Ya existe un turno con esa actividad, descripción y período (mes y año)"}}
+                "example": {"errors": {"general": "Ya existe un turno activo con esa actividad, descripción y horario."}}
             }
         },
     },
