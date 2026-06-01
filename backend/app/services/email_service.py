@@ -8,7 +8,7 @@ import aiosmtplib
 import httpx
 
 from app.core.config import settings
-from app.services.email_templates import enrollment_confirmed, payment_confirmed, welcome
+from app.services.email_templates import single_payment_confirmed, subscription_payment_confirmed, welcome
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class EmailService:
             self._send(to, "¡Bienvenido/a a Centro de Actividades!", welcome(first_name))
         )
 
-    def send_enrollment_confirmed(
+    def send_subscription_confirmed(
         self,
         to: str,
         first_name: str,
@@ -28,24 +28,35 @@ class EmailService:
         turno_description: str,
         amount: Decimal,
         payment_id: str,
+        original_amount: Decimal = Decimal(0),
+        discount_full_classes: Decimal = Decimal(0),
     ) -> None:
-        html = enrollment_confirmed(first_name, activity_name, turno_description, amount, payment_id)
+        html = subscription_payment_confirmed(
+            first_name, activity_name, turno_description, amount, payment_id,
+            original_amount=original_amount, discount_full_classes=discount_full_classes,
+        )
+        subject = "Sin costo" if payment_id == "free" else f"$ {amount:,.2f}"
         asyncio.create_task(
-            self._send(to, f"Inscripción confirmada — {activity_name}", html)
+            self._send(to, f"Suscripción confirmada — {activity_name} ({subject})", html)
         )
 
-    def send_payment_confirmed(
+    def send_single_confirmed(
         self,
         to: str,
         first_name: str,
         activity_name: str,
         turno_description: str,
-        price: Decimal,
+        num_classes: int,
+        class_price: Decimal,
+        amount: Decimal,
         payment_id: str,
     ) -> None:
-        html = payment_confirmed(first_name, activity_name, turno_description, price, payment_id)
+        html = single_payment_confirmed(
+            first_name, activity_name, turno_description, num_classes, class_price, amount, payment_id
+        )
+        clases = "clase" if num_classes == 1 else "clases"
         asyncio.create_task(
-            self._send(to, f"Pago confirmado — Centro de Actividades", html)
+            self._send(to, f"Inscripción confirmada — {num_classes} {clases} de {activity_name}", html)
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:

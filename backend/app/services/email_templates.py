@@ -62,17 +62,56 @@ def welcome(first_name: str) -> str:
     return _wrap(content)
 
 
-def enrollment_confirmed(
+def subscription_payment_confirmed(
     first_name: str,
     activity_name: str,
     turno_description: str,
     amount: Decimal,
     payment_id: str,
+    original_amount: Decimal = Decimal(0),
+    discount_full_classes: Decimal = Decimal(0),
 ) -> str:
+    if payment_id == "free":
+        payment_row = ""
+        amount_label = "Sin costo adicional"
+        amount_value = "$ 0,00"
+    else:
+        payment_row = f"""
+        <tr>
+          <td style="color:#666;font-size:13px;">N° transacción MP</td>
+          <td style="color:#888;font-size:13px;font-family:monospace;">{payment_id}</td>
+        </tr>"""
+        amount_label = "Total abonado"
+        amount_value = f"$ {amount:,.2f}"
+
+    discount_single = original_amount - amount - discount_full_classes
+    precio_base = original_amount + discount_full_classes
+
+    price_rows = ""
+    if discount_full_classes > 0 or discount_single > 0:
+        price_rows += f"""
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Precio mensual</td>
+          <td style="color:#222;">$ {precio_base:,.2f}</td>
+        </tr>"""
+        if discount_full_classes > 0:
+            price_rows += f"""
+        <tr>
+          <td style="color:#e53935;font-size:13px;">Descuento por clase con cupo lleno</td>
+          <td style="color:#e53935;">- $ {discount_full_classes:,.2f}</td>
+        </tr>"""
+        if discount_single > 0:
+            price_rows += f"""
+        <tr style="background:#f0faf8;">
+          <td style="color:#e53935;font-size:13px;">Descuento por clases individuales ya abonadas</td>
+          <td style="color:#e53935;">- $ {discount_single:,.2f}</td>
+        </tr>"""
+
     content = f"""
-      <h2 style="color:#11a691;margin-top:0;">¡Pago confirmado, {first_name}!</h2>
+      <h2 style="color:#11a691;margin-top:0;">¡Suscripción confirmada, {first_name}!</h2>
       <p style="color:#444;line-height:1.6;">
-        Tu inscripción quedó confirmada. Estos son los detalles:
+        Tu suscripción quedó activa. A partir de ahora tenés el cupo reservado en cada clase del turno.
+        El costo se renueva mes a mes según las clases del período.
       </p>
       <table width="100%" cellpadding="8" cellspacing="0"
              style="border-collapse:collapse;margin:20px 0;">
@@ -85,13 +124,13 @@ def enrollment_confirmed(
           <td style="color:#222;">{turno_description}</td>
         </tr>
         <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">Monto pagado</td>
-          <td style="color:#222;font-weight:bold;">$ {amount:,.2f}</td>
-        </tr>
+          <td style="color:#666;font-size:13px;">Tipo</td>
+          <td style="color:#222;">Suscripción mensual</td>
+        </tr>{price_rows}
         <tr>
-          <td style="color:#666;font-size:13px;">N° transacción MP</td>
-          <td style="color:#888;font-size:13px;font-family:monospace;">{payment_id}</td>
-        </tr>
+          <td style="color:#666;font-size:13px;"><strong>{amount_label}</strong></td>
+          <td style="color:#222;font-weight:bold;">{amount_value}</td>
+        </tr>{payment_row}
       </table>
       <p style="color:#444;line-height:1.6;">
         ¡Te esperamos! Si tenés alguna consulta, contactanos por nuestros canales habituales.
@@ -100,22 +139,25 @@ def enrollment_confirmed(
     return _wrap(content)
 
 
-def payment_confirmed(
+def single_payment_confirmed(
     first_name: str,
     activity_name: str,
     turno_description: str,
-    price: Decimal,
+    num_classes: int,
+    class_price: Decimal,
+    amount: Decimal,
     payment_id: str,
 ) -> str:
+    clases_label = "clase" if num_classes == 1 else "clases"
     content = f"""
-      <h2 style="color:#11a691;margin-top:0;">¡Pago confirmado, {first_name}!</h2>
+      <h2 style="color:#11a691;margin-top:0;">¡Inscripción confirmada, {first_name}!</h2>
       <p style="color:#444;line-height:1.6;">
-        Tu inscripción quedó registrada. Estos son los detalles:
+        Tu reserva de {num_classes} {clases_label} individual{"" if num_classes == 1 else "es"} quedó confirmada.
       </p>
       <table width="100%" cellpadding="8" cellspacing="0"
              style="border-collapse:collapse;margin:20px 0;">
         <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;border-radius:4px 0 0 4px;">Actividad</td>
+          <td style="color:#666;font-size:13px;">Actividad</td>
           <td style="color:#222;font-weight:bold;">{activity_name}</td>
         </tr>
         <tr>
@@ -123,15 +165,27 @@ def payment_confirmed(
           <td style="color:#222;">{turno_description}</td>
         </tr>
         <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">Monto pagado</td>
-          <td style="color:#222;font-weight:bold;">$ {price:,.2f}</td>
+          <td style="color:#666;font-size:13px;">Tipo</td>
+          <td style="color:#222;">Clase{"" if num_classes == 1 else "s"} individual{"" if num_classes == 1 else "es"}</td>
         </tr>
         <tr>
-          <td style="color:#666;font-size:13px;">N° comprobante MP</td>
+          <td style="color:#666;font-size:13px;">Clases reservadas</td>
+          <td style="color:#222;">{num_classes}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Precio por clase</td>
+          <td style="color:#222;">$ {class_price:,.2f}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Total abonado</td>
+          <td style="color:#222;font-weight:bold;">$ {amount:,.2f}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">N° transacción MP</td>
           <td style="color:#888;font-size:13px;font-family:monospace;">{payment_id}</td>
         </tr>
       </table>
-      <p style="color:#444;line-height:1.6;margin-top:16px;">
+      <p style="color:#444;line-height:1.6;">
         ¡Te esperamos! Si tenés alguna consulta, contactanos por nuestros canales habituales.
       </p>
     """

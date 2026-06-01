@@ -189,6 +189,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 num_classes_subq.label("num_classes"),
                 TurnoORM.activity_id,
                 EnrollmentORM.enrollment_type,
+                EnrollmentORM.original_amount,
+                EnrollmentORM.discount_full_classes,
             )
             .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
             .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
@@ -201,11 +203,14 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 detail="Inscripción no encontrada.",
             )
         today = date.today()
+        amount = row[3]
+        original_amount = row[11] if row[11] is not None else amount
+        discount_full_classes = row[12] if row[12] is not None else Decimal(0)
         return EnrollmentPaymentDetails(
             enrollment_id=row[0],
             user_id=row[1],
             status=row[2],
-            price=row[3],
+            price=amount,
             activity_name=row[4],
             turno_description=row[5],
             expires_at=row[6],
@@ -215,6 +220,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             month=today.month,
             year=today.year,
             enrollment_type=row[10],
+            original_amount=original_amount,
+            discount_full_classes=discount_full_classes,
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:

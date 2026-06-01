@@ -21,6 +21,8 @@ class EnrollmentPaymentDetails:
     month: int
     year: int
     enrollment_type: str
+    original_amount: Decimal = Decimal(0)
+    discount_full_classes: Decimal = Decimal(0)
 
 
 @dataclass

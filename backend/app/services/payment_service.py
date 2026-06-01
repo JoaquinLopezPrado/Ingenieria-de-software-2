@@ -6,7 +6,7 @@ import mercadopago
 from fastapi import HTTPException, status
 
 from app.core.config import settings
-from app.domain.enrollment import EnrollmentStatus
+from app.domain.enrollment import EnrollmentStatus, EnrollmentType
 from app.repositories.enrollment_repository import AbstractEnrollmentRepository
 from app.repositories.payment_repository import AbstractPaymentRepository
 from app.repositories.user_repository import AbstractUserRepository
@@ -161,6 +161,7 @@ class PaymentService:
             new_status=EnrollmentStatus.CONFIRMED,
             payment_id="free",
         )
+        await self._send_payment_email(enrollment_id, "free")
 
     async def get_mp_status_detail(self, payment_id: str) -> str | None:
         if not payment_id or payment_id == "0":
@@ -178,11 +179,26 @@ class PaymentService:
         user = await self._user_repo.get_by_id(details.user_id)
         if not user or not user.client_profile:
             return
-        self._email_service.send_enrollment_confirmed(
-            to=user.email,
-            first_name=user.client_profile.first_name,
-            activity_name=details.activity_name,
-            turno_description=details.turno_description,
-            amount=details.price,
-            payment_id=payment_id,
-        )
+        first_name = user.client_profile.first_name
+        if details.enrollment_type == EnrollmentType.SUBSCRIPTION:
+            self._email_service.send_subscription_confirmed(
+                to=user.email,
+                first_name=first_name,
+                activity_name=details.activity_name,
+                turno_description=details.turno_description,
+                amount=details.price,
+                original_amount=details.original_amount,
+                discount_full_classes=details.discount_full_classes,
+                payment_id=payment_id,
+            )
+        else:
+            self._email_service.send_single_confirmed(
+                to=user.email,
+                first_name=first_name,
+                activity_name=details.activity_name,
+                turno_description=details.turno_description,
+                num_classes=details.num_classes_snapshot,
+                class_price=details.class_price_snapshot,
+                amount=details.price,
+                payment_id=payment_id,
+            )
