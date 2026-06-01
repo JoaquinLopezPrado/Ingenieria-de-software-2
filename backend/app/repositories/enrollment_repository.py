@@ -109,6 +109,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
     async def create_single(self, clase_id: int, user_id: int) -> Enrollment:
         clase = await self._lock_clase(clase_id)
         await self._check_clase_capacity(clase)
+        await self._check_single_limit(user_id)
         await self._check_duplicate_single(clase_id, user_id)
 
         turno = await self._get_turno(clase.turno_id)
@@ -392,6 +393,31 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya tenés una suscripción activa para este turno.",
+        )
+
+    async def _check_single_limit(self, user_id: int) -> None:
+        result = await self._session.execute(
+            select(EnrollmentORM).where(
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.enrollment_type == EnrollmentType.SINGLE,
+                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
+            )
+        )
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            return
+
+        if (
+            existing.status == EnrollmentStatus.PENDING
+            and existing.expires_at is not None
+            and existing.expires_at <= datetime.now(timezone.utc)
+        ):
+            existing.status = EnrollmentStatus.CANCELLED
+            return
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya tenés una clase suelta activa. Cancelala antes de anotarte a otra.",
         )
 
     async def _check_duplicate_single(self, clase_id: int, user_id: int) -> None:

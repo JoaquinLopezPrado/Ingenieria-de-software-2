@@ -1,9 +1,9 @@
 <template>
   <div class="class-page">
     <div class="class-card">
-      <h1 class="title">Clase individual</h1>
+      <h1 class="title">Clase suelta</h1>
       <p class="subtitle">
-        Elegí una fecha disponible para tu clase individual del turno seleccionado.
+        Elegí una fecha disponible para tu clase suelta del turno seleccionado.
       </p>
 
       <div class="selected-turno-box">
@@ -23,7 +23,7 @@
       </div>
 
       <div v-else-if="hasActiveSingleEnrollment" class="state-box error">
-        Ya tenés una clase de prueba reservada. Solo podés tener una activa a la vez.
+        Ya tenés una clase suelta activa. Cancelala antes de anotarte a otra.
       </div>
 
       <div v-else class="field-group">
@@ -213,12 +213,11 @@ const fetchClases = async () => {
     hasActiveSingleEnrollment.value = mySingleRes.data
       .some((e) =>
         (e.status === 'confirmed' || e.status === 'pending') &&
-        String(e.turno_id) === turnoId.value &&
         (e.status === 'confirmed' || !e.expires_at || new Date(e.expires_at).getTime() > now)
       )
   } catch (error) {
     console.error('Error al obtener clases', error)
-    errorMessage.value = 'No se pudieron cargar las clases de prueba individual.'
+    errorMessage.value = 'No se pudieron cargar las clases disponibles.'
   } finally {
     loading.value = false
   }
@@ -281,12 +280,18 @@ async function handleSubmit() {
     console.error('Error al crear inscripción individual', error)
 
     if (error.response?.status === 409) {
-      const claseToUpdate = clases.value.find(c => String(c.id) === String(selectedOptionId.value))
-      if (claseToUpdate) {
-        claseToUpdate.occupied = claseToUpdate.capacity
-        claseToUpdate.availableSpots = 0
+      const backendMsg = error.response?.data?.errors?.general || error.response?.data?.detail
+      const isCapacityError = !backendMsg || backendMsg.includes('cupo') || backendMsg.includes('lugar')
+      if (isCapacityError) {
+        const claseToUpdate = clases.value.find(c => String(c.id) === String(selectedOptionId.value))
+        if (claseToUpdate) {
+          claseToUpdate.occupied = claseToUpdate.capacity
+          claseToUpdate.availableSpots = 0
+        }
+        submitError.value = 'Otro usuario tomó el último lugar disponible. El cupo se liberará automáticamente si no completa el pago.'
+      } else {
+        submitError.value = backendMsg
       }
-      submitError.value = 'Otro usuario tomó el último lugar disponible. El cupo se liberará automáticamente si no completa el pago.'
     } else if (error.response?.status === 404) {
       submitError.value = 'La clase seleccionada no está disponible.'
     } else {
