@@ -1,5 +1,5 @@
 import calendar
-from datetime import date, time
+from datetime import date, time, timedelta
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
@@ -10,6 +10,7 @@ from app.domain.turno import DiaSemana, Turno
 from app.repositories.activity_repository import AbstractActivityRepository
 from app.repositories.clase_repository import AbstractClaseRepository
 from app.repositories.config_repository import AbstractConfigRepository
+from app.repositories.enrollment_repository import AbstractEnrollmentRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
 
 _DEFAULT_PAGE_SIZE = 20
@@ -54,11 +55,13 @@ class TurnoService:
         clase_repo: AbstractClaseRepository,
         activity_repo: AbstractActivityRepository,
         config_repo: AbstractConfigRepository,
+        enrollment_repo: AbstractEnrollmentRepository,
     ):
         self._turno_repo = turno_repo
         self._clase_repo = clase_repo
         self._activity_repo = activity_repo
         self._config_repo = config_repo
+        self._enrollment_repo = enrollment_repo
 
     async def list(
         self,
@@ -128,6 +131,27 @@ class TurnoService:
                 detail="Turno no encontrado.",
             )
         return await self._clase_repo.list_by_turno(turno_id)
+
+    async def generate_upcoming_classes(self, turno_id: int) -> int:
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+
+        last_date = await self._clase_repo.get_last_date(turno_id)
+        start = (last_date + timedelta(days=1)) if last_date else date.today()
+        end = _end_date_months_ahead(start, _MONTHS_AHEAD)
+        dates = _generate_dates_in_range(start, end, turno.days)
+
+        if not dates:
+            return 0
+
+        clase_ids = await self._clase_repo.create_many(turno.id, dates, turno.capacity)
+
+        subscription_ids = await self._enrollment_repo.get_active_subscription_ids(turno_id)
+        if subscription_ids:
+            await self._enrollment_repo.create_slots_for_clases(subscription_ids, clase_ids)
+
+        return len(clase_ids)
 
     async def list_clases_by_activity(self, activity_id: int) -> List[Clase]:
         activity = await self._activity_repo.get_active_by_id(activity_id)

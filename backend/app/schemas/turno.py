@@ -71,6 +71,10 @@ class ClaseDetalleResponse(BaseModel):
         return _format_time(value)
 
 
+class GenerateClassesResponse(BaseModel):
+    generated: int
+
+
 class TurnoPageResponse(BaseModel):
     items: List["TurnoResponse"]
     total: int

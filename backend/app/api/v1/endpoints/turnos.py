@@ -9,8 +9,9 @@ from app.core.dependencies import get_db, require_roles
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
+from app.repositories.enrollment_repository import EnrollmentRepository
 from app.repositories.turno_repository import TurnoRepository
-from app.schemas.turno import ClaseDetalleResponse, CreateTurnoRequest, TurnoPageResponse, TurnoResponse
+from app.schemas.turno import ClaseDetalleResponse, CreateTurnoRequest, GenerateClassesResponse, TurnoPageResponse, TurnoResponse
 from app.services.turno_service import TurnoService
 
 router = APIRouter()
@@ -22,6 +23,7 @@ def get_turno_service(db: AsyncSession = Depends(get_db)) -> TurnoService:
         clase_repo=ClaseRepository(db),
         activity_repo=ActivityRepository(db),
         config_repo=ConfigRepository(db),
+        enrollment_repo=EnrollmentRepository(db),
     )
 
 
@@ -106,3 +108,17 @@ async def create_turno(
         days=body.days,
         is_active=body.is_active,
     )
+
+
+@router.post(
+    "/{turno_id}/generate-classes",
+    response_model=GenerateClassesResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def generate_classes(
+    turno_id: int,
+    _=require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    generated = await service.generate_upcoming_classes(turno_id)
+    return GenerateClassesResponse(generated=generated)

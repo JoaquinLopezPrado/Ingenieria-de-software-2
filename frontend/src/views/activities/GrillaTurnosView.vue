@@ -5,6 +5,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import {
   getTurnosAll,
   getAllActivities,
+  generateClasses,
   extractBackendError,
   type Turno,
   type ActivityOption,
@@ -164,6 +165,26 @@ function clearFilters() {
 
 function goToPage(page: number | '...') {
   if (typeof page === 'number') currentPage.value = page
+}
+
+// ─── Generación de clases ─────────────────────────────────────────────────────
+
+const generatingTurnoId = ref<number | null>(null)
+const generateResult = ref<{ turnoId: number; generated: number } | null>(null)
+
+async function handleGenerateClasses(turnoId: number) {
+  generatingTurnoId.value = turnoId
+  generateResult.value = null
+  try {
+    const { generated } = await generateClasses(turnoId)
+    generateResult.value = { turnoId, generated }
+    setTimeout(() => { generateResult.value = null }, 4000)
+  } catch {
+    generateResult.value = { turnoId, generated: -1 }
+    setTimeout(() => { generateResult.value = null }, 4000)
+  } finally {
+    generatingTurnoId.value = null
+  }
 }
 
 // ─── Carga inicial ─────────────────────────────────────────────────────────────
@@ -379,6 +400,24 @@ onMounted(async () => {
                 >
                   Editar
                 </RouterLink>
+                <button
+                  class="btn-generate"
+                  :disabled="generatingTurnoId === turno.id"
+                  @click="handleGenerateClasses(turno.id)"
+                  type="button"
+                >
+                  {{ generatingTurnoId === turno.id ? '...' : '+ Clases' }}
+                </button>
+                <span
+                  v-if="generateResult?.turnoId === turno.id"
+                  :class="['generate-result', generateResult.generated >= 0 ? 'ok' : 'err']"
+                >
+                  {{ generateResult.generated >= 0
+                    ? generateResult.generated === 0
+                      ? 'Sin clases nuevas'
+                      : `${generateResult.generated} clases generadas`
+                    : 'Error al generar' }}
+                </span>
               </td>
             </tr>
           </tbody>
@@ -820,6 +859,43 @@ onMounted(async () => {
   background-color: #dbeafe;
   border-color: #93c5fd;
 }
+
+.btn-generate {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.btn-generate:hover:not(:disabled) {
+  background-color: #dcfce7;
+  border-color: #86efac;
+}
+
+.btn-generate:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.generate-result {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.generate-result.ok { color: #15803d; }
+.generate-result.err { color: #dc2626; }
 
 /* ── Footer de la tabla ── */
 

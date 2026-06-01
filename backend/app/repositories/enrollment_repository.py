@@ -45,6 +45,14 @@ class AbstractEnrollmentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_active_subscription_ids(self, turno_id: int) -> list[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_slots_for_clases(self, enrollment_ids: list[int], clase_ids: list[int]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def cancel_expired(self) -> int:
         raise NotImplementedError
 
@@ -281,6 +289,22 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                     activity_name=e.turno.activity.name,
                 ))
         return enrollments
+
+    async def get_active_subscription_ids(self, turno_id: int) -> list[int]:
+        result = await self._session.execute(
+            select(EnrollmentORM.id).where(
+                EnrollmentORM.turno_id == turno_id,
+                EnrollmentORM.enrollment_type == EnrollmentType.SUBSCRIPTION,
+                EnrollmentORM.status == EnrollmentStatus.CONFIRMED,
+            )
+        )
+        return [row[0] for row in result.all()]
+
+    async def create_slots_for_clases(self, enrollment_ids: list[int], clase_ids: list[int]) -> None:
+        for enrollment_id in enrollment_ids:
+            for clase_id in clase_ids:
+                self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_id, clase_id=clase_id))
+        await self._session.flush()
 
     async def cancel_expired(self) -> int:
         result = await self._session.execute(
