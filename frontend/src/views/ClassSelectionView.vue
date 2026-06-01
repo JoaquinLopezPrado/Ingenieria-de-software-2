@@ -30,14 +30,21 @@
             v-for="option in availableOptions"
             :key="option.id"
             class="option-card"
-            :class="{ selected: String(selectedOptionId) === String(option.id) }"
-            @click="selectOption(option.id)"
+            :class="{
+              selected: String(selectedOptionId) === String(option.id),
+              enrolled: option.isEnrolled,
+            }"
+            :disabled="option.isEnrolled"
+            @click="!option.isEnrolled && selectOption(option.id)"
             type="button"
           >
             <div class="option-header">
               <h3>{{ option.displayDate }}</h3>
 
-              <span class="status-badge available">
+              <span v-if="option.isEnrolled" class="status-badge inscripto">
+                Inscripto
+              </span>
+              <span v-else class="status-badge available">
                 Disponible
               </span>
             </div>
@@ -123,7 +130,7 @@ const instructor = computed(() => String(route.query.instructor || 'Instructor')
 
 const availableOptions = computed(() => {
   return clases.value
-    .filter((clase) => clase.isActive && clase.availableSpots > 0)
+    .filter((clase) => clase.isActive && (clase.isEnrolled || clase.availableSpots > 0))
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
 })
 
@@ -134,7 +141,7 @@ const selectedOption = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return !!selectedOption.value && selectedOption.value.availableSpots > 0
+  return !!selectedOption.value && selectedOption.value.availableSpots > 0 && !selectedOption.value.isEnrolled
 })
 
 const formatDate = (value) => {
@@ -178,7 +185,20 @@ const fetchClases = async () => {
       return
     }
 
-    const clasesRes = await turnoService.getClasesByTurno(turnoId.value)
+    const [clasesRes, mySingleRes] = await Promise.all([
+      turnoService.getClasesByTurno(turnoId.value),
+      enrollmentService.getMySingle(),
+    ])
+
+    const now = Date.now()
+    const enrolledClaseIds = new Set(
+      mySingleRes.data
+        .filter((e) =>
+          String(e.turno_id) === turnoId.value &&
+          (e.status === 'confirmed' || (e.status === 'pending' && e.expires_at && new Date(e.expires_at).getTime() > now))
+        )
+        .map((e) => e.clase_id)
+    )
 
     const items = Array.isArray(clasesRes.data)
       ? clasesRes.data
@@ -198,6 +218,7 @@ const fetchClases = async () => {
         occupied,
         availableSpots: Math.max(capacity - occupied, 0),
         isActive: clase.is_active ?? true,
+        isEnrolled: enrolledClaseIds.has(clase.id),
       }
     })
 
@@ -449,6 +470,18 @@ async function handleSubmit() {
 .status-badge.available {
   background: rgba(24, 180, 163, 0.14);
   color: #0d9b8a;
+}
+
+.status-badge.inscripto {
+  background: rgba(0, 137, 123, 0.12);
+  color: #00695c;
+}
+
+.option-card.enrolled {
+  opacity: 0.75;
+  cursor: default;
+  border-color: rgba(0, 137, 123, 0.2);
+  background: rgba(232, 245, 233, 0.6);
 }
 
 .option-card p {
