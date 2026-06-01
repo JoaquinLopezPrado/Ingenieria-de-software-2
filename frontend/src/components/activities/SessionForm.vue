@@ -26,25 +26,6 @@ const emit = defineEmits<{
 
 const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
-const MONTHS = [
-  { value: 1,  label: 'Enero'      },
-  { value: 2,  label: 'Febrero'    },
-  { value: 3,  label: 'Marzo'      },
-  { value: 4,  label: 'Abril'      },
-  { value: 5,  label: 'Mayo'       },
-  { value: 6,  label: 'Junio'      },
-  { value: 7,  label: 'Julio'      },
-  { value: 8,  label: 'Agosto'     },
-  { value: 9,  label: 'Septiembre' },
-  { value: 10, label: 'Octubre'    },
-  { value: 11, label: 'Noviembre'  },
-  { value: 12, label: 'Diciembre'  },
-]
-
-// Años disponibles: año actual y los dos siguientes
-const currentYear = new Date().getFullYear()
-const YEARS = [currentYear, currentYear + 1, currentYear + 2]
-
 // ─── Slots de horario (06:00 – 23:45, saltos de 15 minutos) ─────────────────
 // Genera: ["06:00", "06:15", "06:30", "06:45", "07:00", ..., "23:45"]
 const TIME_SLOTS: string[] = (() => {
@@ -80,7 +61,7 @@ onMounted(async () => {
 
 // ─── Estado del formulario ────────────────────────────────────────────────────
 
-const now = new Date()
+const todayISO = new Date().toISOString().slice(0, 10)
 
 const form = ref({
   activity_id:  null as number | null,
@@ -91,8 +72,7 @@ const form = ref({
   endTime:      '',   // "HH:MM" — siempre > startTime gracias a endTimeSlots
   maxCapacity:  null as number | null,
   class_price:  null as number | null,
-  month:        now.getMonth() + 1,
-  year:         now.getFullYear(),
+  start_date:   todayISO,
   is_active:    false,
 })
 
@@ -118,11 +98,6 @@ watch(() => form.value.activity_id, (id) => {
   const found = availableActivities.value.find(a => a.id === id)
   if (found) form.value.instructor = found.instructor ?? ''
 })
-
-// Etiqueta del mes seleccionado para el badge de estado
-const selectedMonthLabel = computed(() =>
-  MONTHS.find(m => m.value === form.value.month)?.label ?? ''
-)
 
 // ─── Validación ───────────────────────────────────────────────────────────────
 
@@ -179,8 +154,7 @@ const handleSubmit = () => {
     endTime:      form.value.endTime,
     maxCapacity:  form.value.maxCapacity!,
     class_price:  form.value.class_price!,
-    month:        form.value.month,
-    year:         form.value.year,
+    start_date:   form.value.start_date,
     is_active:    form.value.is_active,
   })
 }
@@ -234,23 +208,11 @@ const handleSubmit = () => {
         <span v-if="errors.description" class="field-error">{{ errors.description }}</span>
       </div>
 
-      <!-- ── Mes y Año ── -->
-      <div class="form-grid-2">
-        <div class="input-group">
-          <label>Mes</label>
-          <select v-model="form.month">
-            <option v-for="m in MONTHS" :key="m.value" :value="m.value">
-              {{ m.label }}
-            </option>
-          </select>
-        </div>
-
-        <div class="input-group">
-          <label>Año</label>
-          <select v-model="form.year">
-            <option v-for="y in YEARS" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
+      <!-- ── Fecha de inicio ── -->
+      <div class="input-group">
+        <label>Fecha de inicio</label>
+        <input type="date" v-model="form.start_date" :class="{ 'input-error': errors.start_date }" />
+        <span v-if="errors.start_date" class="field-error">{{ errors.start_date }}</span>
       </div>
 
       <!-- ── Días de la semana ── -->
@@ -359,12 +321,12 @@ const handleSubmit = () => {
         
       </div>
 
-      <!-- ── Resumen del período ── -->
+      <!-- ── Resumen ── -->
       <div class="period-badge">
         <span>📅</span>
         <span>
-          Programando para
-          <strong>{{ selectedMonthLabel }} {{ form.year }}</strong>
+          Inicio:
+          <strong>{{ form.start_date || '—' }}</strong>
           —
           <span :class="form.is_active ? 'badge-active' : 'badge-inactive'">
             {{ form.is_active ? 'Activo al guardar' : 'Inactivo al guardar' }}

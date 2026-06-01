@@ -78,7 +78,6 @@
                   class="day-chip"
                 >{{ DAY_LABELS[day] ?? day }}</span>
               </div>
-              <div v-if="turno.periodo" class="periodo-chip">{{ turno.periodo }}</div>
             </div>
             <span v-if="turno.hasRemainingClasses && turno.ocup >= turno.total" class="agotado-badge">
               AGOTADO
@@ -136,7 +135,7 @@
           <template v-else>
             <div v-if="turnosPendienteMensual.has(turno.id)" class="acciones-card">
               <p class="pago-pendiente-info">
-                Inscripción mensual pendiente<span v-if="turno.periodo"> · {{ turno.periodo }}</span>
+                Suscripción pendiente
               </p>
               <button
                 class="continuar-btn"
@@ -149,14 +148,14 @@
 
             <div v-else-if="turnosPendienteSingle.has(turno.id)" class="acciones-card">
               <p class="pago-pendiente-info">
-                Clase de prueba pendiente · {{ formatFechaSingle(turnosPendienteSingle.get(turno.id).clase_date) }}
+                Clase suelta pendiente · {{ formatFechaSingle(turnosPendienteSingle.get(turno.id).clase_date) }}
               </p>
               <button
                 class="continuar-btn"
                 type="button"
                 @click="continuarPagoSingle(turno)"
               >
-                Continuar con el pago de la clase de prueba
+                Continuar con el pago de la clase suelta
               </button>
             </div>
 
@@ -178,7 +177,7 @@
               </button>
 
               <div v-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
-                Tenés una clase de prueba el {{ formatFechaSingle(turnosConClaseSuelta.get(turno.id).clase_date) }}
+                Tenés una clase suelta el {{ formatFechaSingle(turnosConClaseSuelta.get(turno.id).clase_date) }}
               </div>
 
               <button
@@ -189,8 +188,8 @@
                 @click="goToClassSelection(turno)"
               >
                 {{ turno.ocup >= turno.total
-                  ? 'Anotarse en lista de espera para clase de prueba'
-                  : 'Ver clases de prueba individual' }}
+                  ? 'Anotarse en lista de espera para clase suelta'
+                  : 'Ver clases sueltas' }}
               </button>
             </div>
           </template>
@@ -249,12 +248,6 @@ const tabIcons = computed(() =>
   Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON]))
 )
 
-const formatPeriodo = (month, year) => {
-  if (!month || !year) return ''
-  const mes = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(year, month - 1, 1))
-  return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${year}`
-}
-
 const formatFechaSingle = (dateStr) => {
   if (!dateStr) return ''
   return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${dateStr}T00:00:00`))
@@ -282,11 +275,9 @@ const loadTurnos = async (activityId) => {
       inst: turno.instructor_name || turno.instructor || 'Instructor',
       total: turno.capacity,
       ocup: turno.enrolled ?? 0,
-      price: turno.price ?? 0,
       nivel: turno.level || 'Todos los niveles',
       descripcion: turno.description ?? '',
       sala: turno.room_number ?? turno.room ?? 'Sin sala',
-      periodo: formatPeriodo(turno.month, turno.year),
       hasRemainingClasses: turno.has_remaining_classes ?? true,
     }))
   } catch (error) {
@@ -297,8 +288,8 @@ const loadTurnos = async (activityId) => {
 }
 
 const loadEnrollments = async () => {
-  const [myMonthlyRes, mySingleRes] = await Promise.all([
-    enrollmentService.getMyMonthly(),
+  const [mySubscriptionRes, mySingleRes] = await Promise.all([
+    enrollmentService.getMySubscription(),
     enrollmentService.getMySingle(),
   ])
 
@@ -306,13 +297,13 @@ const loadEnrollments = async () => {
   const notExpired = (e) => !e.expires_at || new Date(e.expires_at).getTime() > now
 
   inscriptos.value = new Set(
-    myMonthlyRes.data
+    mySubscriptionRes.data
       .filter((e) => e.status === 'confirmed')
       .map((e) => e.turno_id)
   )
 
   turnosPendienteMensual.value = new Map(
-    myMonthlyRes.data
+    mySubscriptionRes.data
       .filter((e) => e.status === 'pending' && notExpired(e))
       .map((e) => [e.turno_id, e])
   )
@@ -396,7 +387,7 @@ const handleInscripcion = async (turno) => {
   errorMensaje.value = null
 
   try {
-    const { data } = await enrollmentService.createMonthly(turno.id)
+    const { data } = await enrollmentService.createSubscription(turno.id)
 
     const s = new Set(inscriptos.value)
     s.add(turno.id)
@@ -406,20 +397,17 @@ const handleInscripcion = async (turno) => {
     router.push({
       name: 'ticket',
       query: {
-        enrollment_id:      data.id,
-        actividad:          turno.actividad,
-        descripcion:        turno.descripcion,
-        dia:                turno.dia,
-        hora:               turno.hora,
-        duracion:           turno.dur,
-        instructor:         turno.inst,
-        nivel:              turno.nivel,
-        numero:             data.id,
-        amount:             data.amount,
-        precio_turno:       turno.price,
-        clases_sin_cupo:       data.excluded_sin_cupo_ids?.length ?? 0,
-        clases_ya_inscripto:   data.excluded_ya_inscripto_ids?.length ?? 0,
-        expires_at:         data.expires_at,
+        enrollment_id: data.id,
+        actividad:     turno.actividad,
+        descripcion:   turno.descripcion,
+        dia:           turno.dia,
+        hora:          turno.hora,
+        duracion:      turno.dur,
+        instructor:    turno.inst,
+        nivel:         turno.nivel,
+        numero:        data.id,
+        amount:        data.amount,
+        expires_at:    data.expires_at,
       },
     })
   } catch (err) {
@@ -444,20 +432,17 @@ const continuarPago = (turno) => {
   router.push({
     name: 'ticket',
     query: {
-      enrollment_id:         enrollment.enrollment_id,
-      actividad:             turno.actividad,
-      descripcion:           turno.descripcion,
-      dia:                   turno.dia,
-      hora:                  turno.hora,
-      duracion:              turno.dur,
-      instructor:            turno.inst,
-      nivel:                 turno.nivel,
-      numero:                enrollment.enrollment_id,
-      amount:                enrollment.amount,
-      precio_turno:          turno.price,
-      clases_sin_cupo:       enrollment.excluded_sin_cupo_count ?? 0,
-      clases_ya_inscripto:   enrollment.excluded_ya_inscripto_count ?? 0,
-      expires_at:            enrollment.expires_at,
+      enrollment_id: enrollment.enrollment_id,
+      actividad:     turno.actividad,
+      descripcion:   turno.descripcion,
+      dia:           turno.dia,
+      hora:          turno.hora,
+      duracion:      turno.dur,
+      instructor:    turno.inst,
+      nivel:         turno.nivel,
+      numero:        enrollment.enrollment_id,
+      amount:        enrollment.amount,
+      expires_at:    enrollment.expires_at,
     },
   })
 }

@@ -14,8 +14,8 @@ apiClient.interceptors.request.use((config) => {
 })
 
 export const enrollmentService = {
-  createMonthly: (turno_id: number) =>
-    apiClient.post('/enrollments/monthly', { turno_id }),
+  createSubscription: (turno_id: number) =>
+    apiClient.post('/enrollments/subscription', { turno_id }),
 
   createSingle: (clase_id: number) =>
     apiClient.post('/enrollments/single', { clase_id }),
@@ -23,8 +23,8 @@ export const enrollmentService = {
   createPaymentPreference: (enrollment_id: number) =>
     apiClient.post('/payments/preference', { enrollment_id }),
 
-  getMyMonthly: () =>
-    apiClient.get('/enrollments/my/monthly'),
+  getMySubscription: () =>
+    apiClient.get('/enrollments/my/subscription'),
 
   getMySingle: () =>
     apiClient.get('/enrollments/my/single'),

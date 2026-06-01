@@ -37,12 +37,6 @@ const DAY_LABELS: Record<string, string> = {
   jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
 }
 
-const MONTH_NAMES: Record<number, string> = {
-  1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
-  5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
-  9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic',
-}
-
 const PAGE_SIZE = 10
 
 // ─── Estado de filtros ─────────────────────────────────────────────────────────
@@ -150,9 +144,6 @@ watch([filterActivity, filterDays, filterInstructor, filterAvailability], () => 
 })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const formatPeriod = (month: number, year: number) =>
-  `${MONTH_NAMES[month] ?? month} ${year}`
 
 const activityName = (id: number) =>
   activityMap.value.get(id) ?? `Actividad #${id}`
@@ -356,8 +347,6 @@ onMounted(async () => {
               <th>Horario</th>
               <th>Cupo</th>
               <th>Valor de clase</th>
-              <th>Valor del turno</th>
-              <th>Período</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -378,8 +367,6 @@ onMounted(async () => {
               <td class="cell-time">{{ turno.start_time }} – {{ turno.end_time }}</td>
               <td class="cell-capacity">{{ turno.capacity }}</td>
               <td class="cell-price">${{ turno.class_price }}</td>
-              <td class="cell-price">${{ turno.price }}</td>
-              <td class="cell-period">{{ formatPeriod(turno.month, turno.year) }}</td>
               <td class="cell-status">
                 <span :class="['status-badge', turno.is_active ? 'badge-active' : 'badge-inactive']">
                   {{ turno.is_active ? 'Activo' : 'Inactivo' }}

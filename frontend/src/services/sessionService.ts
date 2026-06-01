@@ -27,8 +27,7 @@ export interface SessionFormData {
   endTime: string       // "HH:MM"
   maxCapacity: number
   class_price: number
-  month: number         // 1–12, seleccionado por el admin
-  year: number          // >= 2024, seleccionado por el admin
+  start_date: string    // "YYYY-MM-DD"
   is_active: boolean
 }
 
@@ -54,11 +53,10 @@ export interface Turno {
   start_time: string  // "H:MM" (sin zero-pad en la hora, ej: "9:00", "17:30")
   end_time: string
   capacity: number
-  price: number
   class_price: number
-  month: number       // 1–12
-  year: number
   is_active: boolean
+  enrolled: number
+  has_remaining_classes: boolean
 }
 
 export interface TurnoPageResponse {
@@ -107,7 +105,7 @@ export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }
  *   - startTime:   camelCase → start_time (snake_case)
  *   - endTime:     camelCase → end_time   (snake_case)
  *   - maxCapacity: → capacity
- *   - month/year:  se auto-completan con la fecha actual
+ *   - start_date:  fecha de inicio del turno (YYYY-MM-DD)
  *
  * Errores del backend:
  *   - 409 Conflict:  { errors: { general: "Ya existe un turno con esa descripción..." } }
@@ -124,8 +122,7 @@ export const createSession = async (formData: SessionFormData): Promise<{ messag
     start_time: formData.startTime,
     end_time: formData.endTime,
     capacity: formData.maxCapacity,
-    month: formData.month,
-    year: formData.year,
+    start_date: formData.start_date,
     days: formData.days.map(d => DAY_TO_BACKEND[d]),
     is_active: formData.is_active,
     class_price: formData.class_price,
