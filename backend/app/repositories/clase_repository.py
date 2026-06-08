@@ -1,3 +1,4 @@
+import calendar
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
@@ -68,6 +69,11 @@ class ClaseRepository(AbstractClaseRepository):
 
     async def list_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
         now_art = datetime.now(timezone(timedelta(hours=-3)))
+        today = now_art.date()
+        next_month = today.month % 12 + 1
+        next_month_year = today.year + (1 if today.month == 12 else 0)
+        end_date = date(next_month_year, next_month, calendar.monthrange(next_month_year, next_month)[1])
+
         enrolled_subquery = (
             select(func.count())
             .select_from(EnrollmentSlotORM)
@@ -84,10 +90,11 @@ class ClaseRepository(AbstractClaseRepository):
             .where(
                 ClaseORM.turno_id == turno_id,
                 ClaseORM.is_active == True,
+                ClaseORM.date <= end_date,
                 or_(
-                    ClaseORM.date > now_art.date(),
+                    ClaseORM.date > today,
                     and_(
-                        ClaseORM.date == now_art.date(),
+                        ClaseORM.date == today,
                         TurnoORM.start_time > now_art.time(),
                     ),
                 ),
