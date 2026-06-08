@@ -40,7 +40,6 @@
             @click="selectedDay = day.key"
           >
             <span class="wdc-label">{{ day.short }}</span>
-            <span class="wdc-count">{{ dayCount(day.key) }}</span>
           </button>
         </div>
       </div>
@@ -1047,9 +1046,8 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  min-width: 62px;
-  padding: 12px 10px;
+  min-width: 52px;
+  padding: 10px 14px;
   border-radius: 18px;
   border: 1.5px solid rgba(0, 137, 123, 0.13);
   background: rgba(255, 255, 255, 0.88);

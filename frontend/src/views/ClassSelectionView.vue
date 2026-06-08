@@ -35,7 +35,6 @@
               type="button"
             >
               <span class="wdc-label">Todos</span>
-              <span class="wdc-count">{{ availableOptions.length }}</span>
             </button>
             <button
               v-for="day in availableDayKeys"
@@ -46,7 +45,6 @@
               type="button"
             >
               <span class="wdc-label">{{ DAY_SHORT[day] ?? day }}</span>
-              <span class="wdc-count">{{ dayCount(day) }}</span>
             </button>
           </div>
         </div>
@@ -186,7 +184,6 @@ const filteredOptions = computed(() => {
   return availableOptions.value.filter(o => o.dayLabel === selectedDay.value)
 })
 
-const dayCount = (day) => availableOptions.value.filter(o => o.dayLabel === day).length
 
 const selectedOptions = computed(() =>
   availableOptions.value.filter(o => !o.isEnrolled && selectedIds.value.has(o.id))
@@ -688,9 +685,8 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  min-width: 62px;
-  padding: 12px 10px;
+  min-width: 52px;
+  padding: 10px 14px;
   border-radius: 18px;
   border: 1.5px solid rgba(0, 137, 123, 0.13);
   background: rgba(255, 255, 255, 0.88);
