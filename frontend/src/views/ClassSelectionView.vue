@@ -25,9 +25,35 @@
       <div v-else class="field-group">
         <label class="label">Opciones disponibles</label>
 
-        <div v-if="availableOptions.length > 0" class="options-list">
+        <!-- Week strip -->
+        <div v-if="availableDayKeys.length > 1" class="week-strip-wrapper">
+          <div class="week-strip">
+            <button
+              class="week-day-card"
+              :class="{ active: selectedDay === 'todos' }"
+              @click="selectedDay = 'todos'"
+              type="button"
+            >
+              <span class="wdc-label">Todos</span>
+              <span class="wdc-count">{{ availableOptions.length }}</span>
+            </button>
+            <button
+              v-for="day in availableDayKeys"
+              :key="day"
+              class="week-day-card"
+              :class="{ active: selectedDay === day }"
+              @click="selectedDay = day"
+              type="button"
+            >
+              <span class="wdc-label">{{ DAY_SHORT[day] ?? day }}</span>
+              <span class="wdc-count">{{ dayCount(day) }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="filteredOptions.length > 0" class="options-list">
           <button
-            v-for="option in availableOptions"
+            v-for="option in filteredOptions"
             :key="option.id"
             class="option-card"
             :class="{
@@ -76,7 +102,7 @@
         </div>
 
         <p v-else class="empty-message">
-          No hay fechas disponibles para este turno.
+          No hay fechas disponibles para este{{ selectedDay !== 'todos' ? ' día' : ' turno' }}.
         </p>
       </div>
 
@@ -121,6 +147,7 @@ const route = useRoute()
 const router = useRouter()
 
 const selectedIds = ref(new Set())
+const selectedDay = ref('todos')
 const loading = ref(false)
 const submitting = ref(false)
 const errorMessage = ref('')
@@ -135,11 +162,31 @@ const dias = computed(() => String(route.query.dias || ''))
 const sala = computed(() => String(route.query.sala || 'Sin sala'))
 const instructor = computed(() => String(route.query.instructor || 'Instructor'))
 
+const DAY_SHORT = {
+  'Lunes': 'Lun', 'Martes': 'Mar', 'Miércoles': 'Mié',
+  'Jueves': 'Jue', 'Viernes': 'Vie', 'Sábado': 'Sáb', 'Domingo': 'Dom',
+}
+
+const DAY_ORDER = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
 const availableOptions = computed(() => {
   return clases.value
     .filter((clase) => clase.isActive && (clase.isEnrolled || clase.availableSpots > 0))
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
 })
+
+const availableDayKeys = computed(() => {
+  const seen = new Set()
+  for (const o of availableOptions.value) seen.add(o.dayLabel)
+  return [...seen].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+})
+
+const filteredOptions = computed(() => {
+  if (selectedDay.value === 'todos') return availableOptions.value
+  return availableOptions.value.filter(o => o.dayLabel === selectedDay.value)
+})
+
+const dayCount = (day) => availableOptions.value.filter(o => o.dayLabel === day).length
 
 const selectedOptions = computed(() =>
   availableOptions.value.filter(o => !o.isEnrolled && selectedIds.value.has(o.id))
@@ -619,6 +666,70 @@ async function handleSubmit() {
   border-radius: 999px;
   transition: width 0.5s ease;
 }
+
+/* WEEK STRIP */
+.week-strip-wrapper {
+  overflow-x: auto;
+  margin-bottom: 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.week-strip-wrapper::-webkit-scrollbar { display: none; }
+
+.week-strip {
+  display: flex;
+  gap: 10px;
+  width: max-content;
+  padding: 4px 2px 8px;
+}
+
+.week-day-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 62px;
+  padding: 12px 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(0, 137, 123, 0.13);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.week-day-card:hover {
+  border-color: rgba(0, 137, 123, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 137, 123, 0.13);
+}
+
+.week-day-card.active {
+  background: #00897b;
+  border-color: #00897b;
+  box-shadow: 0 8px 20px rgba(0, 137, 123, 0.28);
+  transform: translateY(-3px);
+}
+
+.wdc-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #546e7a;
+  letter-spacing: 0.02em;
+}
+
+.week-day-card.active .wdc-label { color: rgba(255, 255, 255, 0.85); }
+
+.wdc-count {
+  font-size: 22px;
+  font-weight: 900;
+  color: #00897b;
+  line-height: 1;
+}
+
+.week-day-card.active .wdc-count { color: white; }
 
 @media (max-width: 768px) {
   .class-page {

@@ -29,6 +29,22 @@
         </ActivityBtn>
       </ActivitiesBar>
 
+      <!-- Week strip -->
+      <div class="week-strip-wrapper">
+        <div class="week-strip">
+          <button
+            v-for="day in WEEK_DAYS"
+            :key="day.key"
+            class="week-day-card"
+            :class="{ active: selectedDay === day.key, empty: dayCount(day.key) === 0 && day.key !== 'todos' }"
+            @click="selectedDay = day.key"
+          >
+            <span class="wdc-label">{{ day.short }}</span>
+            <span class="wdc-count">{{ dayCount(day.key) }}</span>
+          </button>
+        </div>
+      </div>
+
       <div v-if="loading">
         Cargando turnos...
       </div>
@@ -229,6 +245,18 @@ const DAY_LABELS = {
   jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
 }
 
+const WEEK_DAYS = [
+  { key: 'todos',     short: 'Todos' },
+  { key: 'lunes',     short: 'Lun' },
+  { key: 'martes',    short: 'Mar' },
+  { key: 'miercoles', short: 'Mié' },
+  { key: 'jueves',    short: 'Jue' },
+  { key: 'viernes',   short: 'Vie' },
+  { key: 'sabado',    short: 'Sáb' },
+]
+
+const selectedDay = ref('todos')
+
 const activities = ref([])
 const tabs = computed(() => activities.value.map(a => a.name))
 const currentTab = ref('')
@@ -322,6 +350,7 @@ const loadEnrollments = async () => {
 }
 
 watch(currentTab, (newTab) => {
+  selectedDay.value = 'todos'
   const activity = activities.value.find(a => a.name === newTab)
   if (activity) {
     loadTurnos(activity.id)
@@ -345,7 +374,15 @@ onMounted(async () => {
   }
 })
 
-const currentTurnos = computed(() => turnos.value)
+const currentTurnos = computed(() => {
+  if (selectedDay.value === 'todos') return turnos.value
+  return turnos.value.filter(t => t.days.includes(selectedDay.value))
+})
+
+const dayCount = (dayKey) => {
+  if (dayKey === 'todos') return turnos.value.length
+  return turnos.value.filter(t => t.days.includes(dayKey)).length
+}
 
 const disponibles = computed(() => {
   return currentTurnos.value.filter(
@@ -985,6 +1022,81 @@ h1 {
   h1 { font-size: 1.9rem; }
   .grid { grid-template-columns: 1fr; }
   .badge { width: 100%; }
+}
+
+/* WEEK STRIP */
+.week-strip-wrapper {
+  overflow-x: auto;
+  margin-bottom: 28px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.week-strip-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.week-strip {
+  display: flex;
+  gap: 10px;
+  width: max-content;
+  padding: 4px 2px 8px;
+}
+
+.week-day-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 62px;
+  padding: 12px 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(0, 137, 123, 0.13);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.week-day-card:hover:not(.empty) {
+  border-color: rgba(0, 137, 123, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 137, 123, 0.13);
+}
+
+.week-day-card.active {
+  background: #00897b;
+  border-color: #00897b;
+  box-shadow: 0 8px 20px rgba(0, 137, 123, 0.28);
+  transform: translateY(-3px);
+}
+
+.week-day-card.empty {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.wdc-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #546e7a;
+  letter-spacing: 0.02em;
+}
+
+.week-day-card.active .wdc-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.wdc-count {
+  font-size: 22px;
+  font-weight: 900;
+  color: #00897b;
+  line-height: 1;
+}
+
+.week-day-card.active .wdc-count {
+  color: white;
 }
 
 .banner {
