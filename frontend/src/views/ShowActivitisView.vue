@@ -29,19 +29,36 @@
         </ActivityBtn>
       </ActivitiesBar>
 
-      <!-- Week strip -->
-      <div class="week-strip-wrapper">
-        <div class="week-strip">
+      <!-- Date strip -->
+      <div class="date-strip-nav">
+        <button
+          class="strip-arrow"
+          :class="{ invisible: !canScrollLeft }"
+          type="button"
+          aria-label="Anterior"
+          @click="stripPage--"
+        >&#8249;</button>
+
+        <div class="date-strip">
           <button
-            v-for="day in WEEK_DAYS"
-            :key="day.key"
-            class="week-day-card"
-            :class="{ active: selectedDay === day.key, empty: dayCount(day.key) === 0 && day.key !== 'todos' }"
-            @click="selectedDay = day.key"
+            v-for="date in visibleDates"
+            :key="date"
+            class="date-card"
+            :class="{ active: selectedDate === date }"
+            @click="selectedDate = date"
+            type="button"
           >
-            <span class="wdc-label">{{ day.short }}</span>
+            <span class="dc-label">{{ dateDay(date) }} {{ dateNum(date) }}</span>
           </button>
         </div>
+
+        <button
+          class="strip-arrow"
+          :class="{ invisible: !canScrollRight }"
+          type="button"
+          aria-label="Siguiente"
+          @click="stripPage++"
+        >&#8250;</button>
       </div>
 
       <div v-if="loading">
@@ -199,7 +216,7 @@
                 class="secondary-btn"
                 :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
                 type="button"
-                @click="goToClassSelection(turno)"
+                @click="openModal(turno)"
               >
                 {{ turno.ocup >= turno.total
                   ? 'Anotarse en lista de espera para clase individual'
@@ -212,6 +229,78 @@
             {{ errorMensaje }}
           </div>
 
+        </div>
+      </div>
+
+      <div v-if="!loading && currentTurnos.length === 0" class="no-turnos-msg">
+        No hay turnos disponibles para este día.
+      </div>
+
+    </div>
+
+    <!-- Modal clases individuales -->
+    <div v-if="modalTurno" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-drawer">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title">Clases individuales</h2>
+            <p class="modal-subtitle">{{ modalTurno.actividad }} · {{ modalTurno.dur }}</p>
+          </div>
+          <button class="modal-close" type="button" @click="closeModal">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div v-if="modalClases.length === 0" class="modal-empty">
+            No hay clases disponibles para este turno.
+          </div>
+          <div v-else class="modal-options">
+            <button
+              v-for="clase in modalClases"
+              :key="clase.id"
+              class="modal-option"
+              :class="{ selected: modalSelectedIds.has(clase.id), enrolled: clase.isEnrolled }"
+              :disabled="clase.isEnrolled"
+              type="button"
+              @click="!clase.isEnrolled && toggleModalClass(clase.id)"
+            >
+              <div class="mo-header">
+                <div>
+                  <div class="mo-date">{{ clase.displayDate }}</div>
+                  <div class="mo-day">{{ clase.dayLabel }}</div>
+                </div>
+                <span v-if="clase.isEnrolled" class="mo-badge mo-badge--inscripto">Inscripto</span>
+                <span v-else-if="modalSelectedIds.has(clase.id)" class="mo-badge mo-badge--sel">✓ Seleccionado</span>
+                <span v-else class="mo-badge mo-badge--ok">Disponible</span>
+              </div>
+              <div class="mo-cap-row">
+                <span class="mo-cap-text" :style="{ color: barColor(clase) }">
+                  {{ clase.availableSpots === 0 ? 'Sin lugares' : `${clase.availableSpots} lugar${clase.availableSpots !== 1 ? 'es' : ''}` }}
+                </span>
+                <span class="mo-cap-num" :style="{ color: barColor(clase) }">{{ clase.occupied }}/{{ clase.total }}</span>
+              </div>
+              <div class="bar-bg" :style="{ background: barBgColor(clase) }">
+                <div class="bar-fill" :style="{ width: pct(clase) + '%', background: barColor(clase) }"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="modalSubmitError" class="modal-error">{{ modalSubmitError }}</div>
+
+        <div class="modal-footer">
+          <button class="back-btn" type="button" @click="closeModal" :disabled="modalSubmitting">Cancelar</button>
+          <button
+            class="submit-btn"
+            type="button"
+            :disabled="modalSelectedIds.size === 0 || modalSubmitting"
+            @click="submitModal"
+          >
+            {{ modalSubmitting
+              ? 'Procesando...'
+              : modalSelectedIds.size === 0
+                ? 'Seleccioná una clase'
+                : `Inscribirse a ${modalSelectedIds.size} clase${modalSelectedIds.size !== 1 ? 's' : ''}` }}
+          </button>
         </div>
       </div>
     </div>
@@ -244,20 +333,32 @@ const DAY_LABELS = {
   jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
 }
 
-const WEEK_DAYS = [
-  { key: 'todos',     short: 'Todos' },
-  { key: 'lunes',     short: 'Lun' },
-  { key: 'martes',    short: 'Mar' },
-  { key: 'miercoles', short: 'Mié' },
-  { key: 'jueves',    short: 'Jue' },
-  { key: 'viernes',   short: 'Vie' },
-  { key: 'sabado',    short: 'Sáb' },
-]
+const SHORT_DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const dateDay = (str) => SHORT_DAYS[new Date(`${str}T00:00:00`).getDay()]
+const dateNum = (str) => { const d = new Date(`${str}T00:00:00`); return `${d.getDate()}/${d.getMonth() + 1}` }
 
-const selectedDay = ref('todos')
+const localDateStr = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const selectedDate = ref(localDateStr())
+const classesByTurno = ref(new Map())
+const enrolledClaseIds = ref(new Set())
+
+const stripPage = ref(0)
+const canScrollLeft = computed(() => stripPage.value > 0)
+const canScrollRight = computed(() => (stripPage.value + 1) * 7 < availableDates.value.length)
+const visibleDates = computed(() => availableDates.value.slice(stripPage.value * 7, stripPage.value * 7 + 7))
+
+
+const modalTurno = ref(null)
+const modalSelectedIds = ref(new Set())
+const modalSubmitting = ref(false)
+const modalSubmitError = ref('')
 
 const activities = ref([])
-const tabs = computed(() => activities.value.map(a => a.name))
+const TODOS_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`
+
+const tabs = computed(() => ['Todos', ...activities.value.map(a => a.name)])
 const currentTab = ref('')
 const inscriptos = ref(new Set())
 const turnosConClaseSuelta = ref(new Map())
@@ -270,9 +371,10 @@ const loadingTurno = ref(null)
 const loading = ref(false)
 const turnos = ref([])
 
-const tabIcons = computed(() =>
-  Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON]))
-)
+const tabIcons = computed(() => ({
+  'Todos': TODOS_ICON,
+  ...Object.fromEntries(activities.value.map(a => [a.name, ACTIVITY_ICONS[a.name] ?? DEFAULT_ACTIVITY_ICON])),
+}))
 
 const formatFechaSingle = (dateStr) => {
   if (!dateStr) return ''
@@ -285,28 +387,7 @@ const loadTurnos = async (activityId) => {
     loading.value = true
     const nameMap = new Map(activities.value.map(a => [a.id, a.name]))
     const turnosRes = await turnoService.getTurnos({ activity_id: activityId })
-    const items = turnosRes.data.items || []
-    turnos.value = items.map((turno) => ({
-      id: turno.id,
-      activityId: turno.activity_id,
-      actividad: nameMap.get(turno.activity_id) ?? `Actividad #${turno.activity_id}`,
-      nombre: (turno.name || turno.nombre || nameMap.get(turno.activity_id) || '')
-        .replace(/:/g, '')
-        .trim(),
-      dia: turno.days?.join(' / ') || 'Sin días',
-      days: turno.days || [],
-      hora: turno.start_time,
-      horaFin: turno.end_time,
-      dur: `${turno.start_time} - ${turno.end_time}`,
-      inst: turno.instructor_name || turno.instructor || 'Instructor',
-      total: turno.capacity,
-      ocup: turno.enrolled ?? 0,
-      nivel: turno.level || 'Todos los niveles',
-      descripcion: turno.description ?? '',
-      sala: turno.room_number ?? turno.room ?? 'Sin sala',
-      hasRemainingClasses: turno.has_remaining_classes ?? true,
-      hasFutureClasses: turno.has_future_classes ?? true,
-    }))
+    turnos.value = (turnosRes.data.items || []).map(t => mapTurno(t, nameMap))
   } catch (error) {
     console.error('Error al cargar turnos', error)
   } finally {
@@ -346,14 +427,87 @@ const loadEnrollments = async () => {
       .filter((e) => e.status === 'pending' && notExpired(e))
       .map((e) => [e.turno_id, e])
   )
+
+  enrolledClaseIds.value = new Set(
+    mySingleRes.data
+      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
+      .map((e) => e.clase_id)
+      .filter(Boolean)
+  )
 }
 
-watch(currentTab, (newTab) => {
-  selectedDay.value = 'todos'
-  const activity = activities.value.find(a => a.name === newTab)
-  if (activity) {
-    loadTurnos(activity.id)
+const loadAllClases = async () => {
+  const entries = await Promise.all(
+    turnos.value.map(async (turno) => {
+      try {
+        const res = await turnoService.getClasesByTurno(turno.id)
+        const items = Array.isArray(res.data) ? res.data : res.data.items || []
+        return [turno.id, items.map(c => ({
+          id: c.id,
+          rawDate: c.date,
+          displayDate: new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${c.date}T00:00:00`)),
+          dayLabel: (() => { const d = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(new Date(`${c.date}T00:00:00`)); return d.charAt(0).toUpperCase() + d.slice(1) })(),
+          capacity: c.capacity ?? 0,
+          occupied: c.enrolled ?? c.occupied ?? 0,
+          availableSpots: Math.max((c.capacity ?? 0) - (c.enrolled ?? c.occupied ?? 0), 0),
+          isActive: c.is_active ?? true,
+        }))]
+      } catch {
+        return [turno.id, []]
+      }
+    })
+  )
+  classesByTurno.value = new Map(entries)
+}
+
+const mapTurno = (turno, nameMap) => ({
+  id: turno.id,
+  activityId: turno.activity_id,
+  actividad: nameMap.get(turno.activity_id) ?? `Actividad #${turno.activity_id}`,
+  nombre: (turno.name || turno.nombre || nameMap.get(turno.activity_id) || '').replace(/:/g, '').trim(),
+  dia: turno.days?.join(' / ') || 'Sin días',
+  days: turno.days || [],
+  hora: turno.start_time,
+  horaFin: turno.end_time,
+  dur: `${turno.start_time} - ${turno.end_time}`,
+  inst: turno.instructor_name || turno.instructor || 'Instructor',
+  total: turno.capacity,
+  ocup: turno.enrolled ?? 0,
+  nivel: turno.level || 'Todos los niveles',
+  descripcion: turno.description ?? '',
+  sala: turno.room_number ?? turno.room ?? 'Sin sala',
+  hasRemainingClasses: turno.has_remaining_classes ?? true,
+  hasFutureClasses: turno.has_future_classes ?? true,
+})
+
+const loadAllTurnos = async () => {
+  if (!activities.value.length) return
+  try {
+    loading.value = true
+    const nameMap = new Map(activities.value.map(a => [a.id, a.name]))
+    const results = await Promise.all(activities.value.map(a => turnoService.getTurnos({ activity_id: a.id })))
+    turnos.value = results.flatMap(r => (r.data.items || []).map(t => mapTurno(t, nameMap)))
+  } catch (error) {
+    console.error('Error al cargar todos los turnos', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(currentTab, async (newTab) => {
+  selectedDate.value = localDateStr()
+  stripPage.value = 0
+  if (newTab === 'Todos') {
+    await loadAllTurnos()
     loadEnrollments()
+    loadAllClases()
+  } else {
+    const activity = activities.value.find(a => a.name === newTab)
+    if (activity) {
+      await loadTurnos(activity.id)
+      loadEnrollments()
+      loadAllClases()
+    }
   }
 })
 
@@ -366,22 +520,39 @@ onMounted(async () => {
 
     await loadEnrollments()
 
-    if (acts.length > 0) currentTab.value = acts[0].name
+    if (acts.length > 0) currentTab.value = 'Todos'
   } catch (error) {
     console.error('Error al cargar actividades', error)
     loading.value = false
   }
 })
 
-const currentTurnos = computed(() => {
-  if (selectedDay.value === 'todos') return turnos.value
-  return turnos.value.filter(t => t.days.includes(selectedDay.value))
+const availableDates = computed(() => {
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const end = new Date(today.getFullYear(), today.getMonth() + 2, 0)
+  const dates = []
+  const cur = new Date(start)
+  while (cur <= end) {
+    dates.push(localDateStr(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return dates
 })
 
-const dayCount = (dayKey) => {
-  if (dayKey === 'todos') return turnos.value.length
-  return turnos.value.filter(t => t.days.includes(dayKey)).length
-}
+const currentTurnos = computed(() =>
+  turnos.value.filter(t =>
+    (classesByTurno.value.get(t.id) || []).some(c => c.rawDate === selectedDate.value)
+  )
+)
+
+const modalClases = computed(() => {
+  if (!modalTurno.value) return []
+  return (classesByTurno.value.get(modalTurno.value.id) || [])
+    .filter(c => c.isActive && (enrolledClaseIds.value.has(c.id) || c.availableSpots > 0))
+    .map(c => ({ ...c, isEnrolled: enrolledClaseIds.value.has(c.id), total: c.capacity }))
+    .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
+})
 
 const disponibles = computed(() => {
   return currentTurnos.value.filter(
@@ -509,21 +680,68 @@ const continuarPagoSingle = (turno) => {
   })
 }
 
-const goToClassSelection = (turno) => {
-  router.push({
-    name: 'class-selection',
-    query: {
-      turnoId:    String(turno.id),
-      activityId: String(turno.activityId),
-      actividad:  turno.actividad,
-      horaInicio: turno.hora,
-      horaFin:    turno.horaFin,
-      dias:       turno.dia,
-      sala:       String(turno.sala),
-      instructor: turno.inst,
-      nivel:      turno.nivel,
-    },
-  })
+const openModal = (turno) => {
+  modalTurno.value = turno
+  modalSubmitError.value = ''
+  const preselect = selectedDate.value
+    ? (classesByTurno.value.get(turno.id) || []).find(c => c.rawDate === selectedDate.value && !enrolledClaseIds.value.has(c.id))
+    : null
+  modalSelectedIds.value = new Set(preselect ? [preselect.id] : [])
+}
+
+const closeModal = () => {
+  modalTurno.value = null
+  modalSelectedIds.value = new Set()
+  modalSubmitError.value = ''
+}
+
+const toggleModalClass = (id) => {
+  modalSubmitError.value = ''
+  const s = new Set(modalSelectedIds.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  modalSelectedIds.value = s
+}
+
+const submitModal = async () => {
+  if (modalSelectedIds.value.size === 0) return
+  const turno = modalTurno.value
+  modalSubmitting.value = true
+  modalSubmitError.value = ''
+  try {
+    const clase_ids = [...modalSelectedIds.value]
+    const { data } = await enrollmentService.createSingle(clase_ids)
+    const count = clase_ids.length
+    const selected = modalClases.value.filter(c => modalSelectedIds.value.has(c.id))
+    const diaLabel = count === 1
+      ? `${selected[0].dayLabel} ${selected[0].displayDate}`
+      : `${count} clases`
+    closeModal()
+    router.push({
+      name: 'ticket',
+      query: {
+        enrollment_id: data.id,
+        actividad:     turno.actividad,
+        dia:           diaLabel,
+        duracion:      turno.dur,
+        instructor:    turno.inst,
+        numero:        data.id,
+        amount:        data.amount,
+        precio_clase:  data.amount,
+        expires_at:    data.expires_at,
+      },
+    })
+  } catch (error) {
+    if (error.response?.status === 409) {
+      const msg = error.response?.data?.errors?.general || error.response?.data?.detail
+      modalSubmitError.value = (msg && !msg.includes('cupo') && !msg.includes('lugar'))
+        ? msg
+        : 'Una de las clases ya no tiene cupo. El lugar se liberará si no se completa el pago.'
+    } else {
+      modalSubmitError.value = 'Ocurrió un error al generar la inscripción.'
+    }
+  } finally {
+    modalSubmitting.value = false
+  }
 }
 </script>
 
@@ -647,6 +865,13 @@ h1 {
   font-size: 0.92rem;
   color: #78909c;
   font-weight: 600;
+}
+
+.no-turnos-msg {
+  text-align: center;
+  padding: 48px 20px;
+  color: #90a4ae;
+  font-size: 15px;
 }
 
 /* GRID */
@@ -1023,32 +1248,59 @@ h1 {
   .badge { width: 100%; }
 }
 
-/* WEEK STRIP */
-.week-strip-wrapper {
-  overflow-x: auto;
-  margin-bottom: 28px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.week-strip-wrapper::-webkit-scrollbar {
-  display: none;
-}
-
-.week-strip {
+/* DATE STRIP */
+.date-strip-nav {
   display: flex;
-  gap: 10px;
-  width: max-content;
-  padding: 4px 2px 8px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
 }
 
-.week-day-card {
+.strip-arrow {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 137, 123, 0.2);
+  background: rgba(255, 255, 255, 0.88);
+  color: #00897b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.strip-arrow:hover {
+  background: #00897b;
+  color: white;
+  border-color: #00897b;
+  box-shadow: 0 4px 12px rgba(0,137,123,0.22);
+}
+
+.strip-arrow.invisible {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.date-strip {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+
+.date-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 52px;
-  padding: 10px 14px;
-  border-radius: 18px;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 4px;
+  border-radius: 8px;
   border: 1.5px solid rgba(0, 137, 123, 0.13);
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
@@ -1057,44 +1309,236 @@ h1 {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.week-day-card:hover:not(.empty) {
+
+.date-card:hover {
   border-color: rgba(0, 137, 123, 0.35);
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 137, 123, 0.13);
 }
 
-.week-day-card.active {
+.date-card.active {
   background: #00897b;
   border-color: #00897b;
   box-shadow: 0 8px 20px rgba(0, 137, 123, 0.28);
   transform: translateY(-3px);
 }
 
-.week-day-card.empty {
-  opacity: 0.38;
-  cursor: default;
-}
-
-.wdc-label {
+.dc-label {
   font-size: 12px;
   font-weight: 700;
   color: #546e7a;
-  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-.week-day-card.active .wdc-label {
-  color: rgba(255, 255, 255, 0.85);
+.date-card.active .dc-label { color: white; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
-.wdc-count {
-  font-size: 22px;
+.modal-drawer {
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  background: #fff;
+  border-radius: 28px 28px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(0,137,123,0.08);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
   font-weight: 900;
-  color: #00897b;
-  line-height: 1;
+  color: #00695c;
 }
 
-.week-day-card.active .wdc-count {
-  color: white;
+.modal-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #78909c;
+  font-weight: 500;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #90a4ae;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modal-close:hover { background: #f5f5f5; color: #455a64; }
+
+.modal-body {
+  overflow-y: auto;
+  padding: 16px 24px;
+  flex: 1;
+}
+
+.modal-empty {
+  color: #90a4ae;
+  font-size: 14px;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.modal-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.modal-option {
+  border: 1.5px solid rgba(0,137,123,0.1);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.9);
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+}
+
+.modal-option:hover:not(:disabled) {
+  border-color: #18b4a3;
+  transform: translateY(-2px);
+}
+
+.modal-option.selected {
+  border: 2px solid #00897b;
+  background: rgba(224,242,241,0.5);
+}
+
+.modal-option.enrolled {
+  opacity: 0.65;
+  cursor: default;
+  background: rgba(232,245,233,0.5);
+}
+
+.mo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.mo-date {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.mo-day {
+  font-size: 12px;
+  color: #78909c;
+  margin-top: 2px;
+}
+
+.mo-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mo-badge--ok       { background: rgba(0,137,123,0.1); color: #00695c; }
+.mo-badge--sel      { background: rgba(0,137,123,0.15); color: #00695c; }
+.mo-badge--inscripto { background: #e8f5e9; color: #2e7d32; }
+
+.mo-cap-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.mo-cap-text { font-size: 12px; font-weight: 500; }
+.mo-cap-num  { font-size: 12px; font-weight: 700; }
+
+.modal-error {
+  margin: 0 24px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #c0392b;
+  border: 1px solid #fecaca;
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(0,137,123,0.08);
+  flex-shrink: 0;
+}
+
+.back-btn {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(0,137,123,0.25);
+  background: transparent;
+  color: #546e7a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+.back-btn:hover:not(:disabled) {
+  background: rgba(0,137,123,0.06);
+  border-color: rgba(0,137,123,0.45);
+}
+.back-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.submit-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: none;
+  background: #00897b;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,137,123,0.28);
+  transition: background 0.18s, box-shadow 0.18s, opacity 0.18s;
+}
+.submit-btn:hover:not(:disabled) {
+  background: #00796b;
+  box-shadow: 0 6px 18px rgba(0,137,123,0.38);
+}
+.submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .banner {
