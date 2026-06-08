@@ -64,9 +64,9 @@ const confirmLogout = async () => {
 
         <div class="nav-group">
           <p class="nav-label">ADMINISTRACIÓN</p>
-          <a href="#" class="nav-item">
+          <RouterLink to="/report" class="nav-item" active-class="active">
             <span class="nav-icon">▦</span> Reportes
-          </a>
+          </RouterLink>
           <RouterLink to="/activities/turnos" class="nav-item" active-class="active">
             <span class="nav-icon">◷</span> Grilla de Turnos
           </RouterLink>
