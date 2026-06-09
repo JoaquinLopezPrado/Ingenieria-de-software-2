@@ -399,8 +399,6 @@ onMounted(async () => {
                     name: 'turno-clases',
                     params: { id: turno.id },
                     query: {
-                      month:        turno.month,
-                      year:         turno.year,
                       desc:         turno.description,
                       actividad:    activityName(turno.activity_id),
                       turno_active: turno.is_active ? '1' : '0',

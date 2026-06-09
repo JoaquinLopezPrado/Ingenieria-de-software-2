@@ -6,14 +6,15 @@
  *   1. Modificación exitosa (turno activo, sin inscriptos) → banner verde + redirige
  *   2. Turno duplicado (409) → banner rojo
  *   3. Cupo máximo inválido (≤ 0) → error inline
- *   4. Monto inválido (≤ 0) → error inline
+ *   4. Precio por clase inválido (≤ 0) → error inline
  *   5. Sin días seleccionados → error inline
  *   6. Campo obligatorio vacío → error inline
  *   7. Turno con inscripciones activas → bloqueo al intentar guardar (v2 NUEVO)
  *
- * Guard: solo admin. Turno inactivo → panel informativo, sin formulario.
+ * Guard: solo admin. Turno inactivo → banner informativo + edición permitida.
  * Regla v2: si el turno tiene inscripciones activas no es editable (Esc. 7).
  * El campo "actividad" nunca puede modificarse.
+ * Los mismos campos que "Programar nuevo turno" (SessionForm).
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -56,18 +57,6 @@ const BACKEND_TO_DISPLAY: Record<string, string> = {
   'jueves': 'Jueves', 'viernes': 'Viernes', 'sabado': 'Sábado',
 }
 
-const MONTHS = [
-  { value: 1, label: 'Enero' },     { value: 2, label: 'Febrero' },
-  { value: 3, label: 'Marzo' },     { value: 4, label: 'Abril' },
-  { value: 5, label: 'Mayo' },      { value: 6, label: 'Junio' },
-  { value: 7, label: 'Julio' },     { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Septiembre' },{ value: 10, label: 'Octubre' },
-  { value: 11, label: 'Noviembre' },{ value: 12, label: 'Diciembre' },
-]
-
-const currentYear = new Date().getFullYear()
-const YEARS = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2]
-
 // Slots de 15 minutos: "06:00" … "23:45"
 const TIME_SLOTS: string[] = (() => {
   const slots: string[] = []
@@ -78,6 +67,8 @@ const TIME_SLOTS: string[] = (() => {
   }
   return slots
 })()
+
+const todayISO = new Date().toISOString().slice(0, 10)
 
 /** Normaliza "9:00" → "09:00" para que coincida con los valores de TIME_SLOTS */
 function normalizeTime(t: string): string {
@@ -98,32 +89,26 @@ const serverError  = ref('')
 const authError    = ref<null | 'session' | 'forbidden'>(null)
 const inscriptos   = ref(0)
 
-// Formulario: se rellena cuando el turno carga
+// Formulario: mismos campos que SessionForm (Programar nuevo turno)
 const form = ref({
   description: '',
+  instructor:  '',
   days:        [] as string[],
   startTime:   '',
   endTime:     '',
   maxCapacity: null as number | null,
-  price:       null as number | null,
-  month:       new Date().getMonth() + 1,
-  year:        new Date().getFullYear(),
+  class_price: null as number | null,
+  start_date:  todayISO,   // "YYYY-MM-DD" — reemplaza month/year
 })
 
 const errors = ref<Record<string, string>>({})
 
-// v2: ya no hay modal de confirmación — inscriptos activos bloquean la edición (Esc. 7)
-
-// ─── Computed (DESPUÉS de `form`) ─────────────────────────────────────────────
+// ─── Computed ─────────────────────────────────────────────────────────────────
 
 const endTimeSlots = computed(() =>
   form.value.startTime
     ? TIME_SLOTS.filter(t => t > form.value.startTime)
     : TIME_SLOTS
-)
-
-const selectedMonthLabel = computed(() =>
-  MONTHS.find(m => m.value === form.value.month)?.label ?? ''
 )
 
 // ─── Watch ────────────────────────────────────────────────────────────────────
@@ -152,21 +137,22 @@ onMounted(async () => {
       return
     }
 
-    turno.value      = found
-    inscriptos.value = found.inscriptos ?? 0
+    turno.value        = found
+    inscriptos.value   = found.enrolled ?? 0
     activityName.value = activities.find(a => a.id === found.activity_id)?.name
       ?? `Actividad #${found.activity_id}`
 
     // Pre-cargar el formulario con los valores actuales del turno
+    // start_date no está en TurnoResponse → se deja el default (hoy)
     form.value = {
       description: found.description,
+      instructor:  found.instructor,
       days:        found.days.map(d => BACKEND_TO_DISPLAY[d] ?? d),
       startTime:   normalizeTime(found.start_time),
       endTime:     normalizeTime(found.end_time),
       maxCapacity: found.capacity,
-      price:       found.price ?? null,
-      month:       found.month,
-      year:        found.year,
+      class_price: Number(found.class_price) || null,
+      start_date:  todayISO,
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number }; request?: unknown }
@@ -191,16 +177,22 @@ function validate(): boolean {
   errors.value = {}
 
   if (!form.value.description.trim())
-    errors.value.description = 'Todos los campos son obligatorios.'
+    errors.value.description = 'Ingresá una descripción para el turno.'
+
+  if (!form.value.instructor.trim())
+    errors.value.instructor = 'Ingresá el nombre del instructor.'
 
   if (form.value.days.length === 0)
-    errors.value.days = 'Debe seleccionar al menos un día de la semana.'
+    errors.value.days = 'Seleccioná al menos un día de la semana.'
+
+  if (!form.value.start_date)
+    errors.value.start_date = 'Seleccioná la fecha de inicio del turno.'
 
   if (!form.value.startTime)
-    errors.value.startTime = 'Todos los campos son obligatorios.'
+    errors.value.startTime = 'Seleccioná la hora de inicio.'
 
   if (!form.value.endTime)
-    errors.value.endTime = 'Todos los campos son obligatorios.'
+    errors.value.endTime = 'Seleccioná la hora de fin.'
 
   if (form.value.startTime && form.value.endTime && form.value.startTime >= form.value.endTime)
     errors.value.timeRange = 'La hora de inicio debe ser anterior a la hora de fin.'
@@ -213,9 +205,9 @@ function validate(): boolean {
       `El cupo máximo no puede ser menor a la cantidad de inscriptos actuales (${inscriptos.value}).`
   }
 
-  const price = Number(form.value.price)
-  if (!form.value.price || isNaN(price) || price <= 0)
-    errors.value.price = 'El monto debe ser un número mayor a 0.'
+  const price = Number(form.value.class_price)
+  if (!form.value.class_price || isNaN(price) || price <= 0)
+    errors.value.class_price = 'El precio por clase debe ser un número mayor a 0.'
 
   return Object.keys(errors.value).length === 0
 }
@@ -262,9 +254,8 @@ async function saveChanges() {
     start_time:  form.value.startTime,
     end_time:    form.value.endTime,
     capacity:    Number(form.value.maxCapacity),
-    month:       form.value.month,
-    year:        form.value.year,
-    price:       Number(form.value.price),
+    class_price: Number(form.value.class_price),
+    start_date:  form.value.start_date,
   }
 
   try {
@@ -279,7 +270,7 @@ async function saveChanges() {
     } else if (status === 403) {
       authError.value = 'forbidden'
     } else if (status === 409) {
-      serverError.value = 'Ya existe un turno con esa actividad, descripción, período y horario.'
+      serverError.value = 'Ya existe un turno con esa actividad, descripción, fecha de inicio y horario.'
     } else {
       serverError.value = extractBackendError(e)
     }
@@ -366,7 +357,7 @@ async function saveChanges() {
         <div class="form-card">
           <form @submit.prevent="handleSubmit" novalidate>
 
-            <!-- ── Actividad (solo lectura) + Descripción ── -->
+            <!-- ── Actividad (solo lectura) + Instructor ── -->
             <div class="form-grid-2">
 
               <div class="input-group">
@@ -376,33 +367,41 @@ async function saveChanges() {
               </div>
 
               <div class="input-group">
-                <label>Descripción del turno</label>
+                <label>Instructor</label>
                 <input
                   type="text"
-                  v-model="form.description"
+                  v-model="form.instructor"
                   maxlength="200"
-                  placeholder="Ej: Turno tarde, salon 1"
-                  :class="{ 'input-error': errors.description }"
+                  placeholder="Nombre del instructor"
+                  :class="{ 'input-error': errors.instructor }"
                 />
-                <span v-if="errors.description" class="field-error">{{ errors.description }}</span>
+                <span v-if="errors.instructor" class="field-error">{{ errors.instructor }}</span>
               </div>
 
             </div>
 
-            <!-- ── Mes y Año ── -->
-            <div class="form-grid-2">
-              <div class="input-group">
-                <label>Mes</label>
-                <select v-model="form.month">
-                  <option v-for="m in MONTHS" :key="m.value" :value="m.value">{{ m.label }}</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label>Año</label>
-                <select v-model="form.year">
-                  <option v-for="y in YEARS" :key="y" :value="y">{{ y }}</option>
-                </select>
-              </div>
+            <!-- ── Descripción ── -->
+            <div class="input-group">
+              <label>Descripción del turno</label>
+              <input
+                type="text"
+                v-model="form.description"
+                maxlength="200"
+                placeholder="Ej: Turno tarde, salon 1"
+                :class="{ 'input-error': errors.description }"
+              />
+              <span v-if="errors.description" class="field-error">{{ errors.description }}</span>
+            </div>
+
+            <!-- ── Fecha de inicio ── -->
+            <div class="input-group">
+              <label>Fecha de inicio</label>
+              <input
+                type="date"
+                v-model="form.start_date"
+                :class="{ 'input-error': errors.start_date }"
+              />
+              <span v-if="errors.start_date" class="field-error">{{ errors.start_date }}</span>
             </div>
 
             <!-- ── Días de la semana ── -->
@@ -466,24 +465,24 @@ async function saveChanges() {
 
             </div>
 
-            <!-- ── Monto ── -->
+            <!-- ── Precio por clase ── -->
             <div class="input-group monto-group">
-              <label>Monto por clase</label>
+              <label>Precio por clase</label>
               <input
                 type="number"
-                v-model.number="form.price"
+                v-model.number="form.class_price"
                 min="0.01"
                 step="0.01"
                 placeholder="Ej: 5000"
-                :class="{ 'input-error': errors.price }"
+                :class="{ 'input-error': errors.class_price }"
               />
-              <span v-if="errors.price" class="field-error">{{ errors.price }}</span>
+              <span v-if="errors.class_price" class="field-error">{{ errors.class_price }}</span>
             </div>
 
-            <!-- ── Badge período ── -->
+            <!-- ── Badge resumen ── -->
             <div class="period-badge">
               <span>📅</span>
-              <span>Modificando turno de <strong>{{ selectedMonthLabel }} {{ form.year }}</strong></span>
+              <span>Fecha de inicio: <strong>{{ form.start_date || '—' }}</strong></span>
             </div>
 
             <!-- ── Acciones ── -->

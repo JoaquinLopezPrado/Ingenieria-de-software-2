@@ -34,12 +34,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const turnoId     = Number(route.params.id)
-const month       = Number(route.query.month)     || new Date().getMonth() + 1
-const year        = Number(route.query.year)      || new Date().getFullYear()
 const turnoDesc   = (route.query.desc      as string) || ''
 const actividad   = (route.query.actividad as string) || ''
 const turnoActive = route.query.turno_active !== '0'   // false solo si se pasó explícitamente '0'
-const initialDate = `${year}-${String(month).padStart(2, '0')}-01`
+// El backend ya no devuelve month/year; el calendario abre en el mes actual
+const initialDate = new Date().toISOString().slice(0, 8) + '01'
 
 // ─── Guard de rol ─────────────────────────────────────────────────────────────
 // Si el store tiene datos de usuario, verificamos que sea admin.
@@ -98,10 +97,11 @@ function formatFechaLarga(fecha: string): string {
   return `${diaSemana} ${day} de ${mesNombre} de ${year}`
 }
 
-/** Mes/año del turno para el encabezado */
-const periodoLabel = computed(() =>
-  `${MESES_ES[month - 1] ?? ''} ${year}`
-)
+/** Mes/año actual para el encabezado */
+const periodoLabel = computed(() => {
+  const now = new Date()
+  return `${MESES_ES[now.getMonth()] ?? ''} ${now.getFullYear()}`
+})
 
 // ─── Eventos para FullCalendar ────────────────────────────────────────────────
 
