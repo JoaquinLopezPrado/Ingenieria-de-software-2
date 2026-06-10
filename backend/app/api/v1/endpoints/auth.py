@@ -4,13 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.docs.auth_responses import LOGIN_RESPONSES, LOGOUT_RESPONSES, REFRESH_RESPONSES, REGISTER_RESPONSES
+from app.api.v1.docs.auth_responses import FORGOT_PASSWORD_RESPONSES, LOGIN_RESPONSES, LOGOUT_RESPONSES, REFRESH_RESPONSES, REGISTER_RESPONSES, RESET_PASSWORD_RESPONSES
 from app.core.config import settings
 from app.core.dependencies import get_current_user_id, get_db, require_roles
+from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import GoogleCompleteRequest, LoginCredentials, LoginResponse, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, Token
+from app.schemas.auth import ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, LoginResponse, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest, Token
 from app.services.auth_service import AuthService
 from app.utils.security import decode_google_state_token
 
@@ -22,6 +23,7 @@ def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
         user_repo=UserRepository(db),
         profile_repo=ProfileRepository(db),
         token_repo=TokenRepository(db),
+        reset_repo=PasswordResetRepository(db),
     )
 
 
@@ -61,6 +63,24 @@ async def logout(
 ):
     await service.logout(user_id, data.refresh_token)
     return {"message": "Sesión cerrada exitosamente."}
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK, responses=FORGOT_PASSWORD_RESPONSES)
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
+):
+    await service.forgot_password(data)
+    return {"message": "Si el correo está registrado, recibirás las instrucciones en breve."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK, responses=RESET_PASSWORD_RESPONSES)
+async def reset_password(
+    data: ResetPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
+):
+    await service.reset_password(data)
+    return {"message": "Contraseña actualizada exitosamente."}
 
 
 @router.get("/google", include_in_schema=True)

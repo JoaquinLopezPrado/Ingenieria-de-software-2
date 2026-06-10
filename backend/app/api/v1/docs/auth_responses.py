@@ -92,6 +92,36 @@ LOGOUT_RESPONSES: _Responses = {
     },
 }
 
+FORGOT_PASSWORD_RESPONSES: _Responses = {
+    200: {
+        "description": "Respuesta genérica (siempre igual).",
+        "content": {
+            "application/json": {
+                "example": {"message": "Si el correo está registrado, recibirás las instrucciones en breve."}
+            }
+        },
+    },
+}
+
+RESET_PASSWORD_RESPONSES: _Responses = {
+    200: {
+        "description": "Contraseña actualizada exitosamente.",
+        "content": {
+            "application/json": {
+                "example": {"message": "Contraseña actualizada exitosamente."}
+            }
+        },
+    },
+    400: {
+        "description": "Token inválido o expirado.",
+        "content": {
+            "application/json": {
+                "example": {"errors": {"general": "El enlace de recuperación es inválido o ha expirado."}}
+            }
+        },
+    },
+}
+
 REGISTER_RESPONSES: _Responses = {
     201: {
         "description": "Cliente registrado exitosamente.",
