@@ -62,6 +62,29 @@ def welcome(first_name: str) -> str:
     return _wrap(content)
 
 
+def password_reset(reset_url: str) -> str:
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">Recuperá tu contraseña</h2>
+      <p style="color:#444;line-height:1.6;">
+        Recibimos una solicitud para restablecer la contraseña de tu cuenta en
+        <strong>Centro de Actividades</strong>.
+        Hacé clic en el botón para crear una nueva contraseña.
+        El enlace es válido por <strong>15 minutos</strong> y de un solo uso.
+      </p>
+      <p style="margin-top:28px;">
+        <a href="{reset_url}"
+           style="background:#11a691;color:#fff;padding:12px 24px;
+                  border-radius:8px;text-decoration:none;font-weight:bold;">
+          Restablecer contraseña
+        </a>
+      </p>
+      <p style="color:#aaa;font-size:12px;margin-top:24px;">
+        Si no solicitaste este cambio, podés ignorar este mensaje. Tu contraseña no será modificada.
+      </p>
+    """
+    return _wrap(content)
+
+
 def subscription_payment_confirmed(
     first_name: str,
     activity_name: str,

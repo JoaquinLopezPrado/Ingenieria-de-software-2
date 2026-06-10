@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
@@ -8,10 +9,11 @@ from app.core.config import settings
 from app.domain.user import AuthProvider, User
 from app.models.auth import User as UserORM
 from app.models.profile import ClientProfile as ClientProfileORM
+from app.repositories.password_reset_repository import AbstractPasswordResetRepository
 from app.repositories.profile_repository import AbstractProfileRepository
 from app.repositories.token_repository import AbstractTokenRepository
 from app.repositories.user_repository import AbstractUserRepository
-from app.schemas.auth import GoogleCompleteRequest, LoginCredentials, RefreshTokenRequest, RegisterClientRequest
+from app.schemas.auth import ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest
 from app.services.email_service import EmailService
 from app.utils.security import (
     create_access_token,
@@ -35,10 +37,12 @@ class AuthService:
         user_repo: AbstractUserRepository,
         profile_repo: AbstractProfileRepository,
         token_repo: AbstractTokenRepository,
+        reset_repo: AbstractPasswordResetRepository,
     ):
         self._user_repo = user_repo
         self._profile_repo = profile_repo
         self._token_repo = token_repo
+        self._reset_repo = reset_repo
         self._email_service = EmailService()
 
     async def register_client(self, data: RegisterClientRequest) -> User:
@@ -320,6 +324,33 @@ class AuthService:
                     detail="Error al obtener la información del usuario de Google.",
                 )
             return userinfo_resp.json()
+
+    async def forgot_password(self, data: ForgotPasswordRequest) -> None:
+        user = await self._user_repo.get_by_email(data.email)
+        if user is None or user.hashed_password is None:
+            return
+
+        await self._reset_repo.delete_by_user_id(user.id)
+
+        raw_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        await self._reset_repo.save(user.id, hash_token(raw_token), expires_at)
+
+        reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?token={raw_token}"
+        self._email_service.send_password_reset(user.email, reset_url)
+
+    async def reset_password(self, data: ResetPasswordRequest) -> None:
+        token_hash = hash_token(data.token)
+        record = await self._reset_repo.get_by_hash(token_hash)
+
+        if record is None or record.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El enlace de recuperación es inválido o ha expirado.",
+            )
+
+        await self._reset_repo.delete_by_hash(token_hash)
+        await self._user_repo.update_password(record.user_id, hash_password(data.new_password))
 
     async def _ensure_email_is_unique(self, email: str) -> None:
         if await self._user_repo.get_by_email(email):

@@ -8,7 +8,7 @@ import aiosmtplib
 import httpx
 
 from app.core.config import settings
-from app.services.email_templates import single_payment_confirmed, subscription_payment_confirmed, welcome
+from app.services.email_templates import password_reset, single_payment_confirmed, subscription_payment_confirmed, welcome
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,11 @@ class EmailService:
     def send_welcome(self, to: str, first_name: str) -> None:
         asyncio.create_task(
             self._send(to, "¡Bienvenido/a a Centro de Actividades!", welcome(first_name))
+        )
+
+    def send_password_reset(self, to: str, reset_url: str) -> None:
+        asyncio.create_task(
+            self._send(to, "Recuperá tu contraseña — Centro de Actividades", password_reset(reset_url))
         )
 
     def send_subscription_confirmed(
