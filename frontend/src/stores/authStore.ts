@@ -5,10 +5,13 @@ import { authService } from '@/services/authService'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<any>(null)
   const isAuthenticated = ref(!!localStorage.getItem('access_token'))
-  const forgotPassword = async (_email: string) => {
-  
-  return new Promise((resolve) => setTimeout(resolve, 1000))
-}
+  const forgotPassword = async (email: string) => {
+    await authService.forgotPassword(email)
+  }
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    await authService.resetPassword(token, newPassword)
+  }
 
   const fetchUser = async () => {
     try {
@@ -79,5 +82,5 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchUser()
   }
 
-  return { user, isAuthenticated, login, loginWith2FA, register, logout, fetchUser, forgotPassword, loginWithTokens, googleComplete, unlinkGoogle }
+  return { user, isAuthenticated, login, loginWith2FA, register, logout, fetchUser, forgotPassword, resetPassword, loginWithTokens, googleComplete, unlinkGoogle }
 })

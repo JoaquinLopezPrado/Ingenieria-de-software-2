@@ -39,6 +39,11 @@ const router = createRouter({
       component: () => import('../views/ForgotPasswordView.vue'),
     },
     {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/ResetPasswordView.vue'),
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
@@ -141,7 +146,7 @@ const router = createRouter({
   ]
 })
 
-const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'auth-callback', 'google-complete'])
+const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'reset-password', 'auth-callback', 'google-complete'])
 
 router.beforeEach(async (to: RouteLocationNormalized) => {
   const authStore = useAuthStore()

@@ -1,76 +1,49 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import AuthHeader from '@/components/auth/AuthHeader.vue'
+
+const props = defineProps<{ loading: boolean }>()
+const emit = defineEmits<{ (e: 'submit', email: string): void }>()
 
 const email = ref('')
-const success = ref(false)
+const emailError = ref('')
 
-const handleRecover = () => {
-  if (email.value) success.value = true
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const handleSubmit = () => {
+  emailError.value = ''
+  if (!EMAIL_REGEX.test(email.value)) {
+    emailError.value = 'El formato del correo electrónico no es válido.'
+    return
+  }
+  emit('submit', email.value)
 }
 </script>
 
 <template>
-  <div class="auth-page-wrapper">
-    <div class="auth-card">
-      <AuthHeader subtitle="Recuperar acceso" />
-      
-      <div v-if="success" class="success-banner">
-        <p>¡Listo! Revisa tu correo para restablecer tu contraseña.</p>
-        <router-link to="/login" class="link-accent">Volver al Inicio →</router-link>
-      </div>
-
-      <form v-else @submit.prevent="handleRecover" class="form-container">
-        <div class="form-group">
-          <label class="custom-label">Tu Email</label>
-          <input 
-            v-model="email" 
-            type="email" 
-            placeholder="email@ejemplo.com" 
-            class="input-field" 
-            required 
-          />
-        </div>
-
-        <div class="actions">
-          <button type="submit" class="btn-primary">Enviar </button>
-          <router-link to="/login" class="link-back">Cancelar</router-link>
-        </div>
-      </form>
-
-      <div class="footer-note">
-        <router-link to="/login" class="link-secondary">← Volver al inicio de sesión</router-link>
-      </div>
+  <form @submit.prevent="handleSubmit" class="form-container">
+    <div class="form-group">
+      <label class="custom-label">Tu Email</label>
+      <input
+        v-model="email"
+        type="text"
+        placeholder="email@ejemplo.com"
+        class="input-field"
+        :class="{ 'input-error': emailError }"
+        autocomplete="email"
+      />
+      <span v-if="emailError" class="field-error">{{ emailError }}</span>
     </div>
-  </div>
+
+    <div class="actions">
+      <button type="submit" class="btn-primary" :disabled="props.loading">
+        {{ props.loading ? 'Enviando...' : 'Enviar enlace' }}
+      </button>
+      <router-link to="/login" class="link-back">Cancelar</router-link>
+    </div>
+  </form>
 </template>
 
 <style scoped>
-/* Contenedor que ocupa TODA la pantalla */
-.auth-page-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  width: 100vw; /* Asegura el ancho completo */
-  position: fixed; /* Evita que otros elementos lo muevan */
-  top: 0;
-  left: 0;
-  background: linear-gradient(135deg, #dff8f2 0%, #cfeee6 100%);
-  z-index: 999;
-}
-
-.auth-card {
-  background: white;
-  padding: 40px;
-  border-radius: 24px;
-  box-shadow: 0 15px 35px rgba(13, 110, 95, 0.1);
-  width: 90%;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-}
-
 .form-container {
   display: flex;
   flex-direction: column;
@@ -97,13 +70,23 @@ const handleRecover = () => {
   border-radius: 12px;
   font-size: 14px;
   width: 100%;
-  box-sizing: border-box; /* Importante para que no se salga del card */
+  box-sizing: border-box;
 }
 
 .input-field:focus {
   outline: none;
   border-color: #11a691;
   background-color: #fff;
+}
+
+.input-error {
+  border-color: #e53935 !important;
+}
+
+.field-error {
+  color: #e53935;
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 .actions {
@@ -125,39 +108,20 @@ const handleRecover = () => {
   transition: all 0.2s;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   filter: brightness(1.1);
   transform: translateY(-2px);
 }
 
-.link-back, .link-secondary {
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-back {
   text-align: center;
   color: #7f8c8d;
   font-size: 14px;
-  text-decoration: none;
-}
-
-.footer-note {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #eef2f1;
-  text-align: center;
-}
-
-.success-banner {
-  background-color: #e8f4f1;
-  color: #00897b;
-  padding: 24px;
-  border-radius: 16px;
-  text-align: center;
-  line-height: 1.5;
-}
-
-.link-accent {
-  display: inline-block;
-  margin-top: 12px;
-  color: #11a691;
-  font-weight: 700;
   text-decoration: none;
 }
 </style>

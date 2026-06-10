@@ -1,107 +1,111 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AuthHeader from '@/components/auth/AuthHeader.vue'
 import ForgotPasswordForm from '@/components/auth/ForgotPasswordForm.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(false)
 const success = ref(false)
 
-const handleForgotPassword = async (email: string) => {
+const handleSubmit = async (email: string) => {
   loading.value = true
   try {
     await authStore.forgotPassword(email)
-    success.value = true
-    // Redirigir a login después de 3 segundos
-    setTimeout(() => {
-      router.push('/')
-    }, 3000)
-  } catch (err: any) {
-    // El error se maneja en ForgotPasswordForm
   } finally {
+    success.value = true
     loading.value = false
   }
 }
 </script>
 
 <template>
-  <div class="forgot-container">
-    <div class="forgot-card">
+  <div class="page-wrapper">
+    <div class="auth-card">
       <AuthHeader subtitle="Recuperar Contraseña" />
 
-      <div v-if="success" class="success-message">
-        <p>✓ Se ha enviado un email con las instrucciones para recuperar tu contraseña.</p>
-        <p class="small">Redirigiendo al login en unos segundos...</p>
+      <div v-if="success" class="success-banner">
+        <p>Si el correo está registrado, recibirás las instrucciones en breve.</p>
+        <router-link to="/login" class="link-accent">← Volver al inicio de sesión</router-link>
       </div>
 
-      <ForgotPasswordForm v-else :loading="loading" @submit="handleForgotPassword" />
+      <template v-else>
+        <p class="hint">
+          Ingresá tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
+        </p>
+        <ForgotPasswordForm :loading="loading" @submit="handleSubmit" />
+      </template>
 
-      <div class="forgot-footer">
-        <router-link to="/login" class="link-back">
-          ← Volver al inicio de sesión
-        </router-link>
+      <div v-if="!success" class="footer-note">
+        <router-link to="/login" class="link-secondary">← Volver al inicio de sesión</router-link>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.forgot-container {
+.page-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  width: 100vw;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #dff8f2 0%, #cfeee6 100%);
+  z-index: 999;
 }
 
-.forgot-card {
+.auth-card {
   background: white;
   padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  width: 100%;
+  border-radius: 24px;
+  box-shadow: 0 15px 35px rgba(13, 110, 95, 0.1);
+  width: 90%;
   max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.success-message {
-  background-color: #efe;
-  color: #3c3;
-  padding: 15px;
-  border-radius: 8px;
-  border-left: 4px solid #3c3;
-}
-
-.success-message p {
-  margin: 0 0 8px 0;
+.hint {
+  color: #666;
   font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
 }
 
-.success-message .small {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-bottom: 0;
+.success-banner {
+  background-color: #e8f4f1;
+  color: #00897b;
+  padding: 24px;
+  border-radius: 16px;
+  text-align: center;
+  line-height: 1.6;
 }
 
-.forgot-footer {
-  margin-top: 20px;
+.success-banner p {
+  margin: 0 0 12px 0;
+}
+
+.link-accent {
+  display: inline-block;
+  color: #11a691;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.footer-note {
+  padding-top: 8px;
+  border-top: 1px solid #eef2f1;
   text-align: center;
 }
 
-.link-back {
-  color: #667eea;
-  text-decoration: none;
+.link-secondary {
+  color: #7f8c8d;
   font-size: 14px;
-  font-weight: 500;
-  transition: color 0.3s;
-}
-
-.link-back:hover {
-  color: #764ba2;
-  text-decoration: underline;
+  text-decoration: none;
 }
 </style>

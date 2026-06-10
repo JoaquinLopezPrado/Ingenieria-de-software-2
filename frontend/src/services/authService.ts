@@ -10,11 +10,11 @@ export const authService = {
   register: (userData: any) =>
     apiClient.post('/auth/register', userData),
 
-  forgotPassword: (email: string) => {
-    return apiClient.post('/auth/forgot-password', {
-      email,
-    })
-  },
+  forgotPassword: (email: string) =>
+    apiClient.post('/auth/forgot-password', { email }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    apiClient.post('/auth/reset-password', { token, new_password: newPassword }),
 
   logout: (refreshToken: string) =>
     apiClient.post('/auth/logout', {
