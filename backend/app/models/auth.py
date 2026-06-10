@@ -39,3 +39,11 @@ class RefreshToken(IDMixin, TimestampMixin, Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     token_hash = Column(String, unique=True, nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class PasswordResetToken(IDMixin, TimestampMixin, Base):
+    __tablename__ = "password_reset_tokens"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
