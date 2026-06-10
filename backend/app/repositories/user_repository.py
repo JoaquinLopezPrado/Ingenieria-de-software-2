@@ -52,6 +52,10 @@ class AbstractUserRepository(ABC):
     async def disable_2fa(self, user_id: int) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def update_password(self, user_id: int, hashed_password: str) -> None:
+        raise NotImplementedError
+
 
 class UserRepository(AbstractUserRepository):
 
@@ -131,6 +135,13 @@ class UserRepository(AbstractUserRepository):
             update(UserORM)
             .where(UserORM.id == user_id)
             .values(totp_secret=None, is_2fa_enabled=False)
+        )
+
+    async def update_password(self, user_id: int, hashed_password: str) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == user_id)
+            .values(hashed_password=hashed_password)
         )
 
     def _to_domain(self, orm_user: UserORM) -> User:
