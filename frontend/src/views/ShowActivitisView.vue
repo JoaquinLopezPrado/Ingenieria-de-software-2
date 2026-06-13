@@ -191,6 +191,15 @@
               </button>
             </div>
 
+            <div v-else-if="turnosConSeniaPagada.has(turno.id)" class="acciones-card">
+              <div class="senia-chip">
+                <span>Seña abonada · completá el pago antes de la clase</span>
+                <button class="btn-completar-pago" type="button" @click="pagarSaldoSenia(turno)">
+                  Completar pago (70% restante)
+                </button>
+              </div>
+            </div>
+
             <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
               <button
                 class="accion-btn"
@@ -208,14 +217,7 @@
                   : 'Inscribirse' }}
               </button>
 
-              <div v-if="turnosConSeniaPagada.has(turno.id)" class="senia-chip">
-                <span>Seña abonada · completá el pago antes de la clase</span>
-                <button class="btn-completar-pago" type="button" @click="pagarSaldoSenia(turno)">
-                  Completar pago
-                </button>
-              </div>
-
-              <div v-else-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
+              <div v-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
                 Tenés inscripciones a clases individuales
               </div>
 
@@ -744,15 +746,16 @@ const submitModal = async () => {
     router.push({
       name: 'ticket',
       query: {
-        enrollment_id: data.id,
-        actividad:     turno.actividad,
-        dia:           diaLabel,
-        duracion:      turno.dur,
-        instructor:    turno.inst,
-        numero:        data.id,
-        amount:        data.amount,
-        precio_clase:  data.amount,
-        expires_at:    data.expires_at,
+        enrollment_id:   data.id,
+        enrollment_type: 'single',
+        actividad:       turno.actividad,
+        dia:             diaLabel,
+        duracion:        turno.dur,
+        instructor:      turno.inst,
+        numero:          data.id,
+        amount:          data.amount,
+        precio_clase:    data.amount,
+        expires_at:      data.expires_at,
       },
     })
   } catch (error) {

@@ -242,7 +242,7 @@ const fetchClases = async () => {
       mySingleRes.data
         .filter((e) =>
           String(e.turno_id) === turnoId.value &&
-          (e.status === 'confirmed' || (e.status === 'pending' && e.expires_at && new Date(e.expires_at).getTime() > now))
+          (e.status === 'confirmed' || e.status === 'deposit_paid' || (e.status === 'pending' && e.expires_at && new Date(e.expires_at).getTime() > now))
         )
         .map((e) => e.clase_id)
     )
