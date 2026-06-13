@@ -37,4 +37,13 @@ export const enrollmentService = {
 
   freeConfirm: (enrollment_id: number) =>
     apiClient.post('/payments/free-confirm', { enrollment_id }),
+
+  createDepositPreference: (enrollment_id: number) =>
+    apiClient.post('/payments/deposit-preference', { enrollment_id }),
+
+  createBalancePreference: (enrollment_id: number) =>
+    apiClient.post('/payments/balance-preference', { enrollment_id }),
+
+  cancelDeposit: (enrollment_id: number) =>
+    apiClient.post<{ refund: boolean; refund_id: string | null }>('/payments/cancel-deposit', { enrollment_id }),
 }

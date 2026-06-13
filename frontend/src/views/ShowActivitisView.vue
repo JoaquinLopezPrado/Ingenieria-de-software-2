@@ -208,7 +208,14 @@
                   : 'Inscribirse' }}
               </button>
 
-              <div v-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
+              <div v-if="turnosConSeniaPagada.has(turno.id)" class="senia-chip">
+                <span>Seña abonada · completá el pago antes de la clase</span>
+                <button class="btn-completar-pago" type="button" @click="pagarSaldoSenia(turno)">
+                  Completar pago
+                </button>
+              </div>
+
+              <div v-else-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
                 Tenés inscripciones a clases individuales
               </div>
 
@@ -364,6 +371,7 @@ const inscriptos = ref(new Set())
 const turnosConClaseSuelta = ref(new Map())
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
+const turnosConSeniaPagada = ref(new Map())
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
@@ -418,7 +426,7 @@ const loadEnrollments = async () => {
 
   turnosConClaseSuelta.value = new Map(
     mySingleRes.data
-      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
+      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)) || e.status === 'deposit_paid')
       .map((e) => [e.turno_id, e])
   )
 
@@ -428,9 +436,15 @@ const loadEnrollments = async () => {
       .map((e) => [e.turno_id, e])
   )
 
+  turnosConSeniaPagada.value = new Map(
+    mySingleRes.data
+      .filter((e) => e.status === 'deposit_paid')
+      .map((e) => [e.turno_id, e])
+  )
+
   enrolledClaseIds.value = new Set(
     mySingleRes.data
-      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)))
+      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)) || e.status === 'deposit_paid')
       .map((e) => e.clase_id)
       .filter(Boolean)
   )
@@ -678,6 +692,17 @@ const continuarPagoSingle = (turno) => {
       expires_at:    enrollment.expires_at,
     },
   })
+}
+
+const pagarSaldoSenia = async (turno) => {
+  const enrollment = turnosConSeniaPagada.value.get(turno.id)
+  if (!enrollment) return
+  try {
+    const { data } = await enrollmentService.createBalancePreference(enrollment.enrollment_id)
+    window.location.href = data.init_point
+  } catch {
+    alert('No se pudo iniciar el pago del saldo. Intentá de nuevo.')
+  }
 }
 
 const openModal = (turno) => {
@@ -1220,6 +1245,38 @@ h1 {
   font-size: 13px;
   font-weight: 600;
   text-align: center;
+}
+
+.senia-chip {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #FFF8E1;
+  border: 1px solid #FFD54F;
+  color: #E65100;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.btn-completar-pago {
+  padding: 8px 20px;
+  border-radius: 99px;
+  border: none;
+  background: #009EE3;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-completar-pago:hover {
+  background: #0080C0;
 }
 
 .aviso-lleno {

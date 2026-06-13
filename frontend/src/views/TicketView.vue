@@ -138,7 +138,15 @@
         </template>
         <template v-else>
           <button v-if="!expirado" class="btn-mp" :disabled="pagando" @click="pagar">
-            {{ pagando ? 'Redirigiendo...' : 'Pagar con Mercado Pago' }}
+            {{ pagando ? 'Redirigiendo...' : `Pagar total $${fmt(route.query.amount)}` }}
+          </button>
+          <button
+            v-if="!expirado && esSingle"
+            class="btn-mp btn-mp--senia"
+            :disabled="pagando"
+            @click="pagarSenia"
+          >
+            {{ pagando ? 'Redirigiendo...' : `Pagar seña $${fmt(montoSenia)} (30%)` }}
           </button>
         </template>
         <button class="btn-volver" @click="router.push({ name: 'list' })">
@@ -160,6 +168,8 @@ const router = useRouter()
 const fmt = (val) => Number(val ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })
 
 const esSinCosto = computed(() => Number(route.query.amount ?? 0) === 0)
+const esSingle   = computed(() => route.query.enrollment_type === 'single')
+const montoSenia = computed(() => Math.round(Number(route.query.amount ?? 0) * 0.30 * 100) / 100)
 
 const discountFull   = computed(() => Number(route.query.discount_full_classes ?? 0))
 const discountSingle = computed(() => Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0))
@@ -250,6 +260,21 @@ const pagar = async () => {
     alert('No se pudo iniciar el pago. Intentá de nuevo.')
   }
 }
+
+const pagarSenia = async () => {
+  if (expirado.value) return
+  const enrollmentId = Number(route.query.enrollment_id)
+  if (!enrollmentId) return
+
+  pagando.value = true
+  try {
+    const { data } = await enrollmentService.createDepositPreference(enrollmentId)
+    window.location.href = data.init_point
+  } catch {
+    pagando.value = false
+    alert('No se pudo iniciar el pago de la seña. Intentá de nuevo.')
+  }
+}
 </script>
  
 <style scoped>
@@ -263,6 +288,8 @@ const pagar = async () => {
   justify-content: center; gap: 10px;
 }
 .btn-mp:hover { background: #0080C0; }
+.btn-mp--senia { background: #00897B; }
+.btn-mp--senia:hover { background: #00695C; }
 * { box-sizing: border-box; }
 .page { min-height: 100vh; background: linear-gradient(135deg, #E0F7F4 0%, #F0FAF8 50%, #E8F5E9 100%); font-family: 'Segoe UI', system-ui, sans-serif; padding-top: 60px; }
  

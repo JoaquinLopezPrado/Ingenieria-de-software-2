@@ -327,15 +327,16 @@ async function handleSubmit() {
     router.push({
       name: 'ticket',
       query: {
-        enrollment_id: data.id,
-        actividad:     actividad.value,
-        dia:           diaLabel,
-        duracion:      `${horaInicio.value} - ${horaFin.value}`,
-        instructor:    instructor.value,
-        numero:        data.id,
-        amount:        data.amount,
-        precio_clase:  data.amount,
-        expires_at:    data.expires_at,
+        enrollment_id:   data.id,
+        enrollment_type: 'single',
+        actividad:       actividad.value,
+        dia:             diaLabel,
+        duracion:        `${horaInicio.value} - ${horaFin.value}`,
+        instructor:      instructor.value,
+        numero:          data.id,
+        amount:          data.amount,
+        precio_clase:    data.amount,
+        expires_at:      data.expires_at,
       },
     })
   } catch (error) {
