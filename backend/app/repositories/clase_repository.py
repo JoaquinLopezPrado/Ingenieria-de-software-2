@@ -80,7 +80,7 @@ class ClaseRepository(AbstractClaseRepository):
             .join(EnrollmentORM, EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
             .where(
                 EnrollmentSlotORM.clase_id == ClaseORM.id,
-                EnrollmentORM.status.in_([EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]),
+                EnrollmentORM.status.in_([EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED, EnrollmentStatus.DEPOSIT_PAID]),
             )
             .scalar_subquery()
         )
