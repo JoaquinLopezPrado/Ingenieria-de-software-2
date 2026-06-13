@@ -8,6 +8,9 @@ class EnrollmentStatus(str, enum.Enum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
+    DEPOSIT_PAID = "deposit_paid"
+    DEPOSIT_FORFEITED = "deposit_forfeited"
+    REFUNDED = "refunded"
 
 
 class EnrollmentType(str, enum.Enum):
@@ -97,6 +100,8 @@ class MySingleEnrollment:
         turno_description: str,
         instructor: str,
         activity_name: str,
+        deposit_amount: Decimal | None = None,
+        deposit_payment_id: str | None = None,
     ):
         self.enrollment_id = enrollment_id
         self.status = status
@@ -111,3 +116,5 @@ class MySingleEnrollment:
         self.turno_description = turno_description
         self.instructor = instructor
         self.activity_name = activity_name
+        self.deposit_amount = deposit_amount
+        self.deposit_payment_id = deposit_payment_id
