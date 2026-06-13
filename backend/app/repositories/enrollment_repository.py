@@ -247,6 +247,17 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         amount = row[3]
         original_amount = row[11] if row[11] is not None else amount
         discount_full_classes = row[12] if row[12] is not None else Decimal(0)
+
+        clase_dates: list[date] = []
+        if row[10] == EnrollmentType.SINGLE:
+            dates_result = await self._session.execute(
+                select(ClaseORM.date)
+                .join(EnrollmentSlotORM, EnrollmentSlotORM.clase_id == ClaseORM.id)
+                .where(EnrollmentSlotORM.enrollment_id == enrollment_id)
+                .order_by(ClaseORM.date)
+            )
+            clase_dates = [r[0] for r in dates_result]
+
         return EnrollmentPaymentDetails(
             enrollment_id=row[0],
             user_id=row[1],
@@ -263,6 +274,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             enrollment_type=row[10],
             original_amount=original_amount,
             discount_full_classes=discount_full_classes,
+            clase_dates=clase_dates,
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:
@@ -417,6 +429,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             .join(EnrollmentSlotORM, EnrollmentSlotORM.clase_id == ClaseORM.id)
             .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
             .where(EnrollmentSlotORM.enrollment_id == enrollment_id)
+            .order_by(ClaseORM.date, TurnoORM.start_time)
             .limit(1)
         )
         row = slot_result.first()
@@ -498,8 +511,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 EnrollmentORM.user_id == user_id,
                 EnrollmentORM.status == EnrollmentStatus.DEPOSIT_PAID,
             )
+            .order_by(ClaseORM.date, TurnoORM.start_time)
+            .limit(1)
         )
-        row = result.one_or_none()
+        row = result.first()
         if row is None:
             return None
         clase_start = datetime.combine(row[5], row[6]).replace(tzinfo=_ART)

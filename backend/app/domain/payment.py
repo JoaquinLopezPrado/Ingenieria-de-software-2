@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -23,6 +23,7 @@ class EnrollmentPaymentDetails:
     enrollment_type: str
     original_amount: Decimal = Decimal(0)
     discount_full_classes: Decimal = Decimal(0)
+    clase_dates: list[date] = field(default_factory=list)
 
 
 @dataclass
