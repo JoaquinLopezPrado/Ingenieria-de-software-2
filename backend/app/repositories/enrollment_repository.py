@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
@@ -15,7 +16,22 @@ from app.models.clase import Clase as ClaseORM
 from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as EnrollmentSlotORM
 from app.models.turno import Turno as TurnoORM
 
-_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
+_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED, EnrollmentStatus.DEPOSIT_PAID]
+
+_ART = timezone(timedelta(hours=-3))
+_DEPOSIT_RATIO = Decimal("0.30")
+_DEPOSIT_DEADLINE_HOURS = 1
+_REFUND_WINDOW_HOURS = 24
+
+
+@dataclass
+class DepositInfo:
+    enrollment_id: int
+    user_id: int
+    status: EnrollmentStatus
+    deposit_amount: Decimal
+    deposit_payment_id: str
+    clase_start: datetime
 
 
 class AbstractEnrollmentRepository(ABC):
@@ -58,6 +74,32 @@ class AbstractEnrollmentRepository(ABC):
 
     @abstractmethod
     async def cancel_pending(self, enrollment_id: int, user_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def confirm_deposit(
+        self,
+        enrollment_id: int,
+        deposit_payment_id: str,
+        deposit_amount: Decimal,
+        deposit_expires_at: datetime,
+    ) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def confirm_balance(self, enrollment_id: int, payment_id: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def cancel_deposit_with_refund(self, enrollment_id: int, user_id: int, refund_id: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def cancel_deposit_no_refund(self, enrollment_id: int, user_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_deposit_info(self, enrollment_id: int, user_id: int) -> "DepositInfo | None":
         raise NotImplementedError
 
 
@@ -306,6 +348,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                     turno_description=e.turno.description,
                     instructor=e.turno.instructor,
                     activity_name=e.turno.activity.name,
+                    deposit_amount=e.deposit_amount,
+                    deposit_payment_id=e.deposit_payment_id,
                 ))
         return enrollments
 
@@ -326,16 +370,26 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         await self._session.flush()
 
     async def cancel_expired(self) -> int:
-        result = await self._session.execute(
+        now = datetime.now(timezone.utc)
+        pending_result = await self._session.execute(
             update(EnrollmentORM)
             .where(
                 EnrollmentORM.status == EnrollmentStatus.PENDING,
                 EnrollmentORM.expires_at.isnot(None),
-                EnrollmentORM.expires_at <= datetime.now(timezone.utc),
+                EnrollmentORM.expires_at <= now,
             )
             .values(status=EnrollmentStatus.CANCELLED)
         )
-        return result.rowcount
+        deposit_result = await self._session.execute(
+            update(EnrollmentORM)
+            .where(
+                EnrollmentORM.status == EnrollmentStatus.DEPOSIT_PAID,
+                EnrollmentORM.expires_at.isnot(None),
+                EnrollmentORM.expires_at <= now,
+            )
+            .values(status=EnrollmentStatus.DEPOSIT_FORFEITED)
+        )
+        return pending_result.rowcount + deposit_result.rowcount
 
     async def cancel_pending(self, enrollment_id: int, user_id: int) -> bool:
         result = await self._session.execute(
@@ -348,6 +402,104 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             .values(status=EnrollmentStatus.CANCELLED)
         )
         return result.rowcount > 0
+
+    # ------------------------------------------------------------------ #
+    # Seña (depósito 30%)                                                  #
+    # ------------------------------------------------------------------ #
+
+    async def confirm_deposit(
+        self,
+        enrollment_id: int,
+        deposit_payment_id: str,
+        deposit_amount: Decimal,
+        deposit_expires_at: datetime,
+    ) -> bool:
+        result = await self._session.execute(
+            update(EnrollmentORM)
+            .where(
+                EnrollmentORM.id == enrollment_id,
+                EnrollmentORM.status == EnrollmentStatus.PENDING,
+            )
+            .values(
+                status=EnrollmentStatus.DEPOSIT_PAID,
+                deposit_payment_id=deposit_payment_id,
+                deposit_amount=deposit_amount,
+                expires_at=deposit_expires_at,
+            )
+        )
+        return result.rowcount > 0
+
+    async def confirm_balance(self, enrollment_id: int, payment_id: str) -> bool:
+        result = await self._session.execute(
+            update(EnrollmentORM)
+            .where(
+                EnrollmentORM.id == enrollment_id,
+                EnrollmentORM.status == EnrollmentStatus.DEPOSIT_PAID,
+            )
+            .values(
+                status=EnrollmentStatus.CONFIRMED,
+                payment_id=payment_id,
+                last_payment_date=date.today(),
+            )
+        )
+        return result.rowcount > 0
+
+    async def cancel_deposit_with_refund(self, enrollment_id: int, user_id: int, refund_id: str) -> bool:
+        result = await self._session.execute(
+            update(EnrollmentORM)
+            .where(
+                EnrollmentORM.id == enrollment_id,
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.status == EnrollmentStatus.DEPOSIT_PAID,
+            )
+            .values(status=EnrollmentStatus.REFUNDED, refund_id=refund_id)
+        )
+        return result.rowcount > 0
+
+    async def cancel_deposit_no_refund(self, enrollment_id: int, user_id: int) -> bool:
+        result = await self._session.execute(
+            update(EnrollmentORM)
+            .where(
+                EnrollmentORM.id == enrollment_id,
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.status == EnrollmentStatus.DEPOSIT_PAID,
+            )
+            .values(status=EnrollmentStatus.CANCELLED)
+        )
+        return result.rowcount > 0
+
+    async def get_deposit_info(self, enrollment_id: int, user_id: int) -> "DepositInfo | None":
+        result = await self._session.execute(
+            select(
+                EnrollmentORM.id,
+                EnrollmentORM.user_id,
+                EnrollmentORM.status,
+                EnrollmentORM.deposit_amount,
+                EnrollmentORM.deposit_payment_id,
+                ClaseORM.date,
+                TurnoORM.start_time,
+            )
+            .join(EnrollmentSlotORM, EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
+            .join(ClaseORM, ClaseORM.id == EnrollmentSlotORM.clase_id)
+            .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
+            .where(
+                EnrollmentORM.id == enrollment_id,
+                EnrollmentORM.user_id == user_id,
+                EnrollmentORM.status == EnrollmentStatus.DEPOSIT_PAID,
+            )
+        )
+        row = result.one_or_none()
+        if row is None:
+            return None
+        clase_start = datetime.combine(row[5], row[6]).replace(tzinfo=_ART)
+        return DepositInfo(
+            enrollment_id=row[0],
+            user_id=row[1],
+            status=row[2],
+            deposit_amount=row[3],
+            deposit_payment_id=row[4],
+            clase_start=clase_start,
+        )
 
     # ------------------------------------------------------------------ #
     # Helpers de lock y validación                                         #
