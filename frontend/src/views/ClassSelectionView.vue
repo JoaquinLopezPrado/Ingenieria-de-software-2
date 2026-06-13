@@ -57,29 +57,31 @@
             :class="{
               selected: selectedIds.has(option.id),
               enrolled: option.isEnrolled,
+              'deposit-paid': option.isDepositPaid,
+              'deposit-expired': option.isDepositExpired,
             }"
-            :disabled="option.isEnrolled"
-            @click="!option.isEnrolled && toggleOption(option.id)"
+            :disabled="option.isEnrolled || option.isDepositExpired || submitting"
+            @click="handleCardClick(option)"
             type="button"
           >
             <div class="option-header">
               <h3>{{ option.displayDate }}</h3>
 
-              <span v-if="option.isEnrolled" class="status-badge inscripto">
-                Inscripto
-              </span>
-              <span v-else-if="selectedIds.has(option.id)" class="status-badge seleccionado">
-                ✓ Seleccionado
-              </span>
-              <span v-else class="status-badge available">
-                Disponible
-              </span>
+              <span v-if="option.isEnrolled" class="status-badge inscripto">Inscripto</span>
+              <span v-else-if="option.isDepositPaid" class="status-badge senia-pagada">Seña abonada</span>
+              <span v-else-if="option.isDepositExpired" class="status-badge senia-vencida">Seña vencida</span>
+              <span v-else-if="selectedIds.has(option.id)" class="status-badge seleccionado">✓ Seleccionado</span>
+              <span v-else class="status-badge available">Disponible</span>
             </div>
 
             <p><strong>Período:</strong> {{ option.period }}</p>
             <p><strong>Día:</strong> {{ option.dayLabel }}</p>
             <p><strong>Horario:</strong> {{ horaInicio }} - {{ horaFin }}</p>
             <p><strong>Sala:</strong> {{ sala }}</p>
+
+            <p v-if="option.isDepositPaid" class="deposit-cta">
+              Tocá para completar el 70% restante
+            </p>
 
             <div class="cupos-section">
               <div class="cap-row">
@@ -104,6 +106,10 @@
         </p>
       </div>
 
+      <div v-if="hasDepositPending && selectedIds.size === 0" class="deposit-pending-notice">
+        Tenés clases con seña pendiente · Tocá la tarjeta para completar el pago
+      </div>
+
       <div v-if="submitError" class="state-box error submit-error">
         {{ submitError }}
       </div>
@@ -120,7 +126,7 @@
 
         <button
           class="submit-btn"
-          :disabled="!canSubmit || submitting"
+          :disabled="!canSubmit || submitting || hasDepositPending"
           @click="handleSubmit"
           type="button"
         >
@@ -169,9 +175,15 @@ const DAY_ORDER = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábad
 
 const availableOptions = computed(() => {
   return clases.value
-    .filter((clase) => clase.isActive && (clase.isEnrolled || clase.availableSpots > 0))
+    .filter((clase) => clase.isActive && (
+      clase.isEnrolled || clase.isDepositPaid || clase.isDepositExpired || clase.availableSpots > 0
+    ))
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
 })
+
+const hasDepositPending = computed(() =>
+  availableOptions.value.some(o => o.isDepositPaid)
+)
 
 const availableDayKeys = computed(() => {
   const seen = new Set()
@@ -238,14 +250,28 @@ const fetchClases = async () => {
     ])
 
     const now = Date.now()
+    const myTurnoEnrollments = mySingleRes.data.filter(
+      (e) => String(e.turno_id) === turnoId.value
+    )
+
     const enrolledClaseIds = new Set(
-      mySingleRes.data
+      myTurnoEnrollments
         .filter((e) =>
-          String(e.turno_id) === turnoId.value &&
-          (e.status === 'confirmed' || e.status === 'deposit_paid' || (e.status === 'pending' && e.expires_at && new Date(e.expires_at).getTime() > now))
+          e.status === 'confirmed' ||
+          (e.status === 'pending' && e.expires_at && new Date(e.expires_at).getTime() > now)
         )
         .map((e) => e.clase_id)
     )
+
+    const depositPaidClaseMap = new Map()
+    const expiredDepositClaseIds = new Set()
+    myTurnoEnrollments
+      .filter((e) => e.status === 'deposit_paid')
+      .forEach((e) => {
+        const expired = e.expires_at && new Date(e.expires_at).getTime() <= now
+        if (expired) expiredDepositClaseIds.add(e.clase_id)
+        else depositPaidClaseMap.set(e.clase_id, e.enrollment_id)
+      })
 
     const items = Array.isArray(clasesRes.data)
       ? clasesRes.data
@@ -266,6 +292,9 @@ const fetchClases = async () => {
         availableSpots: Math.max(capacity - occupied, 0),
         isActive: clase.is_active ?? true,
         isEnrolled: enrolledClaseIds.has(clase.id),
+        isDepositPaid: depositPaidClaseMap.has(clase.id),
+        isDepositExpired: expiredDepositClaseIds.has(clase.id),
+        depositEnrollmentId: depositPaidClaseMap.get(clase.id) ?? null,
       }
     })
 
@@ -297,12 +326,37 @@ const barBgColor = (option) => {
     : 'rgba(0, 137, 123, 0.15)'
 }
 
+function handleCardClick(option) {
+  if (option.isEnrolled || option.isDepositExpired) return
+  if (option.isDepositPaid) {
+    payBalance(option.depositEnrollmentId)
+    return
+  }
+  toggleOption(option.id)
+}
+
 function toggleOption(id) {
+  if (hasDepositPending.value) {
+    submitError.value = 'Completá el pago de la seña antes de inscribirte a clases nuevas.'
+    return
+  }
   submitError.value = ''
   const s = new Set(selectedIds.value)
   if (s.has(id)) s.delete(id)
   else s.add(id)
   selectedIds.value = s
+}
+
+async function payBalance(enrollmentId) {
+  submitting.value = true
+  submitError.value = ''
+  try {
+    const { data } = await enrollmentService.createBalancePreference(enrollmentId)
+    window.location.href = data.init_point
+  } catch {
+    submitError.value = 'No se pudo iniciar el pago del saldo. Intentá de nuevo.'
+    submitting.value = false
+  }
 }
 
 function goBack() {
@@ -532,11 +586,61 @@ async function handleSubmit() {
   font-weight: 800;
 }
 
+.status-badge.senia-pagada {
+  background: rgba(230, 81, 0, 0.1);
+  color: #E65100;
+}
+
+.status-badge.senia-vencida {
+  background: rgba(229, 57, 53, 0.1);
+  color: #C62828;
+}
+
 .option-card.enrolled {
   opacity: 0.75;
   cursor: default;
   border-color: rgba(0, 137, 123, 0.2);
   background: rgba(232, 245, 233, 0.6);
+}
+
+.option-card.deposit-paid {
+  border: 2px solid #FFB74D;
+  background: rgba(255, 248, 225, 0.9);
+  cursor: pointer;
+}
+
+.option-card.deposit-paid:hover {
+  border-color: #F57C00;
+  box-shadow:
+    0 16px 32px rgba(245, 124, 0, 0.15),
+    0 4px 10px rgba(0, 0, 0, 0.03);
+  transform: translateY(-3px);
+}
+
+.option-card.deposit-expired {
+  opacity: 0.6;
+  cursor: default;
+  border-color: rgba(229, 57, 53, 0.2);
+  background: rgba(255, 235, 238, 0.4);
+}
+
+.deposit-cta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #E65100;
+}
+
+.deposit-pending-notice {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(255, 248, 225, 0.9);
+  border: 1px solid #FFD54F;
+  color: #E65100;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 8px;
 }
 
 .option-card p {
