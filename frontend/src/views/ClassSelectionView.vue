@@ -57,7 +57,8 @@
             :class="{
               selected: selectedIds.has(option.id),
               enrolled: option.isEnrolled,
-              'deposit-paid': option.isDepositPaid,
+              'deposit-paid': option.isDepositPaid && selectedDepositClaseId !== option.id,
+              'deposit-selected': option.isDepositPaid && selectedDepositClaseId === option.id,
               'deposit-expired': option.isDepositExpired,
             }"
             :disabled="option.isEnrolled || option.isDepositExpired || submitting"
@@ -68,6 +69,7 @@
               <h3>{{ option.displayDate }}</h3>
 
               <span v-if="option.isEnrolled" class="status-badge inscripto">Inscripto</span>
+              <span v-else-if="option.isDepositPaid && selectedDepositClaseId === option.id" class="status-badge seleccionado">✓ Seleccionado</span>
               <span v-else-if="option.isDepositPaid" class="status-badge senia-pagada">Seña abonada</span>
               <span v-else-if="option.isDepositExpired" class="status-badge senia-vencida">Seña vencida</span>
               <span v-else-if="selectedIds.has(option.id)" class="status-badge seleccionado">✓ Seleccionado</span>
@@ -79,8 +81,8 @@
             <p><strong>Horario:</strong> {{ horaInicio }} - {{ horaFin }}</p>
             <p><strong>Sala:</strong> {{ sala }}</p>
 
-            <p v-if="option.isDepositPaid" class="deposit-cta">
-              Tocá para completar el 70% restante
+            <p v-if="option.isDepositPaid && selectedDepositClaseId !== option.id" class="deposit-cta">
+              Seleccioná para completar el 70% restante
             </p>
 
             <div class="cupos-section">
@@ -106,8 +108,8 @@
         </p>
       </div>
 
-      <div v-if="hasDepositPending && selectedIds.size === 0" class="deposit-pending-notice">
-        Tenés clases con seña pendiente · Tocá la tarjeta para completar el pago
+      <div v-if="hasDepositPending && !selectedDepositOption && selectedIds.size === 0" class="deposit-pending-notice">
+        Tenés clases con seña pendiente · Seleccioná la tarjeta para completar el pago
       </div>
 
       <div v-if="submitError" class="state-box error submit-error">
@@ -126,15 +128,18 @@
 
         <button
           class="submit-btn"
-          :disabled="!canSubmit || submitting || hasDepositPending"
+          :class="{ 'submit-btn--deposit': selectedDepositOption }"
+          :disabled="!canSubmit || submitting"
           @click="handleSubmit"
           type="button"
         >
           {{ submitting
             ? 'Procesando...'
-            : selectedIds.size === 0
-              ? 'Inscribirse'
-              : `Inscribirse a ${selectedIds.size} clase${selectedIds.size !== 1 ? 's' : ''}` }}
+            : selectedDepositOption
+              ? 'Completar pago de seña'
+              : selectedIds.size === 0
+                ? 'Inscribirse'
+                : `Inscribirse a ${selectedIds.size} clase${selectedIds.size !== 1 ? 's' : ''}` }}
         </button>
       </div>
     </div>
@@ -151,6 +156,7 @@ const route = useRoute()
 const router = useRouter()
 
 const selectedIds = ref(new Set())
+const selectedDepositClaseId = ref(null)
 const selectedDay = ref('todos')
 const loading = ref(false)
 const submitting = ref(false)
@@ -185,6 +191,10 @@ const hasDepositPending = computed(() =>
   availableOptions.value.some(o => o.isDepositPaid)
 )
 
+const selectedDepositOption = computed(() =>
+  availableOptions.value.find(o => o.isDepositPaid && o.id === selectedDepositClaseId.value) ?? null
+)
+
 const availableDayKeys = computed(() => {
   const seen = new Set()
   for (const o of availableOptions.value) seen.add(o.dayLabel)
@@ -201,7 +211,7 @@ const selectedOptions = computed(() =>
   availableOptions.value.filter(o => !o.isEnrolled && selectedIds.value.has(o.id))
 )
 
-const canSubmit = computed(() => selectedOptions.value.length > 0)
+const canSubmit = computed(() => selectedOptions.value.length > 0 || selectedDepositOption.value !== null)
 
 const formatDate = (value) => {
   if (!value) return ''
@@ -329,7 +339,8 @@ const barBgColor = (option) => {
 function handleCardClick(option) {
   if (option.isEnrolled || option.isDepositExpired) return
   if (option.isDepositPaid) {
-    payBalance(option.depositEnrollmentId)
+    selectedDepositClaseId.value = selectedDepositClaseId.value === option.id ? null : option.id
+    submitError.value = ''
     return
   }
   toggleOption(option.id)
@@ -364,6 +375,10 @@ function goBack() {
 }
 
 async function handleSubmit() {
+  if (selectedDepositOption.value) {
+    await payBalance(selectedDepositOption.value.depositEnrollmentId)
+    return
+  }
   if (selectedOptions.value.length === 0) return
 
   submitting.value = true
@@ -617,6 +632,22 @@ async function handleSubmit() {
   transform: translateY(-3px);
 }
 
+.option-card.deposit-selected {
+  border: 2px solid #F57C00;
+  background: rgba(255, 243, 224, 0.95);
+  box-shadow:
+    0 18px 36px rgba(245, 124, 0, 0.2),
+    0 4px 10px rgba(0, 0, 0, 0.03);
+}
+
+.option-card.deposit-selected:hover {
+  border-color: #E65100;
+  box-shadow:
+    0 20px 40px rgba(229, 81, 0, 0.22),
+    0 4px 10px rgba(0, 0, 0, 0.03);
+  transform: translateY(-3px);
+}
+
 .option-card.deposit-expired {
   opacity: 0.6;
   cursor: default;
@@ -722,11 +753,25 @@ async function handleSubmit() {
   color: white;
   cursor: pointer;
   box-shadow: 0 12px 24px rgba(0, 137, 123, 0.22);
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
 }
 
 .submit-btn:hover:not(:disabled) {
   background: #00695c;
   transform: translateY(-1px);
+}
+
+.submit-btn--deposit {
+  background: #E65100;
+  box-shadow: 0 12px 24px rgba(230, 81, 0, 0.28);
+}
+
+.submit-btn--deposit:hover:not(:disabled) {
+  background: #BF360C;
 }
 
 .back-btn:disabled,
