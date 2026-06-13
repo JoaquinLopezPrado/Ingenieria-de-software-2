@@ -106,6 +106,12 @@ class PaymentService:
                 detail="La inscripción no tiene una seña confirmada.",
             )
 
+        if details.expires_at and details.expires_at <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="El plazo para completar el pago ha vencido.",
+            )
+
         balance_amount = (details.price * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
 
         return await self._build_preference(
@@ -199,11 +205,13 @@ class PaymentService:
     async def _handle_deposit_approved(self, enrollment_id: int, payment_id: str) -> None:
         details = await self._enrollment_repo.get_payment_details(enrollment_id)
         deposit_amount = (details.price * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
-        await self._enrollment_repo.confirm_deposit(
+        confirmed = await self._enrollment_repo.confirm_deposit(
             enrollment_id=enrollment_id,
             deposit_payment_id=payment_id,
             deposit_amount=deposit_amount,
         )
+        if confirmed:
+            await self._send_deposit_email(details, payment_id, deposit_amount)
 
     async def _handle_balance_approved(self, enrollment_id: int, payment_id: str) -> None:
         updated = await self._enrollment_repo.confirm_balance(
@@ -225,7 +233,7 @@ class PaymentService:
                 year_snapshot=details.year,
                 enrollment_type_snapshot=details.enrollment_type,
             )
-            await self._send_payment_email(enrollment_id, payment_id)
+            await self._send_balance_email(details, payment_id)
 
     async def _handle_full_payment_approved(self, enrollment_id: int, payment_id: str) -> None:
         updated = await self._enrollment_repo.update_payment(
@@ -362,4 +370,39 @@ class PaymentService:
                 class_price=details.class_price_snapshot,
                 amount=details.price,
                 payment_id=payment_id,
+                clase_dates=details.clase_dates,
             )
+
+    async def _send_deposit_email(self, details, payment_id: str, deposit_amount: Decimal) -> None:
+        user = await self._user_repo.get_by_id(details.user_id)
+        if not user or not user.client_profile:
+            return
+        balance_amount = (details.price * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
+        self._email_service.send_deposit_confirmed(
+            to=user.email,
+            first_name=user.client_profile.first_name,
+            activity_name=details.activity_name,
+            turno_description=details.turno_description,
+            clase_dates=details.clase_dates,
+            deposit_amount=deposit_amount,
+            balance_amount=balance_amount,
+            payment_id=payment_id,
+        )
+
+    async def _send_balance_email(self, details, payment_id: str) -> None:
+        user = await self._user_repo.get_by_id(details.user_id)
+        if not user or not user.client_profile:
+            return
+        deposit_amount = (details.price * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
+        balance_amount = (details.price * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
+        self._email_service.send_balance_confirmed(
+            to=user.email,
+            first_name=user.client_profile.first_name,
+            activity_name=details.activity_name,
+            turno_description=details.turno_description,
+            clase_dates=details.clase_dates,
+            class_price=details.class_price_snapshot,
+            deposit_amount=deposit_amount,
+            balance_amount=balance_amount,
+            payment_id=payment_id,
+        )
