@@ -193,11 +193,11 @@
 
             <div v-else-if="turnosConSeniaPagada.has(turno.id)" class="acciones-card">
               <div class="senia-chip">
-                <span>Seña abonada · completá el pago antes de la clase</span>
-                <button class="btn-completar-pago" type="button" @click="pagarSaldoSenia(turno)">
-                  Completar pago (70% restante)
-                </button>
+                <span>Tenés una seña pendiente de completar</span>
               </div>
+              <button class="secondary-btn" type="button" @click="verClasesConSenia(turno)">
+                Ver clases para completar el pago
+              </button>
             </div>
 
             <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
@@ -696,15 +696,19 @@ const continuarPagoSingle = (turno) => {
   })
 }
 
-const pagarSaldoSenia = async (turno) => {
-  const enrollment = turnosConSeniaPagada.value.get(turno.id)
-  if (!enrollment) return
-  try {
-    const { data } = await enrollmentService.createBalancePreference(enrollment.enrollment_id)
-    window.location.href = data.init_point
-  } catch {
-    alert('No se pudo iniciar el pago del saldo. Intentá de nuevo.')
-  }
+const verClasesConSenia = (turno) => {
+  router.push({
+    name: 'class-selection',
+    query: {
+      turnoId:    turno.id,
+      actividad:  turno.actividad,
+      horaInicio: turno.hora,
+      horaFin:    turno.horaFin,
+      dias:       turno.dia,
+      sala:       turno.sala,
+      instructor: turno.inst,
+    },
+  })
 }
 
 const openModal = (turno) => {
@@ -1266,21 +1270,6 @@ h1 {
   box-sizing: border-box;
 }
 
-.btn-completar-pago {
-  padding: 8px 20px;
-  border-radius: 99px;
-  border: none;
-  background: #009EE3;
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-completar-pago:hover {
-  background: #0080C0;
-}
 
 .aviso-lleno {
   background: #FFEBEE;
