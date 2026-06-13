@@ -25,6 +25,9 @@ class Enrollment(IDMixin, TimestampMixin, Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     payment_id = Column(String, nullable=True)
     last_payment_date = Column(Date, nullable=True)
+    deposit_amount = Column(Numeric(10, 2), nullable=True)
+    deposit_payment_id = Column(String, nullable=True)
+    refund_id = Column(String, nullable=True)
 
     turno = relationship("Turno", back_populates="enrollments")
     slots = relationship("EnrollmentSlot", back_populates="enrollment", cascade="all, delete-orphan")
