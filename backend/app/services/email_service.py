@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import date
 from decimal import Decimal
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -8,7 +9,14 @@ import aiosmtplib
 import httpx
 
 from app.core.config import settings
-from app.services.email_templates import password_reset, single_payment_confirmed, subscription_payment_confirmed, welcome
+from app.services.email_templates import (
+    balance_confirmed,
+    deposit_confirmed,
+    password_reset,
+    single_payment_confirmed,
+    subscription_payment_confirmed,
+    welcome,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +63,54 @@ class EmailService:
         class_price: Decimal,
         amount: Decimal,
         payment_id: str,
+        clase_dates: list[date] | None = None,
     ) -> None:
         html = single_payment_confirmed(
-            first_name, activity_name, turno_description, num_classes, class_price, amount, payment_id
+            first_name, activity_name, turno_description, num_classes, class_price, amount, payment_id,
+            clase_dates=clase_dates,
         )
         clases = "clase" if num_classes == 1 else "clases"
         asyncio.create_task(
             self._send(to, f"Inscripción confirmada — {num_classes} {clases} de {activity_name}", html)
+        )
+
+    def send_deposit_confirmed(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clase_dates: list[date],
+        deposit_amount: Decimal,
+        balance_amount: Decimal,
+        payment_id: str,
+    ) -> None:
+        html = deposit_confirmed(
+            first_name, activity_name, turno_description, clase_dates,
+            deposit_amount, balance_amount, payment_id,
+        )
+        asyncio.create_task(
+            self._send(to, f"Seña confirmada — {activity_name}", html)
+        )
+
+    def send_balance_confirmed(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clase_dates: list[date],
+        class_price: Decimal,
+        deposit_amount: Decimal,
+        balance_amount: Decimal,
+        payment_id: str,
+    ) -> None:
+        html = balance_confirmed(
+            first_name, activity_name, turno_description, clase_dates,
+            class_price, deposit_amount, balance_amount, payment_id,
+        )
+        asyncio.create_task(
+            self._send(to, f"Pago completado — {activity_name}", html)
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:

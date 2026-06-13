@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 
@@ -162,6 +163,27 @@ def subscription_payment_confirmed(
     return _wrap(content)
 
 
+_MONTHS = ["enero","febrero","marzo","abril","mayo","junio",
+           "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+_DAYS = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"]
+
+
+def _fmt_date(d: date) -> str:
+    return f"{_DAYS[d.weekday()].capitalize()} {d.day} de {_MONTHS[d.month - 1]}"
+
+
+def _dates_html(clase_dates: list[date]) -> str:
+    if not clase_dates:
+        return ""
+    label = "Fecha de la clase" if len(clase_dates) == 1 else "Fechas de las clases"
+    dates_str = "<br>".join(_fmt_date(d) for d in clase_dates)
+    return f"""
+        <tr>
+          <td style="color:#666;font-size:13px;">{label}</td>
+          <td style="color:#222;">{dates_str}</td>
+        </tr>"""
+
+
 def single_payment_confirmed(
     first_name: str,
     activity_name: str,
@@ -170,8 +192,10 @@ def single_payment_confirmed(
     class_price: Decimal,
     amount: Decimal,
     payment_id: str,
+    clase_dates: list[date] | None = None,
 ) -> str:
     clases_label = "clase" if num_classes == 1 else "clases"
+    dates_row = _dates_html(clase_dates or [])
     content = f"""
       <h2 style="color:#11a691;margin-top:0;">¡Inscripción confirmada, {first_name}!</h2>
       <p style="color:#444;line-height:1.6;">
@@ -186,25 +210,125 @@ def single_payment_confirmed(
         <tr>
           <td style="color:#666;font-size:13px;">Turno</td>
           <td style="color:#222;">{turno_description}</td>
-        </tr>
+        </tr>{dates_row}
         <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">Tipo</td>
-          <td style="color:#222;">Clase{"" if num_classes == 1 else "s"} individual{"" if num_classes == 1 else "es"}</td>
-        </tr>
-        <tr>
           <td style="color:#666;font-size:13px;">Clases reservadas</td>
           <td style="color:#222;">{num_classes}</td>
         </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Precio por clase</td>
+          <td style="color:#222;">$ {class_price:,.2f}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Total abonado</td>
+          <td style="color:#222;font-weight:bold;">$ {amount:,.2f}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">N° transacción MP</td>
+          <td style="color:#888;font-size:13px;font-family:monospace;">{payment_id}</td>
+        </tr>
+      </table>
+      <p style="color:#444;line-height:1.6;">
+        ¡Te esperamos! Si tenés alguna consulta, contactanos por nuestros canales habituales.
+      </p>
+    """
+    return _wrap(content)
+
+
+def deposit_confirmed(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    clase_dates: list[date],
+    deposit_amount: Decimal,
+    balance_amount: Decimal,
+    payment_id: str,
+) -> str:
+    dates_row = _dates_html(clase_dates)
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">¡Seña confirmada, {first_name}!</h2>
+      <p style="color:#444;line-height:1.6;">
+        Tu seña del 30% fue registrada. Tu lugar está reservado.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>{dates_row}
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Seña abonada (30%)</td>
+          <td style="color:#222;font-weight:bold;">$ {deposit_amount:,.2f}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Saldo pendiente (70%)</td>
+          <td style="color:#222;font-weight:bold;">$ {balance_amount:,.2f}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">N° transacción MP</td>
+          <td style="color:#888;font-size:13px;font-family:monospace;">{payment_id}</td>
+        </tr>
+      </table>
+      <p style="color:#e65100;font-weight:bold;line-height:1.6;">
+        ⚠ Debés abonar el saldo restante al menos 1 hora antes del inicio de la clase para poder participar.
+        Si no completás el pago, perderás la seña abonada.
+      </p>
+      <p style="color:#444;line-height:1.6;">
+        Podés completar el pago desde "Mis actividades". ¡Te esperamos!
+      </p>
+    """
+    return _wrap(content)
+
+
+def balance_confirmed(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    clase_dates: list[date],
+    class_price: Decimal,
+    deposit_amount: Decimal,
+    balance_amount: Decimal,
+    payment_id: str,
+) -> str:
+    dates_row = _dates_html(clase_dates)
+    total = deposit_amount + balance_amount
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">¡Pago completado, {first_name}!</h2>
+      <p style="color:#444;line-height:1.6;">
+        Tu inscripción a la clase individual está confirmada.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>{dates_row}
         <tr style="background:#f0faf8;">
           <td style="color:#666;font-size:13px;">Precio por clase</td>
           <td style="color:#222;">$ {class_price:,.2f}</td>
         </tr>
         <tr>
-          <td style="color:#666;font-size:13px;">Total abonado</td>
-          <td style="color:#222;font-weight:bold;">$ {amount:,.2f}</td>
+          <td style="color:#666;font-size:13px;">Seña abonada (30%)</td>
+          <td style="color:#222;">$ {deposit_amount:,.2f}</td>
         </tr>
         <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">N° transacción MP</td>
+          <td style="color:#666;font-size:13px;">Saldo abonado (70%)</td>
+          <td style="color:#222;">$ {balance_amount:,.2f}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Total</td>
+          <td style="color:#222;font-weight:bold;">$ {total:,.2f}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">N° transacción MP (saldo)</td>
           <td style="color:#888;font-size:13px;font-family:monospace;">{payment_id}</td>
         </tr>
       </table>
