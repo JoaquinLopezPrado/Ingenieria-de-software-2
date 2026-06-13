@@ -11,3 +11,8 @@ class PreferenceResponse(BaseModel):
 
 class MpStatusResponse(BaseModel):
     status_detail: str | None
+
+
+class CancelDepositResponse(BaseModel):
+    refund: bool
+    refund_id: str | None = None

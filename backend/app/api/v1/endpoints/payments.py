@@ -7,7 +7,7 @@ from app.domain.user import User
 from app.repositories.enrollment_repository import EnrollmentRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.payment import CreatePreferenceRequest, MpStatusResponse, PreferenceResponse
+from app.schemas.payment import CancelDepositResponse, CreatePreferenceRequest, MpStatusResponse, PreferenceResponse
 from app.services.payment_service import PaymentService
 
 router = APIRouter()
@@ -60,6 +60,61 @@ async def free_confirm_enrollment(
 ):
     await service.free_confirm(enrollment_id=body.enrollment_id, user_id=current_user.id)
     return {"ok": True}
+
+
+@router.post(
+    "/deposit-preference",
+    response_model=PreferenceResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def create_deposit_preference(
+    body: CreatePreferenceRequest,
+    current_user: User = Depends(get_current_user),
+    service: PaymentService = Depends(get_payment_service),
+):
+    init_point = await service.create_deposit_preference(
+        enrollment_id=body.enrollment_id,
+        user_id=current_user.id,
+    )
+    return PreferenceResponse(init_point=init_point)
+
+
+@router.post(
+    "/balance-preference",
+    response_model=PreferenceResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def create_balance_preference(
+    body: CreatePreferenceRequest,
+    current_user: User = Depends(get_current_user),
+    service: PaymentService = Depends(get_payment_service),
+):
+    init_point = await service.create_balance_preference(
+        enrollment_id=body.enrollment_id,
+        user_id=current_user.id,
+    )
+    return PreferenceResponse(init_point=init_point)
+
+
+class CancelDepositRequest(BaseModel):
+    enrollment_id: int
+
+
+@router.post(
+    "/cancel-deposit",
+    response_model=CancelDepositResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_deposit_enrollment(
+    body: CancelDepositRequest,
+    current_user: User = Depends(get_current_user),
+    service: PaymentService = Depends(get_payment_service),
+):
+    result = await service.cancel_deposit_enrollment(
+        enrollment_id=body.enrollment_id,
+        user_id=current_user.id,
+    )
+    return CancelDepositResponse(**result)
 
 
 @router.post("/webhook", status_code=status.HTTP_200_OK)
