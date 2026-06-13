@@ -82,7 +82,6 @@ class AbstractEnrollmentRepository(ABC):
         enrollment_id: int,
         deposit_payment_id: str,
         deposit_amount: Decimal,
-        deposit_expires_at: datetime,
     ) -> bool:
         raise NotImplementedError
 
@@ -412,8 +411,20 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         enrollment_id: int,
         deposit_payment_id: str,
         deposit_amount: Decimal,
-        deposit_expires_at: datetime,
     ) -> bool:
+        slot_result = await self._session.execute(
+            select(ClaseORM.date, TurnoORM.start_time)
+            .join(EnrollmentSlotORM, EnrollmentSlotORM.clase_id == ClaseORM.id)
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .where(EnrollmentSlotORM.enrollment_id == enrollment_id)
+            .limit(1)
+        )
+        row = slot_result.first()
+        if row is None:
+            return False
+        clase_start = datetime.combine(row[0], row[1]).replace(tzinfo=_ART)
+        deposit_expires_at = clase_start - timedelta(hours=_DEPOSIT_DEADLINE_HOURS)
+
         result = await self._session.execute(
             update(EnrollmentORM)
             .where(
