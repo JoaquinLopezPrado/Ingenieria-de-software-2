@@ -144,6 +144,20 @@ const validate = (): boolean => {
   return Object.keys(errors.value).length === 0
 }
 
+const isDirty = computed(() =>
+  form.value.activity_id !== null ||
+  form.value.description !== '' ||
+  form.value.days.length > 0 ||
+  form.value.startTime !== '' ||
+  form.value.endTime !== '' ||
+  form.value.maxCapacity !== null ||
+  form.value.class_price !== null ||
+  form.value.is_active !== false ||
+  form.value.start_date !== todayISO
+)
+
+defineExpose({ isDirty })
+
 const handleSubmit = () => {
   if (!validate()) return
   emit('submit-session', {

@@ -26,6 +26,22 @@ const successMessage = ref('')
 const errorMessage = ref('')
 const router = useRouter()
 
+const sessionFormRef = ref<InstanceType<typeof SessionForm> | null>(null)
+const showLeaveModal = ref(false)
+
+function handleBack() {
+  if (sessionFormRef.value?.isDirty) {
+    showLeaveModal.value = true
+  } else {
+    router.push({ name: 'turnos-grilla' })
+  }
+}
+
+function confirmLeave() {
+  showLeaveModal.value = false
+  router.push({ name: 'turnos-grilla' })
+}
+
 // null = sin error de auth | 'session' = 401 | 'forbidden' = 403
 const authError = ref<null | 'session' | 'forbidden'>(null)
 
@@ -69,9 +85,14 @@ const handleSaveSession = async (formData: SessionFormData) => {
 
       <!-- ── Encabezado ── -->
       <div class="page-header">
-        <div>
-          <h1 class="page-title">Programar nuevo turno</h1>
-          <p class="page-subtitle">Definí actividad, días, horario y cupo máximo para la clase</p>
+        <div class="header-left">
+          <button class="btn-back" @click="handleBack" title="Volver a la grilla">
+            ← Volver
+          </button>
+          <div>
+            <h1 class="page-title">Programar nuevo turno</h1>
+            <p class="page-subtitle">Definí actividad, días, horario y cupo máximo para la clase</p>
+          </div>
         </div>
       </div>
 
@@ -122,6 +143,7 @@ const handleSaveSession = async (formData: SessionFormData) => {
 
         <!-- ── Formulario ── -->
         <SessionForm
+          ref="sessionFormRef"
           :is-loading="isSubmitting"
           @submit-session="handleSaveSession"
           @auth-error="handleAuthError"
@@ -130,6 +152,28 @@ const handleSaveSession = async (formData: SessionFormData) => {
       </template>
 
     </div>
+    <!-- ── Modal de confirmación al salir ── -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showLeaveModal" class="modal-overlay" @click.self="showLeaveModal = false">
+          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="leave-modal-title">
+            <div class="modal-header">
+              <h2 id="leave-modal-title" class="modal-title">¿Salir sin guardar?</h2>
+            </div>
+            <div class="modal-body">
+              <p class="modal-text">
+                Tenés campos cargados en el formulario. Si salís ahora, los datos se perderán.
+              </p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-stay" @click="showLeaveModal = false">Seguir editando</button>
+              <button class="btn-leave" @click="confirmLeave">Salir sin guardar</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </AdminLayout>
 </template>
 
@@ -140,6 +184,30 @@ const handleSaveSession = async (formData: SessionFormData) => {
 
 .page-header {
   margin-bottom: 2rem;
+}
+
+.header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.btn-back {
+  margin-top: 4px;
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.btn-back:hover {
+  background-color: #f3f4f6;
+  color: #374151;
 }
 
 .page-title {
@@ -293,7 +361,7 @@ const handleSaveSession = async (formData: SessionFormData) => {
   background-color: #e5e7eb;
 }
 
-/* ── Animación ── */
+/* ── Animación alertas ── */
 
 .fade-enter-active,
 .fade-leave-active {
@@ -304,5 +372,105 @@ const handleSaveSession = async (formData: SessionFormData) => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-6px);
+}
+
+/* ── Modal de confirmación ── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem 0;
+}
+
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.modal-body {
+  padding: 0.75rem 1.5rem 1.25rem;
+}
+
+.modal-text {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-stay {
+  background-color: #f3f4f6;
+  color: #374151;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-stay:hover { background-color: #e5e7eb; }
+
+.btn-leave {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-leave:hover { background-color: #fee2e2; }
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-active .modal,
+.modal-fade-leave-active .modal {
+  transition: transform 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-from .modal,
+.modal-fade-leave-to .modal {
+  transform: scale(0.95) translateY(-8px);
 }
 </style>
