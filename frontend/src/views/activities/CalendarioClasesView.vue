@@ -14,7 +14,7 @@
  *
  * Endpoint real: GET /api/v1/turnos/:id/clases — ya integrado con el backend.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -55,6 +55,9 @@ const isAdmin = computed(() => {
 const clases    = ref<Clase[]>([])
 const isLoading = ref(true)
 const loadError = ref('')
+
+// Ref al componente FullCalendar para poder navegar programáticamente
+const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
 
 // Modal
 const modalOpen    = ref(false)
@@ -183,19 +186,32 @@ onMounted(async () => {
     isLoading.value = false
     return
   }
+
+  // 1. Cargar las clases
   try {
     clases.value = await getClasesByTurno(turnoId)
   } catch (e: unknown) {
     const status = (e as { response?: { status?: number } })?.response?.status
     if (status === 403) {
-      // El API confirmó que no hay permisos — forzamos la pantalla de acceso denegado
-      // Reutilizamos el flag isAdmin a través de loadError especial
       loadError.value = '__forbidden__'
     } else {
       loadError.value = 'No se pudieron cargar las clases. Verificá que el servidor esté corriendo.'
     }
   } finally {
+    // 2. Ocultar skeleton → FullCalendar se monta en el DOM
     isLoading.value = false
+  }
+
+  // 3. Navegar al mes de la primera clase futura.
+  //    DEBE ir aquí (fuera del try-catch), después de isLoading = false,
+  //    porque FullCalendar solo existe en el DOM cuando el skeleton ya no se muestra.
+  //    nextTick() espera a que Vue aplique el cambio de isLoading antes de llamar a la API.
+  if (clases.value.length > 0) {
+    const firstDate = clases.value[0]?.date  // backend devuelve ordenado por fecha asc
+    await nextTick()
+    if (firstDate) {
+      calendarRef.value?.getApi()?.gotoDate(firstDate)
+    }
   }
 })
 </script>
@@ -274,7 +290,7 @@ onMounted(async () => {
 
       <!-- ── Calendario ── -->
       <div v-else class="calendar-container">
-        <FullCalendar :options="calendarOptions" />
+        <FullCalendar ref="calendarRef" :options="calendarOptions" />
       </div>
 
     </div>
