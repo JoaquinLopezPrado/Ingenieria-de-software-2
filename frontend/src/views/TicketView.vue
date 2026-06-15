@@ -295,7 +295,7 @@ const pagarSenia = async () => {
     window.location.href = data.init_point
   } catch (e) {
     pagando.value = false
-    errorMsg.value = e?.response?.data?.detail || 'No se pudo iniciar el pago de la seña. Intentá de nuevo.'
+    errorMsg.value = e?.response?.data?.errors?.general || 'No se pudo iniciar el pago de la seña. Intentá de nuevo.'
   }
 }
 </script>
