@@ -154,6 +154,21 @@
         </button>
       </div>
     </div>
+
+    <!-- Modal de error -->
+    <div v-if="errorMsg" class="error-modal-backdrop" @click.self="errorMsg = ''">
+      <div class="error-modal">
+        <div class="error-modal-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C62828" stroke-width="2.5" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <circle cx="12" cy="16" r="0.5" fill="#C62828"/>
+          </svg>
+        </div>
+        <p class="error-modal-msg">{{ errorMsg }}</p>
+        <button class="error-modal-btn" @click="errorMsg = ''">Entendido</button>
+      </div>
+    </div>
   </div>
 </template>
  
@@ -195,6 +210,7 @@ const diasArray = computed(() =>
 
 const pagando  = ref(false)
 const expirado = ref(false)
+const errorMsg = ref('')
 const segundosRestantes = ref(0)
 let intervalo = null
 
@@ -277,9 +293,9 @@ const pagarSenia = async () => {
   try {
     const { data } = await enrollmentService.createDepositPreference(enrollmentId)
     window.location.href = data.init_point
-  } catch {
+  } catch (e) {
     pagando.value = false
-    alert('No se pudo iniciar el pago de la seña. Intentá de nuevo.')
+    errorMsg.value = e?.response?.data?.detail || 'No se pudo iniciar el pago de la seña. Intentá de nuevo.'
   }
 }
 </script>
@@ -430,4 +446,63 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.7; }
 }
+
+.error-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.error-modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  max-width: 380px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  animation: pop-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.error-modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FFEBEE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-modal-msg {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #37474F;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.error-modal-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 999px;
+  border: none;
+  background: #C62828;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.error-modal-btn:hover { background: #B71C1C; }
 </style>
