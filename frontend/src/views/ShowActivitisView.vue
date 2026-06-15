@@ -680,6 +680,7 @@ const continuarPagoSingle = (turno) => {
   const d = new Date(`${enrollment.clase_date}T00:00:00`)
   const dayLabel = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(d)
   const displayDate = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
+  const claseStart = new Date(`${enrollment.clase_date}T${enrollment.start_time.padStart(5, '0')}:00`)
   router.push({
     name: 'ticket',
     query: {
@@ -692,6 +693,7 @@ const continuarPagoSingle = (turno) => {
       amount:        enrollment.amount,
       precio_clase:  enrollment.amount,
       expires_at:    enrollment.expires_at,
+      clase_start:   claseStart.toISOString(),
     },
   })
 }
@@ -746,6 +748,12 @@ const submitModal = async () => {
     const diaLabel = count === 1
       ? `${selected[0].dayLabel} ${selected[0].displayDate}`
       : `${count} clases`
+    const timeNorm = turno.hora.padStart(5, '0')
+    const earliestStart = selected.reduce((earliest, opt) => {
+      const dt = new Date(`${opt.rawDate}T${timeNorm}:00`)
+      return dt < earliest ? dt : earliest
+    }, new Date(`${selected[0].rawDate}T${timeNorm}:00`))
+
     closeModal()
     router.push({
       name: 'ticket',
@@ -760,6 +768,7 @@ const submitModal = async () => {
         amount:          data.amount,
         precio_clase:    data.amount,
         expires_at:      data.expires_at,
+        clase_start:     earliestStart.toISOString(),
       },
     })
   } catch (error) {

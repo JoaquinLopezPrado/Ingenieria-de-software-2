@@ -195,7 +195,8 @@ const tieneDescuento = computed(() => discountFull.value > 0 || discountSingle.v
 const depositAvailable = computed(() => {
   const raw = route.query.clase_start
   if (!raw) return true
-  const oneHourBefore = new Date(new Date(raw).getTime() - 60 * 60 * 1000)
+  const claseStart = new Date(raw)
+  const oneHourBefore = new Date(claseStart.getTime() - 60 * 60 * 1000)
   return Date.now() < oneHourBefore.getTime()
 })
 
