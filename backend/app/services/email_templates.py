@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 
@@ -334,6 +334,46 @@ def balance_confirmed(
       </table>
       <p style="color:#444;line-height:1.6;">
         ¡Te esperamos! Si tenés alguna consulta, contactanos por nuestros canales habituales.
+      </p>
+    """
+    return _wrap(content)
+
+
+def deposit_refunded(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    clase_start: datetime,
+    deposit_amount: Decimal,
+) -> str:
+    fecha = clase_start.strftime("%-d de %B de %Y")
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">Reembolso de seña confirmado, {first_name}</h2>
+      <p style="color:#444;line-height:1.6;">
+        Tu inscripción fue cancelada y tu seña será reembolsada por el centro.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Fecha de clase cancelada</td>
+          <td style="color:#222;">{fecha}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Monto a reembolsar</td>
+          <td style="color:#11a691;font-weight:bold;">$ {deposit_amount:,.2f}</td>
+        </tr>
+      </table>
+      <p style="color:#444;line-height:1.6;">
+        El centro procesará la devolución a través de los canales de pago habituales.
+        Si tenés alguna consulta, contactanos.
       </p>
     """
     return _wrap(content)

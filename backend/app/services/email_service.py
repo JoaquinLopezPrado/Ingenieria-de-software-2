@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.services.email_templates import (
     balance_confirmed,
     deposit_confirmed,
+    deposit_refunded,
     password_reset,
     single_payment_confirmed,
     subscription_payment_confirmed,
@@ -91,6 +92,20 @@ class EmailService:
         )
         asyncio.create_task(
             self._send(to, f"Seña confirmada — {activity_name}", html)
+        )
+
+    def send_deposit_refunded(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clase_start: datetime,
+        deposit_amount: Decimal,
+    ) -> None:
+        html = deposit_refunded(first_name, activity_name, turno_description, clase_start, deposit_amount)
+        asyncio.create_task(
+            self._send(to, f"Reembolso de seña — {activity_name}", html)
         )
 
     def send_balance_confirmed(
