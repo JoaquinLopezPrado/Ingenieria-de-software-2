@@ -393,10 +393,11 @@ async function handleSubmit() {
       ? `${selectedOptions.value[0].dayLabel} ${selectedOptions.value[0].displayDate}`
       : `${count} clases`
 
+    const timeNormalized = horaInicio.value.padStart(5, '0')
     const earliestStart = selectedOptions.value.reduce((earliest, opt) => {
-      const dt = new Date(`${opt.rawDate}T${horaInicio.value}:00`)
+      const dt = new Date(`${opt.rawDate}T${timeNormalized}:00`)
       return dt < earliest ? dt : earliest
-    }, new Date(`${selectedOptions.value[0].rawDate}T${horaInicio.value}:00`))
+    }, new Date(`${selectedOptions.value[0].rawDate}T${timeNormalized}:00`))
 
     router.push({
       name: 'ticket',
