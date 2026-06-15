@@ -21,7 +21,6 @@ _ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED, Enroll
 _ART = timezone(timedelta(hours=-3))
 _DEPOSIT_RATIO = Decimal("0.30")
 _DEPOSIT_DEADLINE_HOURS = 1
-_REFUND_WINDOW_HOURS = 24
 
 
 @dataclass

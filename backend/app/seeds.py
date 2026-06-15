@@ -8,6 +8,7 @@ from app.domain.profile import Gender
 from app.domain.user import AuthProvider
 from app.models.activity import Activity
 from app.models.auth import Role, User
+from app.models.config import AppConfig
 from app.models.profile import ClientProfile, DocumentType, EmployeeProfile
 from app.utils.security import hash_password
 
@@ -160,6 +161,20 @@ async def seed_activities(session) -> None:
         print(f"[seed] actividad creada: {data['name']}")
 
 
+APP_CONFIG_DEFAULTS = [
+    {"key": "refund_window_hours", "value": "24"},
+]
+
+
+async def seed_app_config(session) -> None:
+    for entry in APP_CONFIG_DEFAULTS:
+        result = await session.execute(select(AppConfig).where(AppConfig.key == entry["key"]))
+        if result.scalar_one_or_none() is not None:
+            continue
+        session.add(AppConfig(key=entry["key"], value=entry["value"]))
+        print(f"[seed] config creada: {entry['key']} = {entry['value']}")
+
+
 async def run():
     async with AsyncSessionLocal() as session:
         async with session.begin():
@@ -167,6 +182,7 @@ async def run():
             doc_types = await seed_document_types(session)
             await seed_users(session, roles, doc_types)
             await seed_activities(session)
+            await seed_app_config(session)
     print("[seed] listo")
 
 

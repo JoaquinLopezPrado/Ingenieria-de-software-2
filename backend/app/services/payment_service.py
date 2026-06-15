@@ -9,7 +9,8 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.domain.enrollment import EnrollmentStatus, EnrollmentType
-from app.repositories.enrollment_repository import AbstractEnrollmentRepository, _DEPOSIT_DEADLINE_HOURS, _DEPOSIT_RATIO, _REFUND_WINDOW_HOURS
+from app.repositories.config_repository import AbstractConfigRepository
+from app.repositories.enrollment_repository import AbstractEnrollmentRepository, DepositInfo, _DEPOSIT_DEADLINE_HOURS, _DEPOSIT_RATIO
 from app.repositories.payment_repository import AbstractPaymentRepository
 from app.repositories.user_repository import AbstractUserRepository
 from app.services.email_service import EmailService
@@ -41,10 +42,12 @@ class PaymentService:
         enrollment_repo: AbstractEnrollmentRepository,
         user_repo: AbstractUserRepository,
         payment_repo: AbstractPaymentRepository,
+        config_repo: AbstractConfigRepository,
     ):
         self._enrollment_repo = enrollment_repo
         self._user_repo = user_repo
         self._payment_repo = payment_repo
+        self._config_repo = config_repo
         self._email_service = EmailService()
         self._sdk = mercadopago.SDK(settings.mp_access_token)
 
@@ -278,18 +281,19 @@ class PaymentService:
                 detail="Inscripción con seña no encontrada.",
             )
 
+        refund_window_hours = await self._config_repo.get_int("refund_window_hours", 24)
         now = datetime.now(_ART)
-        refund_deadline = info.clase_start - timedelta(hours=_REFUND_WINDOW_HOURS)
+        refund_deadline = info.clase_start - timedelta(hours=refund_window_hours)
         eligible_for_refund = now < refund_deadline
 
         if eligible_for_refund:
-            refund_id = await self._process_mp_refund(info.deposit_payment_id, info.deposit_amount)
             await self._enrollment_repo.cancel_deposit_with_refund(
                 enrollment_id=enrollment_id,
                 user_id=user_id,
-                refund_id=refund_id,
+                refund_id="manual",
             )
-            return {"refund": True, "refund_id": refund_id}
+            await self._send_refund_email(enrollment_id, user_id, info)
+            return {"refund": True}
         else:
             await self._enrollment_repo.cancel_deposit_no_refund(
                 enrollment_id=enrollment_id,
@@ -297,11 +301,27 @@ class PaymentService:
             )
             return {"refund": False}
 
+    async def _send_refund_email(self, enrollment_id: int, user_id: int, info: "DepositInfo") -> None:
+        try:
+            user = await self._user_repo.get_by_id(user_id)
+            details = await self._enrollment_repo.get_payment_details(enrollment_id)
+            if user and user.client_profile:
+                self._email_service.send_deposit_refunded(
+                    to=user.email,
+                    first_name=user.client_profile.first_name,
+                    activity_name=details.activity_name,
+                    turno_description=details.turno_description,
+                    clase_start=info.clase_start,
+                    deposit_amount=info.deposit_amount,
+                )
+        except Exception:
+            _logger.exception("Error al enviar email de reembolso para enrollment %s", enrollment_id)
+
     async def _process_mp_refund(self, payment_id: str, amount: Decimal) -> str:
         loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
-            partial(self._sdk.refund().create, payment_id, {"amount": float(amount)}),
+            partial(self._sdk.refund().create, int(payment_id), {"amount": float(amount)}),
         )
         if response["status"] not in (200, 201):
             _logger.error("MP refund error: %s", response)

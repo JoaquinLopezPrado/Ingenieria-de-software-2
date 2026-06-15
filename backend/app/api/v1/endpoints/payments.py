@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
 from app.domain.user import User
+from app.repositories.config_repository import ConfigRepository
 from app.repositories.enrollment_repository import EnrollmentRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.user_repository import UserRepository
@@ -18,6 +19,7 @@ def get_payment_service(db: AsyncSession = Depends(get_db)) -> PaymentService:
         enrollment_repo=EnrollmentRepository(db),
         user_repo=UserRepository(db),
         payment_repo=PaymentRepository(db),
+        config_repo=ConfigRepository(db),
     )
 
 
