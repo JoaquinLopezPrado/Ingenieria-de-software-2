@@ -393,6 +393,11 @@ async function handleSubmit() {
       ? `${selectedOptions.value[0].dayLabel} ${selectedOptions.value[0].displayDate}`
       : `${count} clases`
 
+    const earliestStart = selectedOptions.value.reduce((earliest, opt) => {
+      const dt = new Date(`${opt.rawDate}T${horaInicio.value}:00`)
+      return dt < earliest ? dt : earliest
+    }, new Date(`${selectedOptions.value[0].rawDate}T${horaInicio.value}:00`))
+
     router.push({
       name: 'ticket',
       query: {
@@ -406,6 +411,7 @@ async function handleSubmit() {
         amount:          data.amount,
         precio_clase:    data.amount,
         expires_at:      data.expires_at,
+        clase_start:     earliestStart.toISOString(),
       },
     })
   } catch (error) {

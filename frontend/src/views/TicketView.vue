@@ -141,7 +141,7 @@
             {{ pagando ? 'Redirigiendo...' : `Pagar total $${fmt(route.query.amount)}` }}
           </button>
           <button
-            v-if="!expirado && esSingle"
+            v-if="!expirado && esSingle && depositAvailable"
             class="btn-mp btn-mp--senia"
             :disabled="pagando"
             @click="pagarSenia"
@@ -176,6 +176,13 @@ const discountSingle = computed(() => Number(route.query.original_amount ?? 0) -
 const precioBase     = computed(() => Number(route.query.original_amount ?? 0) + discountFull.value)
 
 const tieneDescuento = computed(() => discountFull.value > 0 || discountSingle.value > 0)
+
+const depositAvailable = computed(() => {
+  const raw = route.query.clase_start
+  if (!raw) return true
+  const oneHourBefore = new Date(new Date(raw).getTime() - 60 * 60 * 1000)
+  return Date.now() < oneHourBefore.getTime()
+})
 
 const DAY_LABELS = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
