@@ -123,6 +123,37 @@ const totalPagado = computed(() => {
     .reduce((acc, e) => acc + parseFloat(e.amount) * (e.status === 'deposit_paid' ? 0.3 : 1), 0)
   return sumSub + sumSingle
 })
+
+const confirmingId = ref<number | null>(null)
+const cancellingId = ref<number | null>(null)
+const cancelResult = ref<{ refund: boolean } | null>(null)
+const cancelError = ref<string | null>(null)
+
+const isRefundEligible = (claseDate: string, startTime: string): boolean => {
+  const normalized = startTime.padStart(5, '0')
+  const classStart = new Date(`${claseDate}T${normalized}:00-03:00`)
+  const deadline = new Date(classStart.getTime() - 24 * 60 * 60 * 1000)
+  return new Date() < deadline
+}
+
+const handleCancelDeposit = async (enrollmentId: number) => {
+  cancellingId.value = enrollmentId
+  confirmingId.value = null
+  cancelError.value = null
+  try {
+    const res = await enrollmentService.cancelDeposit(enrollmentId)
+    cancelResult.value = { refund: res.data.refund }
+    await fetchPagos()
+    setTimeout(() => { cancelResult.value = null }, 5000)
+  } catch (err: any) {
+    cancelError.value = err?.response?.data?.errors?.general
+      ?? err?.response?.data?.detail
+      ?? 'No se pudo cancelar la inscripción.'
+    setTimeout(() => { cancelError.value = null }, 5000)
+  } finally {
+    cancellingId.value = null
+  }
+}
 </script>
 
 <template>
@@ -140,6 +171,15 @@ const totalPagado = computed(() => {
       </div>
 
       <template v-else>
+        <div v-if="cancelResult !== null" :class="['cancel-result-banner', cancelResult.refund ? 'banner-refund-ok' : 'banner-refund-no']">
+          {{ cancelResult.refund
+            ? 'Seña reembolsada correctamente.'
+            : 'Inscripción cancelada. La seña no fue reembolsada por encontrarse fuera del plazo.' }}
+        </div>
+        <div v-if="cancelError !== null" class="cancel-result-banner banner-error">
+          {{ cancelError }}
+        </div>
+
         <div v-if="suscripciones.length > 0 || clasesIndividuales.length > 0" class="resumen-banner">
           <span class="resumen-label">Total abonado</span>
           <span class="resumen-monto">{{ formatPeso(totalPagado) }}</span>
@@ -221,6 +261,27 @@ const totalPagado = computed(() => {
                       <span v-else class="precio-label">{{ formatPeso(clase.amount) }}</span>
                       <span class="fecha-badge">{{ formatFecha(clase.clase_date) }}</span>
                       <span class="horario-label">{{ clase.start_time }} - {{ clase.end_time }} hs</span>
+                      <template v-if="clase.status === 'deposit_paid' && isRefundEligible(clase.clase_date, clase.start_time)">
+                        <div v-if="confirmingId === clase.enrollment_id" class="confirm-cancel">
+                          <span class="confirm-label">¿Cancelar seña?</span>
+                          <div class="confirm-actions">
+                            <button
+                              class="btn-confirm-yes"
+                              :disabled="cancellingId !== null"
+                              @click="handleCancelDeposit(clase.enrollment_id)"
+                            >Sí</button>
+                            <button class="btn-confirm-no" @click="confirmingId = null">No</button>
+                          </div>
+                        </div>
+                        <button
+                          v-else
+                          class="btn-cancel-deposit"
+                          :disabled="cancellingId === clase.enrollment_id"
+                          @click="confirmingId = clase.enrollment_id"
+                        >
+                          {{ cancellingId === clase.enrollment_id ? 'Cancelando...' : 'Cancelar seña' }}
+                        </button>
+                      </template>
                     </div>
                   </template>
                 </ItemCard>
@@ -505,5 +566,93 @@ const totalPagado = computed(() => {
   .pago-right {
     gap: 4px;
   }
+}
+
+.cancel-result-banner {
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.banner-refund-ok {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.banner-refund-no {
+  background-color: #fff3e0;
+  color: #E65100;
+  border: 1px solid #ffe0b2;
+}
+
+.banner-error {
+  background-color: #fdecea;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.btn-cancel-deposit {
+  background: none;
+  border: none;
+  color: #c62828;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-cancel-deposit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirm-cancel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.confirm-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c62828;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-confirm-yes {
+  background: #c62828;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-confirm-yes:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-confirm-no {
+  background: #eceff1;
+  color: #546e7a;
+  border: none;
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
 }
 </style>
