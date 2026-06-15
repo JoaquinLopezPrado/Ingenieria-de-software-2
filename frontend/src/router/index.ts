@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { isAdminUser, isEmployeeUser, isStaffUser } from '@/utils/role'
+import { useInscripcionStore } from '@/stores/inscripcionStore'
+
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
@@ -228,13 +230,45 @@ const router = createRouter({
       name: 'cliente-inscripciones',
       component: AlumnoInscripcionesView,
       meta: { requiresAuth: true, requiresStaff: true }
-    }
+    },
+    {
+      path: '/inscripciones',
+      component: () => import('../views/inscripciones/InscripcionesLayout.vue'),
+      meta: { requiresAuth: true, requiresStaff: true, inscripcionesFlow: true },
+      children: [
+        {
+          path: '',
+          name: 'inscripciones-buscar-cliente',
+          component: () => import('../views/inscripciones/BuscarClienteView.vue'),
+        },
+        {
+          path: 'turnos',
+          name: 'inscripciones-turnos',
+          component: () => import('../views/inscripciones/ListaTurnosView.vue'),
+        },
+        {
+          path: 'turnos/:turnoId/inscribir',
+          name: 'inscripciones-inscribir',
+          component: () => import('../views/inscripciones/InscribirView.vue'),
+        },
+        {
+          path: 'turnos/:turnoId/lista-espera',
+          name: 'inscripciones-lista-espera',
+          component: () => import('../views/inscripciones/ListaEsperaView.vue'),
+        },
+      ],
+    },
   ]
 })
 
 const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'reset-password', 'auth-callback', 'google-complete'])
 
-router.beforeEach(async (to: RouteLocationNormalized) => {
+router.beforeEach(async (to: RouteLocationNormalized, from: RouteLocationNormalized) => {
+  // Limpiar el flujo de inscripciones al salir del módulo
+  if (from.meta.inscripcionesFlow && !to.meta.inscripcionesFlow) {
+    useInscripcionStore().reset()
+  }
+
   const authStore = useAuthStore()
   const hasAccessToken = Boolean(localStorage.getItem('access_token'))
   const isPublicRoute = typeof to.name === 'string' && publicRouteNames.has(to.name)
@@ -259,12 +293,27 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
     return { name: isEmployee ? 'employee-home' : 'list' }
   }
 
-  if (to.meta.requiresStaff && !isStaff) {
+  // Rutas marcadas como requiresStaff son accesibles por admin y empleado
+  if (to.meta.requiresStaff && !isAdmin && !isEmployee) {
     return { name: 'list' }
   }
 
   if (isAuthenticated && isEmployee && !to.meta.requiresStaff && !isPublicRoute && to.name !== 'employee-home') {
     return { name: 'employee-home' }
+  }
+
+  // Guard de flujo: redirigir al paso correcto si falta el estado previo
+  if (to.meta.inscripcionesFlow && to.name !== 'inscripciones-buscar-cliente') {
+    const inscripcionStore = useInscripcionStore()
+    if (!inscripcionStore.clienteSeleccionado) {
+      return { name: 'inscripciones-buscar-cliente' }
+    }
+    if (
+      (to.name === 'inscripciones-inscribir' || to.name === 'inscripciones-lista-espera') &&
+      !inscripcionStore.turnoSeleccionado
+    ) {
+      return { name: 'inscripciones-turnos' }
+    }
   }
 
   if (isAuthenticated && isPublicRoute) {
