@@ -232,6 +232,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 EnrollmentORM.enrollment_type,
                 EnrollmentORM.original_amount,
                 EnrollmentORM.discount_full_classes,
+                TurnoORM.start_time,
             )
             .join(TurnoORM, TurnoORM.id == EnrollmentORM.turno_id)
             .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
@@ -258,6 +259,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             )
             clase_dates = [r[0] for r in dates_result]
 
+        clase_start = None
+        if row[10] == EnrollmentType.SINGLE and clase_dates:
+            clase_start = datetime.combine(clase_dates[0], row[13]).replace(tzinfo=_ART)
+
         return EnrollmentPaymentDetails(
             enrollment_id=row[0],
             user_id=row[1],
@@ -275,6 +280,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             original_amount=original_amount,
             discount_full_classes=discount_full_classes,
             clase_dates=clase_dates,
+            clase_start=clase_start,
         )
 
     async def update_payment(self, enrollment_id: int, new_status: EnrollmentStatus, payment_id: str) -> bool:

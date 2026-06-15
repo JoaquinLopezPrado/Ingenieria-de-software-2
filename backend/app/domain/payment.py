@@ -24,6 +24,7 @@ class EnrollmentPaymentDetails:
     original_amount: Decimal = Decimal(0)
     discount_full_classes: Decimal = Decimal(0)
     clase_dates: list[date] = field(default_factory=list)
+    clase_start: Optional[datetime] = None
 
 
 @dataclass

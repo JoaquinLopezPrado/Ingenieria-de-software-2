@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.domain.enrollment import EnrollmentStatus, EnrollmentType
-from app.repositories.enrollment_repository import AbstractEnrollmentRepository, _DEPOSIT_RATIO, _REFUND_WINDOW_HOURS
+from app.repositories.enrollment_repository import AbstractEnrollmentRepository, _DEPOSIT_DEADLINE_HOURS, _DEPOSIT_RATIO, _REFUND_WINDOW_HOURS
 from app.repositories.payment_repository import AbstractPaymentRepository
 from app.repositories.user_repository import AbstractUserRepository
 from app.services.email_service import EmailService
@@ -83,6 +83,14 @@ class PaymentService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="La inscripción no está en estado pendiente.",
             )
+
+        if details.clase_start:
+            deadline = details.clase_start - timedelta(hours=_DEPOSIT_DEADLINE_HOURS)
+            if datetime.now(timezone.utc) >= deadline:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Ya no es posible pagar la seña. La clase comienza en menos de 1 hora.",
+                )
 
         deposit_amount = (details.price * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
 
