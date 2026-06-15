@@ -168,14 +168,22 @@ const totalPagado = computed(() => {
                       <span :class="['status-badge', STATUS_CLASS[sub.status]]">
                         {{ STATUS_LABEL[sub.status] }}
                       </span>
-                      <span class="precio-label">{{ formatPeso(sub.amount) }}</span>
+                      <div class="precio-container">
+                        <span v-if="parseFloat(sub.discount_full_classes) > 0" class="precio-original">
+                          {{ formatPeso(sub.original_amount) }}
+                        </span>
+                        <span class="precio-label">{{ formatPeso(sub.amount) }}</span>
+                      </div>
+                      <span v-if="parseFloat(sub.discount_full_classes) > 0" class="descuento-label">
+                        Descuento -{{ formatPeso(sub.discount_full_classes) }}
+                      </span>
                       <div class="dias-badge-container">
                         <span v-for="dia in sub.days" :key="dia" class="dia-badge">
                           {{ dia.slice(0, 3) }}
                         </span>
                       </div>
                       <span class="horario-label">{{ sub.start_time }} - {{ sub.end_time }}</span>
-                      <span class="periodo-label">{{ periodoLabel(sub) }}</span>
+                      <span class="periodo-label">{{ periodoLabel(sub) }} · Prof. {{ sub.instructor }}</span>
                     </div>
                   </template>
                 </ItemCard>
@@ -196,7 +204,7 @@ const totalPagado = computed(() => {
                   v-for="clase in clasesIndividuales"
                   :key="clase.enrollment_id"
                   :title="clase.activity_name"
-                  subtitle="Clase Individual"
+                  :subtitle="'Prof. ' + clase.instructor"
                   class="pago-card"
                 >
                   <template #right>
@@ -204,9 +212,15 @@ const totalPagado = computed(() => {
                       <span :class="['status-badge', STATUS_CLASS[clase.status]]">
                         {{ STATUS_LABEL[clase.status] }}
                       </span>
-                      <span class="precio-label">{{ formatPeso(clase.amount) }}</span>
+                      <template v-if="clase.status === 'deposit_paid'">
+                        <div class="precio-desglose">
+                          <span class="precio-senia">Seña {{ formatPeso(parseFloat(clase.amount) * 0.3) }}</span>
+                          <span class="precio-saldo-pendiente">Saldo {{ formatPeso(parseFloat(clase.amount) * 0.7) }}</span>
+                        </div>
+                      </template>
+                      <span v-else class="precio-label">{{ formatPeso(clase.amount) }}</span>
                       <span class="fecha-badge">{{ formatFecha(clase.clase_date) }}</span>
-                      <span class="horario-label">{{ clase.start_time }} hs</span>
+                      <span class="horario-label">{{ clase.start_time }} - {{ clase.end_time }} hs</span>
                     </div>
                   </template>
                 </ItemCard>
@@ -338,6 +352,46 @@ const totalPagado = computed(() => {
   background-color: #e3f2fd;
   color: #1565c0;
   border: 1px solid #bbdefb;
+}
+
+.precio-container {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.precio-original {
+  color: #b0bec5;
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: line-through;
+}
+
+.descuento-label {
+  color: #2e7d32;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.precio-desglose {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.precio-senia {
+  color: #E65100;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.precio-saldo-pendiente {
+  color: #90a4ae;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .precio-label {
