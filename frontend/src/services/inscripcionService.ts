@@ -141,10 +141,10 @@ export const getPreviewInscripcion = async (
   // })
   // return res.data
   await new Promise(resolve => setTimeout(resolve, 600))
-  const makeDate = (weeksAhead: number) => {
+  const makeDate = (weeksAhead: number): string => {
     const d = new Date()
     d.setDate(d.getDate() + weeksAhead * 7)
-    return d.toISOString().split('T')[0]
+    return d.toISOString().split('T')[0] ?? ''
   }
   return {
     turno_id: turnoId,
