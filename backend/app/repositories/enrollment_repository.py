@@ -150,8 +150,10 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         # clases con seña pagan solo el saldo restante (ya se abonó la seña en la inscripción suelta)
         payment_clases = [c for c in available_reference if c.id not in single_covered_ids]
         deposit_covered_reference = [c for c in available_reference if c.id in deposit_covered_ids]
-        balance_per_class = (Decimal(turno.class_price) * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
+        deposit_per_class = (Decimal(turno.class_price) * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
+        balance_per_class = Decimal(turno.class_price) - deposit_per_class
         amount = Decimal(turno.class_price) * len(payment_clases) + balance_per_class * len(deposit_covered_reference)
+        discount_deposit_single = deposit_per_class * len(deposit_covered_reference)
 
         enrollment_orm = EnrollmentORM(
             turno_id=turno_id,
@@ -172,7 +174,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 self._session.add(EnrollmentSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
 
-        return self._to_domain(enrollment_orm, original_amount=original_amount, discount_full_classes=discount_full_classes)
+        return self._to_domain(
+            enrollment_orm,
+            original_amount=original_amount,
+            discount_full_classes=discount_full_classes,
+            discount_deposit_single=discount_deposit_single,
+        )
 
     # ------------------------------------------------------------------ #
     # Inscripción a clase suelta                                           #
@@ -754,7 +761,7 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             detail="Ya tenés un lugar reservado en esta clase.",
         )
 
-    def _to_domain(self, orm: EnrollmentORM, original_amount=None, discount_full_classes=None) -> Enrollment:
+    def _to_domain(self, orm: EnrollmentORM, original_amount=None, discount_full_classes=None, discount_deposit_single=None) -> Enrollment:
         return Enrollment(
             id=orm.id,
             turno_id=orm.turno_id,
@@ -768,4 +775,5 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
             last_payment_date=orm.last_payment_date,
             original_amount=original_amount,
             discount_full_classes=discount_full_classes,
+            discount_deposit_single=discount_deposit_single,
         )

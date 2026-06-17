@@ -22,6 +22,7 @@ class EnrollmentResponse(BaseModel):
     amount: Decimal
     original_amount: Decimal
     discount_full_classes: Decimal
+    discount_deposit_single: Decimal
     status: EnrollmentStatus
     expires_at: datetime | None
 

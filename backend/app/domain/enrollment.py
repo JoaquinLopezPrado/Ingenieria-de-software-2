@@ -33,6 +33,7 @@ class Enrollment:
         last_payment_date: date | None = None,
         original_amount: Decimal | None = None,
         discount_full_classes: Decimal | None = None,
+        discount_deposit_single: Decimal | None = None,
     ):
         self.id = id
         self.turno_id = turno_id
@@ -46,6 +47,7 @@ class Enrollment:
         self.last_payment_date = last_payment_date
         self.original_amount = original_amount if original_amount is not None else amount
         self.discount_full_classes = discount_full_classes if discount_full_classes is not None else Decimal(0)
+        self.discount_deposit_single = discount_deposit_single if discount_deposit_single is not None else Decimal(0)
 
 
 class MySubscriptionEnrollment:
