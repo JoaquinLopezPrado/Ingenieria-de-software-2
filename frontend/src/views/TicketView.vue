@@ -99,9 +99,13 @@
             <span class="monto-label">Descuento por clase con cupo lleno</span>
             <span class="monto-descuento">- $ {{ fmt(discountFull) }}</span>
           </div>
-          <div v-if="discountSingle > 0" class="monto-row monto-row-descuento">
+          <div v-if="discountConfirmed > 0" class="monto-row monto-row-descuento">
             <span class="monto-label">Descuento por clases individuales ya abonadas</span>
-            <span class="monto-descuento">- $ {{ fmt(discountSingle) }}</span>
+            <span class="monto-descuento">- $ {{ fmt(discountConfirmed) }}</span>
+          </div>
+          <div v-if="discountDepositSingle > 0" class="monto-row monto-row-descuento">
+            <span class="monto-label">Descuento por señas ya abonadas</span>
+            <span class="monto-descuento">- $ {{ fmt(discountDepositSingle) }}</span>
           </div>
           <div class="monto-row monto-row-total">
             <span class="monto-label"><strong>Total a pagar</strong></span>
@@ -186,9 +190,11 @@ const esSinCosto = computed(() => Number(route.query.amount ?? 0) === 0)
 const esSingle   = computed(() => route.query.enrollment_type === 'single')
 const montoSenia = computed(() => Math.round(Number(route.query.amount ?? 0) * 0.30 * 100) / 100)
 
-const discountFull   = computed(() => Number(route.query.discount_full_classes ?? 0))
-const discountSingle = computed(() => Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0))
-const precioBase     = computed(() => Number(route.query.original_amount ?? 0) + discountFull.value)
+const discountFull          = computed(() => Number(route.query.discount_full_classes ?? 0))
+const discountDepositSingle = computed(() => Number(route.query.discount_deposit_single ?? 0))
+const discountSingle        = computed(() => Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0))
+const discountConfirmed     = computed(() => discountSingle.value - discountDepositSingle.value)
+const precioBase            = computed(() => Number(route.query.original_amount ?? 0) + discountFull.value)
 
 const tieneDescuento = computed(() => discountFull.value > 0 || discountSingle.value > 0)
 

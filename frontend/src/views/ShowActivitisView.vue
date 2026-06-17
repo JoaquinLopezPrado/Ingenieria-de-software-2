@@ -549,10 +549,11 @@ const handleInscripcion = async (turno) => {
         instructor:      turno.inst,
         nivel:           turno.nivel,
         numero:          data.id,
-        amount:                data.amount,
-        original_amount:       data.original_amount,
-        discount_full_classes: data.discount_full_classes,
-        expires_at:            data.expires_at,
+        amount:                  data.amount,
+        original_amount:         data.original_amount,
+        discount_full_classes:   data.discount_full_classes,
+        discount_deposit_single: data.discount_deposit_single,
+        expires_at:              data.expires_at,
       },
     })
   } catch (err) {
