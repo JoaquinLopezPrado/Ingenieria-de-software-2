@@ -54,9 +54,9 @@ const confirmLogout = async () => {
           <a href="#" class="nav-item">
             <span class="nav-icon">☰</span> Inscripciones
           </a>
-          <a href="#" class="nav-item">
+          <RouterLink to="/clientes" class="nav-item" active-class="active">
             <span class="nav-icon">◎</span> Alumnos
-          </a>
+          </RouterLink>
           <RouterLink to="/activities" class="nav-item" active-class="active">
             <span class="nav-icon">◈</span> Actividades
           </RouterLink>

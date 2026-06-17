@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { isAdminUser, isEmployeeUser } from '@/utils/role'
+import { isAdminUser, isEmployeeUser, isStaffUser } from '@/utils/role'
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
@@ -148,7 +148,25 @@ const router = createRouter({
       name: 'report',
       component: () => import('../views/ReportsView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
-    }
+    },
+    {
+      path: '/clientes',
+      name: 'lista-alumnos',
+      component: () => import('../views/clientes/ListaAlumnosView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
+      path: '/clientes/:clienteId',
+      name: 'ficha-cliente',
+      component: () => import('../views/clientes/FichaClienteView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
+      path: '/clientes/:clienteId/asistencias',
+      name: 'historial-asistencias',
+      component: () => import('../views/clientes/HistorialAsistenciasView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
   ]
 })
 
@@ -166,6 +184,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   const isAuthenticated = Boolean(localStorage.getItem('access_token'))
   const isAdmin = isAdminUser(authStore.user)
   const isEmployee = isEmployeeUser(authStore.user)
+  const isStaff = isStaffUser(authStore.user)
 
   if (!isAuthenticated && !isPublicRoute) {
     return {
@@ -178,7 +197,11 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
     return { name: isEmployee ? 'employee-home' : 'list' }
   }
 
-  if (isAuthenticated && isEmployee && to.name !== 'employee-home') {
+  if (to.meta.requiresStaff && !isStaff) {
+    return { name: 'list' }
+  }
+
+  if (isAuthenticated && isEmployee && !to.meta.requiresStaff && to.name !== 'employee-home') {
     return { name: 'employee-home' }
   }
 
