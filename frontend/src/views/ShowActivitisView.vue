@@ -195,8 +195,13 @@
               <div class="senia-chip">
                 <span>Tenés una seña pendiente de completar</span>
               </div>
-              <button class="secondary-btn" type="button" @click="verClasesConSenia(turno)">
-                Ver clases para completar el pago
+              <button
+                class="secondary-btn"
+                type="button"
+                @click="handlePagarSaldo(turno)"
+                :disabled="loadingTurno === turno.id"
+              >
+                Completar pago de seña
               </button>
             </div>
 
@@ -303,7 +308,12 @@ const inscriptos = ref(new Set())
 const turnosConClaseSuelta = ref(new Map())
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
-const turnosConSeniaPagada = ref(new Map())
+const seniasRaw = ref([])
+const turnosConSeniaPagada = computed(() => new Map(
+  seniasRaw.value
+    .filter(e => e.clase_date === selectedDate.value)
+    .map(e => [e.turno_id, e])
+))
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
@@ -368,11 +378,7 @@ const loadEnrollments = async () => {
       .map((e) => [e.turno_id, e])
   )
 
-  turnosConSeniaPagada.value = new Map(
-    mySingleRes.data
-      .filter((e) => e.status === 'deposit_paid')
-      .map((e) => [e.turno_id, e])
-  )
+  seniasRaw.value = mySingleRes.data.filter(e => e.status === 'deposit_paid')
 
 }
 
@@ -614,19 +620,20 @@ const continuarPagoSingle = (turno) => {
   })
 }
 
-const verClasesConSenia = (turno) => {
-  router.push({
-    name: 'class-selection',
-    query: {
-      turnoId:    turno.id,
-      actividad:  turno.actividad,
-      horaInicio: turno.hora,
-      horaFin:    turno.horaFin,
-      dias:       turno.dia,
-      sala:       turno.sala,
-      instructor: turno.inst,
-    },
-  })
+const handlePagarSaldo = async (turno) => {
+  const enrollment = turnosConSeniaPagada.value.get(turno.id)
+  if (!enrollment) return
+  loadingTurno.value = turno.id
+  try {
+    const { data } = await enrollmentService.createBalancePreference(enrollment.enrollment_id)
+    window.location.href = data.init_point
+  } catch {
+    errorMensaje.value = 'No se pudo iniciar el pago del saldo. Intentá de nuevo.'
+    avisoLleno.value = turno.id
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
+  } finally {
+    loadingTurno.value = null
+  }
 }
 
 const handleInscripcionSingle = async (turno) => {
