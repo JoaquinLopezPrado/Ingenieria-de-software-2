@@ -225,11 +225,12 @@
                 class="secondary-btn"
                 :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
                 type="button"
-                @click="openModal(turno)"
+                @click="handleInscripcionSingle(turno)"
+                :disabled="loadingTurno === turno.id"
               >
                 {{ turno.ocup >= turno.total
                   ? 'Anotarse en lista de espera para clase individual'
-                  : 'Ver clases individuales' }}
+                  : 'Inscribirse a clase individual' }}
               </button>
             </div>
           </template>
@@ -247,72 +248,6 @@
 
     </div>
 
-    <!-- Modal clases individuales -->
-    <div v-if="modalTurno" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-drawer">
-        <div class="modal-header">
-          <div>
-            <h2 class="modal-title">Clases individuales</h2>
-            <p class="modal-subtitle">{{ modalTurno.actividad }} · {{ modalTurno.dur }}</p>
-          </div>
-          <button class="modal-close" type="button" @click="closeModal">✕</button>
-        </div>
-
-        <div class="modal-body">
-          <div v-if="modalClases.length === 0" class="modal-empty">
-            No hay clases disponibles para este turno.
-          </div>
-          <div v-else class="modal-options">
-            <button
-              v-for="clase in modalClases"
-              :key="clase.id"
-              class="modal-option"
-              :class="{ selected: modalSelectedIds.has(clase.id), enrolled: clase.isEnrolled }"
-              :disabled="clase.isEnrolled"
-              type="button"
-              @click="!clase.isEnrolled && toggleModalClass(clase.id)"
-            >
-              <div class="mo-header">
-                <div>
-                  <div class="mo-date">{{ clase.displayDate }}</div>
-                  <div class="mo-day">{{ clase.dayLabel }}</div>
-                </div>
-                <span v-if="clase.isEnrolled" class="mo-badge mo-badge--inscripto">Inscripto</span>
-                <span v-else-if="modalSelectedIds.has(clase.id)" class="mo-badge mo-badge--sel">✓ Seleccionado</span>
-                <span v-else class="mo-badge mo-badge--ok">Disponible</span>
-              </div>
-              <div class="mo-cap-row">
-                <span class="mo-cap-text" :style="{ color: barColor(clase) }">
-                  {{ clase.availableSpots === 0 ? 'Sin lugares' : `${clase.availableSpots} lugar${clase.availableSpots !== 1 ? 'es' : ''}` }}
-                </span>
-                <span class="mo-cap-num" :style="{ color: barColor(clase) }">{{ clase.occupied }}/{{ clase.total }}</span>
-              </div>
-              <div class="bar-bg" :style="{ background: barBgColor(clase) }">
-                <div class="bar-fill" :style="{ width: pct(clase) + '%', background: barColor(clase) }"></div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="modalSubmitError" class="modal-error">{{ modalSubmitError }}</div>
-
-        <div class="modal-footer">
-          <button class="back-btn" type="button" @click="closeModal" :disabled="modalSubmitting">Cancelar</button>
-          <button
-            class="submit-btn"
-            type="button"
-            :disabled="modalSelectedIds.size === 0 || modalSubmitting"
-            @click="submitModal"
-          >
-            {{ modalSubmitting
-              ? 'Procesando...'
-              : modalSelectedIds.size === 0
-                ? 'Seleccioná una clase'
-                : `Inscribirse a ${modalSelectedIds.size} clase${modalSelectedIds.size !== 1 ? 's' : ''}` }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -351,7 +286,6 @@ const localDateStr = (d = new Date()) =>
 
 const selectedDate = ref(localDateStr())
 const classesByTurno = ref(new Map())
-const enrolledClaseIds = ref(new Set())
 
 const stripPage = ref(0)
 const canScrollLeft = computed(() => stripPage.value > 0)
@@ -359,10 +293,6 @@ const canScrollRight = computed(() => (stripPage.value + 1) * 7 < availableDates
 const visibleDates = computed(() => availableDates.value.slice(stripPage.value * 7, stripPage.value * 7 + 7))
 
 
-const modalTurno = ref(null)
-const modalSelectedIds = ref(new Set())
-const modalSubmitting = ref(false)
-const modalSubmitError = ref('')
 
 const activities = ref([])
 const TODOS_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`
@@ -444,12 +374,6 @@ const loadEnrollments = async () => {
       .map((e) => [e.turno_id, e])
   )
 
-  enrolledClaseIds.value = new Set(
-    mySingleRes.data
-      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)) || e.status === 'deposit_paid')
-      .map((e) => e.clase_id)
-      .filter(Boolean)
-  )
 }
 
 const loadAllClases = async () => {
@@ -561,14 +485,6 @@ const currentTurnos = computed(() =>
     (classesByTurno.value.get(t.id) || []).some(c => c.rawDate === selectedDate.value)
   )
 )
-
-const modalClases = computed(() => {
-  if (!modalTurno.value) return []
-  return (classesByTurno.value.get(modalTurno.value.id) || [])
-    .filter(c => c.isActive && (enrolledClaseIds.value.has(c.id) || c.availableSpots > 0))
-    .map(c => ({ ...c, isEnrolled: enrolledClaseIds.value.has(c.id), total: c.capacity }))
-    .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
-})
 
 const disponibles = computed(() => {
   return currentTurnos.value.filter(
@@ -713,75 +629,47 @@ const verClasesConSenia = (turno) => {
   })
 }
 
-const openModal = (turno) => {
-  modalTurno.value = turno
-  modalSubmitError.value = ''
-  const preselect = selectedDate.value
-    ? (classesByTurno.value.get(turno.id) || []).find(c => c.rawDate === selectedDate.value && !enrolledClaseIds.value.has(c.id))
-    : null
-  modalSelectedIds.value = new Set(preselect ? [preselect.id] : [])
-}
+const handleInscripcionSingle = async (turno) => {
+  const clases = classesByTurno.value.get(turno.id) || []
+  const clase = clases.find(c => c.rawDate === selectedDate.value)
+  if (!clase) return
 
-const closeModal = () => {
-  modalTurno.value = null
-  modalSelectedIds.value = new Set()
-  modalSubmitError.value = ''
-}
+  loadingTurno.value = turno.id
+  errorMensaje.value = null
 
-const toggleModalClass = (id) => {
-  modalSubmitError.value = ''
-  const s = new Set(modalSelectedIds.value)
-  s.has(id) ? s.delete(id) : s.add(id)
-  modalSelectedIds.value = s
-}
-
-const submitModal = async () => {
-  if (modalSelectedIds.value.size === 0) return
-  const turno = modalTurno.value
-  modalSubmitting.value = true
-  modalSubmitError.value = ''
   try {
-    const clase_ids = [...modalSelectedIds.value]
-    const { data } = await enrollmentService.createSingle(clase_ids)
-    const count = clase_ids.length
-    const selected = modalClases.value.filter(c => modalSelectedIds.value.has(c.id))
-    const diaLabel = count === 1
-      ? `${selected[0].dayLabel} ${selected[0].displayDate}`
-      : `${count} clases`
-    const timeNorm = turno.hora.padStart(5, '0')
-    const earliestStart = selected.reduce((earliest, opt) => {
-      const dt = new Date(`${opt.rawDate}T${timeNorm}:00`)
-      return dt < earliest ? dt : earliest
-    }, new Date(`${selected[0].rawDate}T${timeNorm}:00`))
+    const { data } = await enrollmentService.createSingle([clase.id])
+    const d = new Date(`${clase.rawDate}T00:00:00`)
+    const dayLabel = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(d)
+    const displayDate = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
+    const claseStart = new Date(`${clase.rawDate}T${turno.hora.padStart(5, '0')}:00`)
 
-    closeModal()
     router.push({
       name: 'ticket',
       query: {
         enrollment_id:   data.id,
         enrollment_type: 'single',
         actividad:       turno.actividad,
-        dia:             diaLabel,
+        dia:             `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,
         duracion:        turno.dur,
         instructor:      turno.inst,
         numero:          data.id,
         amount:          data.amount,
         precio_clase:    data.amount,
         expires_at:      data.expires_at,
-        clase_start:     earliestStart.toISOString(),
+        clase_start:     claseStart.toISOString(),
       },
     })
-  } catch (error) {
-    if (error.response?.status === 409) {
-      const msg = error.response?.data?.errors?.general || error.response?.data?.detail
-      modalSubmitError.value = (msg && !msg.includes('cupo') && !msg.includes('lugar'))
-        ? msg
-        : 'Una de las clases ya no tiene cupo. El lugar se liberará si no se completa el pago.'
+  } catch (err) {
+    if (err.response?.status === 409) {
+      errorMensaje.value = 'No hay cupo disponible para esta clase.'
     } else {
-      modalSubmitError.value = 'Ocurrió un error al generar la inscripción.'
+      errorMensaje.value = 'Ocurrió un error. Intentá de nuevo.'
     }
+    avisoLleno.value = turno.id
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
   } finally {
-    modalSubmitting.value = false
+    loadingTurno.value = null
   }
 }
 </script>
@@ -1389,215 +1277,6 @@ h1 {
 }
 
 .date-card.active .dc-label { color: white; }
-
-/* MODAL */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  z-index: 200;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.modal-drawer {
-  width: 100%;
-  max-width: 680px;
-  max-height: 85vh;
-  background: #fff;
-  border-radius: 28px 28px 0 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid rgba(0,137,123,0.08);
-  flex-shrink: 0;
-}
-
-.modal-title {
-  margin: 0 0 4px;
-  font-size: 1.3rem;
-  font-weight: 900;
-  color: #00695c;
-}
-
-.modal-subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: #78909c;
-  font-weight: 500;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #90a4ae;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.modal-close:hover { background: #f5f5f5; color: #455a64; }
-
-.modal-body {
-  overflow-y: auto;
-  padding: 16px 24px;
-  flex: 1;
-}
-
-.modal-empty {
-  color: #90a4ae;
-  font-size: 14px;
-  padding: 20px 0;
-  text-align: center;
-}
-
-.modal-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
-}
-
-.modal-option {
-  border: 1.5px solid rgba(0,137,123,0.1);
-  border-radius: 20px;
-  background: rgba(255,255,255,0.9);
-  padding: 18px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-}
-
-.modal-option:hover:not(:disabled) {
-  border-color: #18b4a3;
-  transform: translateY(-2px);
-}
-
-.modal-option.selected {
-  border: 2px solid #00897b;
-  background: rgba(224,242,241,0.5);
-}
-
-.modal-option.enrolled {
-  opacity: 0.65;
-  cursor: default;
-  background: rgba(232,245,233,0.5);
-}
-
-.mo-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.mo-date {
-  font-size: 1rem;
-  font-weight: 800;
-  color: #1f2937;
-}
-
-.mo-day {
-  font-size: 12px;
-  color: #78909c;
-  margin-top: 2px;
-}
-
-.mo-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.mo-badge--ok       { background: rgba(0,137,123,0.1); color: #00695c; }
-.mo-badge--sel      { background: rgba(0,137,123,0.15); color: #00695c; }
-.mo-badge--inscripto { background: #e8f5e9; color: #2e7d32; }
-
-.mo-cap-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.mo-cap-text { font-size: 12px; font-weight: 500; }
-.mo-cap-num  { font-size: 12px; font-weight: 700; }
-
-.modal-error {
-  margin: 0 24px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #fff5f5;
-  color: #c0392b;
-  border: 1px solid #fecaca;
-  font-size: 13px;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 10px;
-  padding: 16px 24px 24px;
-  border-top: 1px solid rgba(0,137,123,0.08);
-  flex-shrink: 0;
-}
-
-.back-btn {
-  flex-shrink: 0;
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(0,137,123,0.25);
-  background: transparent;
-  color: #546e7a;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.18s, border-color 0.18s;
-}
-.back-btn:hover:not(:disabled) {
-  background: rgba(0,137,123,0.06);
-  border-color: rgba(0,137,123,0.45);
-}
-.back-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.submit-btn {
-  flex: 1;
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: none;
-  background: #00897b;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0,137,123,0.28);
-  transition: background 0.18s, box-shadow 0.18s, opacity 0.18s;
-}
-.submit-btn:hover:not(:disabled) {
-  background: #00796b;
-  box-shadow: 0 6px 18px rgba(0,137,123,0.38);
-}
-.submit-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
-}
 
 .banner {
   border-radius: 12px;
