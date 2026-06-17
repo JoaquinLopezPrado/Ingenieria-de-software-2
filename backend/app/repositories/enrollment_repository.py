@@ -125,7 +125,8 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         clase_ids = [c.id for c in future_clases]
 
         # Clases ya cubiertas por inscripciones sueltas activas del mismo usuario en este turno
-        single_covered_ids = await self._get_single_covered_clase_ids(user_id, clase_ids)
+        confirmed_covered_ids, deposit_covered_ids = await self._get_single_covered_clase_ids(user_id, clase_ids)
+        single_covered_ids = confirmed_covered_ids | deposit_covered_ids
         # Clases sin cupo disponible por inscripciones de otros clientes
         full_clase_ids = await self._get_full_clase_ids(clase_ids)
         # IDs excluidos de slots y pago
@@ -145,9 +146,12 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         # discount_full_classes: monto descontado por clases sin cupo disponible
         full_in_reference = [c for c in reference_clases if c.id in full_clase_ids]
         discount_full_classes = Decimal(turno.class_price) * len(full_in_reference)
-        # amount: de las disponibles, quitar las ya pagadas por el usuario con clase suelta
+        # amount: clases no cubiertas pagan precio completo;
+        # clases con seña pagan solo el saldo restante (ya se abonó la seña en la inscripción suelta)
         payment_clases = [c for c in available_reference if c.id not in single_covered_ids]
-        amount = Decimal(turno.class_price) * len(payment_clases)
+        deposit_covered_reference = [c for c in available_reference if c.id in deposit_covered_ids]
+        balance_per_class = (Decimal(turno.class_price) * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
+        amount = Decimal(turno.class_price) * len(payment_clases) + balance_per_class * len(deposit_covered_reference)
 
         enrollment_orm = EnrollmentORM(
             turno_id=turno_id,
@@ -662,12 +666,16 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
         )
         return {row[0] for row in result.all()}
 
-    async def _get_single_covered_clase_ids(self, user_id: int, clase_ids: list[int]) -> set[int]:
-        """IDs de clases del turno que ya tienen un slot de inscripción suelta activa del usuario."""
+    async def _get_single_covered_clase_ids(self, user_id: int, clase_ids: list[int]) -> tuple[set[int], set[int]]:
+        """IDs de clases con inscripción suelta activa del usuario, separados por estado.
+
+        Retorna (confirmed_ids, deposit_paid_ids) para poder calcular el monto correcto:
+        las confirmadas ya están 100% pagas; las con seña solo el 30%.
+        """
         if not clase_ids:
-            return set()
+            return set(), set()
         result = await self._session.execute(
-            select(EnrollmentSlotORM.clase_id)
+            select(EnrollmentSlotORM.clase_id, EnrollmentORM.status)
             .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
             .where(
                 EnrollmentORM.user_id == user_id,
@@ -676,7 +684,14 @@ class EnrollmentRepository(AbstractEnrollmentRepository):
                 EnrollmentSlotORM.clase_id.in_(clase_ids),
             )
         )
-        return {row[0] for row in result.all()}
+        confirmed: set[int] = set()
+        deposit_paid: set[int] = set()
+        for clase_id, stat in result.all():
+            if stat == EnrollmentStatus.DEPOSIT_PAID:
+                deposit_paid.add(clase_id)
+            else:
+                confirmed.add(clase_id)
+        return confirmed, deposit_paid
 
     async def _check_schedule_conflict_single(
         self, user_id: int, clase_date: date, start_time: time, end_time: time
