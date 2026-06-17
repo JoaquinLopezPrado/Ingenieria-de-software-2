@@ -95,6 +95,12 @@
           >
             INSCRIPTO ✓
           </div>
+          <div
+            v-else-if="turnosConClaseConfirmadaEnFecha.has(turno.id)"
+            class="clase-badge"
+          >
+            INSCRIPTO A CLASE ✓
+          </div>
           <!-- CARD TOP: nombre + hora | agotado badge -->
           <div class="card-top">
             <div>
@@ -205,6 +211,8 @@
               </button>
             </div>
 
+            <div v-else-if="turnosConClaseConfirmadaEnFecha.has(turno.id)" />
+
             <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
               <button
                 class="accion-btn"
@@ -221,10 +229,6 @@
                   ? 'Inscribirse a la lista de espera'
                   : 'Inscribirse' }}
               </button>
-
-              <div v-if="turnosConClaseSuelta.has(turno.id)" class="clase-suelta-chip">
-                Tenés inscripciones a clases individuales
-              </div>
 
               <button
                 class="secondary-btn"
@@ -305,12 +309,17 @@ const TODOS_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" 
 const tabs = computed(() => ['Todos', ...activities.value.map(a => a.name)])
 const currentTab = ref('')
 const inscriptos = ref(new Set())
-const turnosConClaseSuelta = ref(new Map())
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
 const seniasRaw = ref([])
 const turnosConSeniaPagada = computed(() => new Map(
   seniasRaw.value
+    .filter(e => e.clase_date === selectedDate.value)
+    .map(e => [e.turno_id, e])
+))
+const confirmadasRaw = ref([])
+const turnosConClaseConfirmadaEnFecha = computed(() => new Map(
+  confirmadasRaw.value
     .filter(e => e.clase_date === selectedDate.value)
     .map(e => [e.turno_id, e])
 ))
@@ -366,12 +375,6 @@ const loadEnrollments = async () => {
       .map((e) => [e.turno_id, e])
   )
 
-  turnosConClaseSuelta.value = new Map(
-    mySingleRes.data
-      .filter((e) => e.status === 'confirmed' || (e.status === 'pending' && notExpired(e)) || e.status === 'deposit_paid')
-      .map((e) => [e.turno_id, e])
-  )
-
   turnosPendienteSingle.value = new Map(
     mySingleRes.data
       .filter((e) => e.status === 'pending' && notExpired(e))
@@ -379,6 +382,7 @@ const loadEnrollments = async () => {
   )
 
   seniasRaw.value = mySingleRes.data.filter(e => e.status === 'deposit_paid')
+  confirmadasRaw.value = mySingleRes.data.filter(e => e.status === 'confirmed')
 
 }
 
@@ -873,6 +877,19 @@ h1 {
   letter-spacing: 0.05em;
 }
 
+.clase-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #0277bd;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 0 24px 0 16px;
+  letter-spacing: 0.05em;
+}
+
 /* CARD TOP */
 .card-top {
   display: flex;
@@ -1146,17 +1163,6 @@ h1 {
   background: rgba(245, 124, 0, 0.08);
 }
 
-.clase-suelta-chip {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #E8F5E9;
-  border: 1px solid #A5D6A7;
-  color: #2E7D32;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-}
 
 .senia-chip {
   width: 100%;
