@@ -93,13 +93,19 @@
             v-if="inscriptos.has(turno.id)"
             class="inscripto-badge"
           >
-            INSCRIPTO ✓
+            SUSCRIPTO ✓
           </div>
           <div
             v-else-if="turnosConClaseConfirmadaEnFecha.has(turno.id)"
             class="clase-badge"
           >
             INSCRIPTO A CLASE ✓
+          </div>
+          <div
+            v-else-if="turnosConSeniaPagada.has(turno.id)"
+            class="senia-badge"
+          >
+            SEÑADA
           </div>
           <!-- CARD TOP: nombre + hora | agotado badge -->
           <div class="card-top">
@@ -197,11 +203,19 @@
               </button>
             </div>
 
-            <div v-else-if="turnosConSeniaPagada.has(turno.id)" class="acciones-card">
-              <div class="senia-chip">
-                <span>Tenés una seña pendiente de completar</span>
-              </div>
+            <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
               <button
+                class="accion-btn"
+                :class="{ espera: turno.ocup >= turno.total }"
+                @click="handleInscripcion(turno)"
+              >
+                {{ turno.ocup >= turno.total
+                  ? 'Inscribirse a la lista de espera'
+                  : 'Inscribirse' }}
+              </button>
+
+              <button
+                v-if="turnosConSeniaPagada.has(turno.id)"
                 class="secondary-btn"
                 type="button"
                 @click="handlePagarSaldo(turno)"
@@ -209,28 +223,8 @@
               >
                 Completar pago de seña
               </button>
-            </div>
-
-            <div v-else-if="turnosConClaseConfirmadaEnFecha.has(turno.id)" />
-
-            <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
               <button
-                class="accion-btn"
-                :disabled="inscriptos.has(turno.id)"
-                :class="{
-                  espera: turno.ocup >= turno.total && !inscriptos.has(turno.id),
-                  inscripto: inscriptos.has(turno.id)
-                }"
-                @click="handleInscripcion(turno)"
-              >
-                {{ inscriptos.has(turno.id)
-                  ? 'Cancelar inscripción'
-                  : turno.ocup >= turno.total
-                  ? 'Inscribirse a la lista de espera'
-                  : 'Inscribirse' }}
-              </button>
-
-              <button
+                v-else-if="!turnosConClaseConfirmadaEnFecha.has(turno.id)"
                 class="secondary-btn"
                 :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
                 type="button"
@@ -890,6 +884,19 @@ h1 {
   letter-spacing: 0.05em;
 }
 
+.senia-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #F57C00;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 0 24px 0 16px;
+  letter-spacing: 0.05em;
+}
+
 /* CARD TOP */
 .card-top {
   display: flex;
@@ -1163,22 +1170,6 @@ h1 {
   background: rgba(245, 124, 0, 0.08);
 }
 
-
-.senia-chip {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #FFF8E1;
-  border: 1px solid #FFD54F;
-  color: #E65100;
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  box-sizing: border-box;
-}
 
 
 .aviso-lleno {
