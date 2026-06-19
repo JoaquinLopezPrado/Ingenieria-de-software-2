@@ -86,11 +86,11 @@
           v-for="turno in currentTurnos"
           :key="turno.id"
           class="card"
-          :class="{ inscripto: inscriptos.has(turno.id), 'sin-clases': !turno.hasRemainingClasses }"
+          :class="{ inscripto: inscriptoEnFecha(turno), 'sin-clases': !turno.hasRemainingClasses }"
         >
 
           <div
-            v-if="inscriptos.has(turno.id)"
+            v-if="inscriptoEnFecha(turno)"
             class="inscripto-badge"
           >
             SUSCRIPTO ✓
@@ -123,7 +123,7 @@
                 >{{ DAY_LABELS[day] ?? day }}</span>
               </div>
             </div>
-            <span v-if="turno.hasRemainingClasses && turno.ocup >= turno.total" class="agotado-badge">
+            <span v-if="turno.hasRemainingClasses && sinCupo(turno)" class="agotado-badge">
               AGOTADO
             </span>
             <span v-else-if="turno.hasRemainingClasses && pct(turno) >= 70" class="ultimos-badge">
@@ -148,16 +148,16 @@
           <div v-if="turno.hasRemainingClasses">
             <div class="cap-row">
               <span class="cap-text" :style="{ color: barColor(turno) }">
-                {{ turno.ocup >= turno.total
+                {{ sinCupo(turno)
                   ? 'Sin lugares disponibles'
-                  : `${turno.total - turno.ocup} lugar${turno.total - turno.ocup !== 1 ? 'es' : ''} disponible${turno.total - turno.ocup !== 1 ? 's' : ''}` }}
+                  : `${cupoLibre(turno)} lugar${cupoLibre(turno) !== 1 ? 'es' : ''} disponible${cupoLibre(turno) !== 1 ? 's' : ''}` }}
               </span>
 
               <span
                 class="cap-num"
                 :style="{ color: barColor(turno) }"
               >
-                {{ turno.ocup }}/{{ turno.total }}
+                {{ cupoOcupado(turno) }}/{{ cupoTotal(turno) }}
               </span>
             </div>
 
@@ -203,13 +203,13 @@
               </button>
             </div>
 
-            <div v-else-if="!inscriptos.has(turno.id)" class="acciones-card">
+            <div v-else-if="!inscriptoEnFecha(turno)" class="acciones-card">
               <button
                 class="accion-btn"
-                :class="{ espera: turno.ocup >= turno.total }"
+                :class="{ espera: sinCupo(turno) }"
                 @click="handleInscripcion(turno)"
               >
-                {{ turno.ocup >= turno.total
+                {{ sinCupo(turno)
                   ? 'Inscribirse a la lista de espera'
                   : 'Inscribirse' }}
               </button>
@@ -226,14 +226,30 @@
               <button
                 v-else-if="!turnosConClaseConfirmadaEnFecha.has(turno.id)"
                 class="secondary-btn"
-                :class="{ 'secondary-btn--espera': turno.ocup >= turno.total }"
+                :class="{ 'secondary-btn--espera': sinCupo(turno) }"
                 type="button"
                 @click="handleInscripcionSingle(turno)"
                 :disabled="loadingTurno === turno.id"
               >
-                {{ turno.ocup >= turno.total
+                {{ sinCupo(turno)
                   ? 'Anotarse en lista de espera para clase individual'
                   : 'Inscribirse a clase individual' }}
+              </button>
+            </div>
+
+            <div v-else class="acciones-card">
+              <div v-if="activeSubsByTurno.get(turno.id)?.ends_on" class="baja-info">
+                Baja programada: tu lugar sigue activo hasta el
+                {{ formatBaja(activeSubsByTurno.get(turno.id).ends_on) }}
+              </div>
+              <button
+                v-else
+                class="baja-btn"
+                type="button"
+                :disabled="loadingTurno === turno.id"
+                @click="handleBaja(turno)"
+              >
+                {{ loadingTurno === turno.id ? 'Procesando...' : 'Dar de baja' }}
               </button>
             </div>
           </template>
@@ -303,6 +319,7 @@ const TODOS_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" 
 const tabs = computed(() => ['Todos', ...activities.value.map(a => a.name)])
 const currentTab = ref('')
 const inscriptos = ref(new Set())
+const activeSubsByTurno = ref(new Map()) // turno_id → { subscription_id, ends_on }
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
 const seniasRaw = ref([])
@@ -356,17 +373,19 @@ const loadEnrollments = async () => {
 
   const now = Date.now()
   const notExpired = (e) => !e.expires_at || new Date(e.expires_at).getTime() > now
+  const chargeNotExpired = (s) =>
+    !s.pending_charge?.expires_at || new Date(s.pending_charge.expires_at).getTime() > now
 
-  inscriptos.value = new Set(
-    mySubscriptionRes.data
-      .filter((e) => e.status === 'confirmed')
-      .map((e) => e.turno_id)
+  const activeSubs = mySubscriptionRes.data.filter((s) => s.status === 'active')
+  inscriptos.value = new Set(activeSubs.map((s) => s.turno_id))
+  activeSubsByTurno.value = new Map(
+    activeSubs.map((s) => [s.turno_id, { subscription_id: s.subscription_id, start_date: s.start_date, ends_on: s.ends_on }])
   )
 
   turnosPendienteMensual.value = new Map(
     mySubscriptionRes.data
-      .filter((e) => e.status === 'pending' && notExpired(e))
-      .map((e) => [e.turno_id, e])
+      .filter((s) => s.status === 'pending' && s.pending_charge && chargeNotExpired(s))
+      .map((s) => [s.turno_id, s])
   )
 
   turnosPendienteSingle.value = new Map(
@@ -490,23 +509,29 @@ const currentTurnos = computed(() =>
   )
 )
 
-const disponibles = computed(() => {
-  return currentTurnos.value.filter(
-    (t) => t.ocup < t.total
-  ).length
-})
+// --- Capacidad por FECHA seleccionada (no a nivel turno) ---
+// La clase del día ya trae ocupación period-aware: un abonado con baja programada
+// ocupa su mes pagado y libera el siguiente.
+const claseSel = (t) => (classesByTurno.value.get(t.id) || []).find(c => c.rawDate === selectedDate.value)
+const cupoTotal = (t) => claseSel(t)?.capacity ?? t.total
+const cupoOcupado = (t) => { const c = claseSel(t); return c ? c.occupied : t.ocup }
+const cupoLibre = (t) => Math.max(cupoTotal(t) - cupoOcupado(t), 0)
+const sinCupo = (t) => cupoLibre(t) <= 0
 
-const completos = computed(() => {
-  return currentTurnos.value.filter(
-    (t) => t.ocup >= t.total
-  ).length
-})
+// ¿El cliente está suscripto para la fecha seleccionada? (sub cubre [start_date, ends_on])
+const inscriptoEnFecha = (t) => {
+  const sub = activeSubsByTurno.value.get(t.id)
+  if (!sub) return false
+  const d = selectedDate.value
+  return (!sub.start_date || sub.start_date <= d) && (!sub.ends_on || d <= sub.ends_on)
+}
+
+const disponibles = computed(() => currentTurnos.value.filter((t) => !sinCupo(t)).length)
+const completos = computed(() => currentTurnos.value.filter((t) => sinCupo(t)).length)
 
 const pct = (t) => {
-  return Math.min(
-    Math.round((t.ocup / t.total) * 100),
-    100
-  )
+  const tot = cupoTotal(t)
+  return tot ? Math.min(Math.round((cupoOcupado(t) / tot) * 100), 100) : 0
 }
 
 const barColor = (t) => {
@@ -524,7 +549,7 @@ const barBgColor = (t) => {
 }
 
 const handleInscripcion = async (turno) => {
-  if (inscriptos.value.has(turno.id)) return
+  if (inscriptoEnFecha(turno)) return
 
   loadingTurno.value = turno.id
   errorMensaje.value = null
@@ -540,7 +565,9 @@ const handleInscripcion = async (turno) => {
     router.push({
       name: 'ticket',
       query: {
-        enrollment_id:   data.id,
+        kind:            'subscription',
+        charge_id:       data.charge_id,
+        subscription_id: data.subscription_id,
         actividad:       turno.actividad,
         descripcion:     turno.descripcion,
         dia:             turno.dia,
@@ -548,10 +575,9 @@ const handleInscripcion = async (turno) => {
         duracion:        turno.dur,
         instructor:      turno.inst,
         nivel:           turno.nivel,
-        numero:          data.id,
+        numero:          data.subscription_id,
         amount:                  data.amount,
         original_amount:         data.original_amount,
-        discount_full_classes:   data.discount_full_classes,
         discount_deposit_single: data.discount_deposit_single,
         expires_at:              data.expires_at,
       },
@@ -572,25 +598,53 @@ const handleInscripcion = async (turno) => {
   }
 }
 
+const formatBaja = (rawDate) => {
+  if (!rawDate) return ''
+  const d = new Date(`${rawDate}T00:00:00`)
+  return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
+}
+
+const handleBaja = async (turno) => {
+  const sub = activeSubsByTurno.value.get(turno.id)
+  if (!sub) return
+  if (!confirm('¿Querés dar de baja tu suscripción? Mantenés el lugar hasta el fin del período que ya pagaste.')) return
+
+  loadingTurno.value = turno.id
+  try {
+    const { data } = await enrollmentService.unsubscribe(sub.subscription_id)
+    const next = new Map(activeSubsByTurno.value)
+    next.set(turno.id, { ...sub, ends_on: data.ends_on })
+    activeSubsByTurno.value = next
+  } catch {
+    errorMensaje.value = 'No se pudo dar de baja la suscripción. Intentá de nuevo.'
+    avisoLleno.value = turno.id
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
+  } finally {
+    loadingTurno.value = null
+  }
+}
+
 const continuarPago = (turno) => {
-  const enrollment = turnosPendienteMensual.value.get(turno.id)
-  if (!enrollment) return
+  const sub = turnosPendienteMensual.value.get(turno.id)
+  if (!sub || !sub.pending_charge) return
+  const charge = sub.pending_charge
   router.push({
     name: 'ticket',
     query: {
-      enrollment_id:         enrollment.enrollment_id,
-      actividad:             turno.actividad,
-      descripcion:           turno.descripcion,
-      dia:                   turno.dia,
-      hora:                  turno.hora,
-      duracion:              turno.dur,
-      instructor:            turno.inst,
-      nivel:                 turno.nivel,
-      numero:                enrollment.enrollment_id,
-      amount:                enrollment.amount,
-      original_amount:       enrollment.original_amount,
-      discount_full_classes: enrollment.discount_full_classes,
-      expires_at:            enrollment.expires_at,
+      kind:            'subscription',
+      charge_id:       charge.charge_id,
+      subscription_id: sub.subscription_id,
+      actividad:       turno.actividad,
+      descripcion:     turno.descripcion,
+      dia:             turno.dia,
+      hora:            turno.hora,
+      duracion:        turno.dur,
+      instructor:      turno.inst,
+      nivel:           turno.nivel,
+      numero:          sub.subscription_id,
+      amount:          charge.amount,
+      original_amount: charge.original_amount,
+      expires_at:      charge.expires_at,
     },
   })
 }
@@ -605,6 +659,7 @@ const continuarPagoSingle = (turno) => {
   router.push({
     name: 'ticket',
     query: {
+      kind:          'single',
       enrollment_id: enrollment.enrollment_id,
       actividad:     turno.actividad,
       dia:           `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,
@@ -653,8 +708,8 @@ const handleInscripcionSingle = async (turno) => {
     router.push({
       name: 'ticket',
       query: {
+        kind:            'single',
         enrollment_id:   data.id,
-        enrollment_type: 'single',
         actividad:       turno.actividad,
         dia:             `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,
         duracion:        turno.dur,
@@ -1160,6 +1215,33 @@ h1 {
 .secondary-btn:hover {
   background: rgba(0, 137, 123, 0.08);
   transform: translateY(-1px);
+}
+
+.baja-btn {
+  width: 100%;
+  padding: 12px 0;
+  border-radius: 999px;
+  border: 1.5px solid #E53935;
+  background: transparent;
+  color: #E53935;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.baja-btn:hover { background: rgba(229, 57, 53, 0.08); }
+.baja-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.baja-info {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #FFF3E0;
+  color: #E65100;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .secondary-btn--espera {
