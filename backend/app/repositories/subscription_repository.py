@@ -54,6 +54,14 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_full_clase_ids(self, clase_ids: list[int], capacity: int) -> set[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_combined_on(self, turno_id: int, clase_id: int, clase_date: date) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def create(
         self,
         turno_id: int,
@@ -187,6 +195,27 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             .order_by(ClaseORM.date)
         )
         return list(result.scalars().all())
+
+    async def get_full_clase_ids(self, clase_ids: list[int], capacity: int) -> set[int]:
+        """Clases de la lista que ya están a plena capacidad (usuarios únicos, sin doble conteo)."""
+        if not clase_ids:
+            return set()
+        from app.repositories.capacity import occupied_subq
+        result = await self._session.execute(
+            select(ClaseORM.id).where(
+                ClaseORM.id.in_(clase_ids),
+                occupied_subq(ClaseORM.turno_id, ClaseORM.id, ClaseORM.date) >= capacity,
+            )
+        )
+        return set(result.scalars().all())
+
+    async def count_combined_on(self, turno_id: int, clase_id: int, clase_date: date) -> int:
+        """Ocupación combinada de una clase (usuarios únicos: abonados UNION sueltos)."""
+        from app.repositories.capacity import occupied_subq
+        result = await self._session.execute(
+            select(occupied_subq(turno_id, clase_id, clase_date))
+        )
+        return result.scalar_one() or 0
 
     async def get_single_covered_clase_ids(self, user_id: int, clase_ids: list[int]) -> tuple[set[int], set[int]]:
         """Clases que el usuario ya tiene reservadas como sueltas, separadas por estado.

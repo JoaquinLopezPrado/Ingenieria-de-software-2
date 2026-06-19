@@ -7,7 +7,7 @@
 Las suscripciones NO materializan slots: su ocupación se cuenta directamente sobre
 la tabla ``subscriptions``. Las clases sueltas sí usan slots por fecha puntual.
 """
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, union
 
 from app.domain.single_enrollment import SingleEnrollmentStatus
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
@@ -64,5 +64,26 @@ def active_single_slots_subq(clase_id_col):
 
 
 def occupied_subq(clase_turno_id_col, clase_id_col, clase_date_col):
-    """Ocupación de una clase: abonados que cubren esa fecha + sueltas de esa clase."""
-    return active_subscriptions_subq(clase_turno_id_col, clase_date_col) + active_single_slots_subq(clase_id_col)
+    """Usuarios únicos que ocupan un cupo: abonados activos UNION sueltos activos.
+
+    UNION (sin ALL) elimina duplicados: un usuario con abono Y clase suelta en la misma
+    fecha cuenta solo una vez, evitando el doble conteo al suscribirse mensualmente.
+    """
+    sub_subs = (
+        select(SubscriptionORM.user_id)
+        .where(
+            SubscriptionORM.turno_id == clase_turno_id_col,
+            SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+            *subscription_covers(clase_date_col),
+        )
+    )
+    sub_singles = (
+        select(SingleEnrollmentORM.user_id)
+        .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
+        .where(
+            SingleSlotORM.clase_id == clase_id_col,
+            SingleEnrollmentORM.status.in_(ACTIVE_SINGLE_STATUSES),
+        )
+    )
+    combined = union(sub_subs, sub_singles).subquery()
+    return select(func.count()).select_from(combined).scalar_subquery()

@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,10 +14,8 @@ from app.domain.single_enrollment import MySingleEnrollment, SingleEnrollment, S
 from app.models.activity import Activity as ActivityORM
 from app.models.clase import Clase as ClaseORM
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
-from app.models.subscription import Subscription as SubscriptionORM
 from app.models.turno import Turno as TurnoORM
 from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
-from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 
 _ART = timezone(timedelta(hours=-3))
 _DEPOSIT_RATIO = Decimal("0.30")
@@ -387,28 +385,11 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
         return result.scalar_one()
 
     async def _check_capacity(self, clase: ClaseORM) -> None:
-        """Capacidad unificada: cupo = capacity − abonados que cubren esa fecha − sueltas de la clase.
-
-        Un abonado cuenta solo si la fecha de la clase cae en su período [start_date, ends_on]
-        (un saliente con baja programada libera el cupo de las clases posteriores a su ends_on).
-        """
-        subs = (await self._session.execute(
-            select(func.count(SubscriptionORM.id)).where(
-                SubscriptionORM.turno_id == clase.turno_id,
-                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
-                SubscriptionORM.start_date <= clase.date,
-                or_(SubscriptionORM.ends_on.is_(None), clase.date <= SubscriptionORM.ends_on),
-            )
+        from app.repositories.capacity import occupied_subq
+        occupied = (await self._session.execute(
+            select(occupied_subq(clase.turno_id, clase.id, clase.date))
         )).scalar_one()
-        singles = (await self._session.execute(
-            select(func.count(SingleSlotORM.id))
-            .join(SingleEnrollmentORM, SingleEnrollmentORM.id == SingleSlotORM.enrollment_id)
-            .where(
-                SingleSlotORM.clase_id == clase.id,
-                SingleEnrollmentORM.status.in_(_ACTIVE),
-            )
-        )).scalar_one()
-        if subs + singles >= clase.capacity:
+        if occupied >= clase.capacity:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="No hay lugares disponibles en esta clase.",
