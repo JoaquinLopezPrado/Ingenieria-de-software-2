@@ -1,16 +1,34 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
-from sqlalchemy import select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.user import AuthProvider, ClientProfile, Role, User
 from app.models.auth import Role as RoleORM, User as UserORM
-from app.models.profile import ClientProfile as ClientProfileORM
+from app.models.profile import ClientProfile as ClientProfileORM, DocumentType as DocumentTypeORM
+
+
+@dataclass
+class ClienteRow:
+    id: int          # user_id
+    email: str
+    first_name: str
+    last_name: str
+    phone: str
+    doc_type_name: str
+    doc_number: str
 
 
 class AbstractUserRepository(ABC):
+
+    @abstractmethod
+    async def list_clients(
+        self, q: Optional[str], page: int, page_size: int
+    ) -> Tuple[List[ClientProfile], int]:
+        raise NotImplementedError
 
     @abstractmethod
     async def get_by_id(self, user_id: int) -> Optional[User]:
@@ -61,6 +79,51 @@ class UserRepository(AbstractUserRepository):
 
     def __init__(self, session: AsyncSession):
         self._session = session
+
+    async def list_clients(
+        self, q: Optional[str], page: int, page_size: int
+    ) -> Tuple[List[ClienteRow], int]:
+        base_query = (
+            select(UserORM, ClientProfileORM, DocumentTypeORM)
+            .join(ClientProfileORM, ClientProfileORM.user_id == UserORM.id)
+            .join(DocumentTypeORM, DocumentTypeORM.id == ClientProfileORM.doc_type_id)
+        )
+        if q:
+            term = f"%{q.lower()}%"
+            base_query = base_query.where(
+                or_(
+                    func.lower(ClientProfileORM.first_name).like(term),
+                    func.lower(ClientProfileORM.last_name).like(term),
+                    func.lower(ClientProfileORM.doc_number).like(term),
+                )
+            )
+
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base_query.subquery())
+        )
+        total = count_result.scalar_one()
+
+        offset = (page - 1) * page_size
+        rows_result = await self._session.execute(
+            base_query
+            .order_by(ClientProfileORM.last_name, ClientProfileORM.first_name)
+            .offset(offset)
+            .limit(page_size)
+        )
+        rows = rows_result.all()
+        items = [
+            ClienteRow(
+                id=user.id,
+                email=user.email,
+                first_name=profile.first_name,
+                last_name=profile.last_name,
+                phone=profile.phone,
+                doc_type_name=doc_type.name,
+                doc_number=profile.doc_number,
+            )
+            for user, profile, doc_type in rows
+        ]
+        return items, total
 
     async def get_by_id(self, user_id: int) -> Optional[User]:
         result = await self._session.execute(
