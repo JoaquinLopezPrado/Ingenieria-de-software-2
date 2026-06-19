@@ -210,8 +210,8 @@
                 @click="handleInscripcion(turno)"
               >
                 {{ sinCupo(turno)
-                  ? 'Inscribirse a la lista de espera'
-                  : 'Inscribirse' }}
+                  ? 'Lista de espera · Suscripción Mensual'
+                  : 'Suscripción Mensual' }}
               </button>
 
               <button
@@ -232,8 +232,8 @@
                 :disabled="loadingTurno === turno.id"
               >
                 {{ sinCupo(turno)
-                  ? 'Anotarse en lista de espera para clase individual'
-                  : 'Inscribirse a clase individual' }}
+                  ? 'Lista de espera · Suscripción a Clase'
+                  : 'Suscripción a Clase' }}
               </button>
             </div>
 
@@ -242,14 +242,34 @@
                 Baja programada: tu lugar sigue activo hasta el
                 {{ formatBaja(activeSubsByTurno.get(turno.id).ends_on) }}
               </div>
+              <template v-else-if="confirmandoBaja === turno.id">
+                <p class="baja-confirm-msg">¿Confirmás la baja? Mantenés el lugar hasta el fin del período pagado.</p>
+                <div class="baja-confirm-btns">
+                  <button
+                    class="baja-btn baja-btn--confirmar"
+                    type="button"
+                    :disabled="loadingTurno === turno.id"
+                    @click="handleBaja(turno)"
+                  >
+                    {{ loadingTurno === turno.id ? 'Procesando...' : 'Sí, dar de baja' }}
+                  </button>
+                  <button
+                    class="baja-btn baja-btn--cancelar"
+                    type="button"
+                    :disabled="loadingTurno === turno.id"
+                    @click="confirmandoBaja = null"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </template>
               <button
                 v-else
                 class="baja-btn"
                 type="button"
-                :disabled="loadingTurno === turno.id"
-                @click="handleBaja(turno)"
+                @click="confirmandoBaja = turno.id"
               >
-                {{ loadingTurno === turno.id ? 'Procesando...' : 'Dar de baja' }}
+                Dar de baja
               </button>
             </div>
           </template>
@@ -337,6 +357,7 @@ const turnosConClaseConfirmadaEnFecha = computed(() => new Map(
 const avisoLleno = ref(null)
 const errorMensaje = ref(null)
 const loadingTurno = ref(null)
+const confirmandoBaja = ref(null)
 
 const loading = ref(false)
 const turnos = ref([])
@@ -607,15 +628,16 @@ const formatBaja = (rawDate) => {
 const handleBaja = async (turno) => {
   const sub = activeSubsByTurno.value.get(turno.id)
   if (!sub) return
-  if (!confirm('¿Querés dar de baja tu suscripción? Mantenés el lugar hasta el fin del período que ya pagaste.')) return
 
   loadingTurno.value = turno.id
   try {
     const { data } = await enrollmentService.unsubscribe(sub.subscription_id)
+    confirmandoBaja.value = null
     const next = new Map(activeSubsByTurno.value)
     next.set(turno.id, { ...sub, ends_on: data.ends_on })
     activeSubsByTurno.value = next
   } catch {
+    confirmandoBaja.value = null
     errorMensaje.value = 'No se pudo dar de baja la suscripción. Intentá de nuevo.'
     avisoLleno.value = turno.id
     setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
@@ -1231,6 +1253,31 @@ h1 {
 }
 .baja-btn:hover { background: rgba(229, 57, 53, 0.08); }
 .baja-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.baja-confirm-msg {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #546e7a;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.baja-confirm-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.baja-btn--confirmar {
+  flex: 1;
+}
+
+.baja-btn--cancelar {
+  flex: 1;
+  border-color: #90a4ae;
+  color: #546e7a;
+}
+.baja-btn--cancelar:hover { background: rgba(144, 164, 174, 0.1); }
 
 .baja-info {
   width: 100%;
