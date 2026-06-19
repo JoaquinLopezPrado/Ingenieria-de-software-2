@@ -14,36 +14,55 @@ apiClient.interceptors.request.use((config) => {
 })
 
 export const enrollmentService = {
+  // --- Suscripciones (abono recurrente) ---
+  // Crea la suscripción + el cargo del primer período. Devuelve el cargo (charge_id) para el ticket.
   createSubscription: (turno_id: number) =>
-    apiClient.post('/enrollments/subscription', { turno_id }),
-
-  createSingle: (clase_ids: number[]) =>
-    apiClient.post('/enrollments/single', { clase_ids }),
-
-  createPaymentPreference: (enrollment_id: number) =>
-    apiClient.post('/payments/preference', { enrollment_id }),
+    apiClient.post('/subscriptions', { turno_id }),
 
   getMySubscription: () =>
-    apiClient.get('/enrollments/my/subscription'),
+    apiClient.get('/subscriptions/me'),
+
+  // Historial de cargos mensuales pagados (para la pantalla de Pagos).
+  getMyCharges: () =>
+    apiClient.get('/subscriptions/me/charges'),
+
+  cancelSubscription: (subscription_id: number) =>
+    apiClient.delete(`/subscriptions/${subscription_id}`),
+
+  // Baja voluntaria de un abonado activo (efectiva al fin del período pagado).
+  unsubscribe: (subscription_id: number) =>
+    apiClient.post<{ ends_on: string }>(`/subscriptions/${subscription_id}/cancel`),
+
+  // El pago de un cargo de suscripción se hace por charge_id.
+  createSubscriptionPreference: (charge_id: number) =>
+    apiClient.post('/payments/subscription-preference', { charge_id }),
+
+  freeConfirmSubscription: (charge_id: number) =>
+    apiClient.post('/payments/subscription-free-confirm', { charge_id }),
+
+  // --- Clases sueltas (drop-in) ---
+  createSingle: (clase_ids: number[]) =>
+    apiClient.post('/single-enrollments', { clase_ids }),
 
   getMySingle: () =>
-    apiClient.get('/enrollments/my/single'),
+    apiClient.get('/single-enrollments/me'),
 
-  cancelEnrollment: (enrollment_id: number) =>
-    apiClient.delete(`/enrollments/${enrollment_id}`),
+  cancelSingle: (enrollment_id: number) =>
+    apiClient.delete(`/single-enrollments/${enrollment_id}`),
 
-  getMpStatusDetail: (payment_id: string) =>
-    apiClient.get<{ status_detail: string | null }>(`/payments/mp-status`, { params: { payment_id } }),
-
-  freeConfirm: (enrollment_id: number) =>
-    apiClient.post('/payments/free-confirm', { enrollment_id }),
+  createSinglePreference: (enrollment_id: number) =>
+    apiClient.post('/payments/single-preference', { enrollment_id }),
 
   createDepositPreference: (enrollment_id: number) =>
-    apiClient.post('/payments/deposit-preference', { enrollment_id }),
+    apiClient.post('/payments/single-deposit-preference', { enrollment_id }),
 
   createBalancePreference: (enrollment_id: number) =>
-    apiClient.post('/payments/balance-preference', { enrollment_id }),
+    apiClient.post('/payments/single-balance-preference', { enrollment_id }),
 
   cancelDeposit: (enrollment_id: number) =>
     apiClient.post<{ refund: boolean; refund_id: string | null }>('/payments/cancel-deposit', { enrollment_id }),
+
+  // --- Común ---
+  getMpStatusDetail: (payment_id: string) =>
+    apiClient.get<{ status_detail: string | null }>(`/payments/mp-status`, { params: { payment_id } }),
 }
