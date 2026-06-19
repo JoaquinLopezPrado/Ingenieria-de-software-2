@@ -41,21 +41,24 @@ class SubscriptionService:
             )
 
         clase_ids = [c.id for c in period_clases]
-        confirmed_covered, deposit_covered = await self._repo.get_single_covered_clase_ids(user_id, clase_ids)
+        full_clase_ids = await self._repo.get_full_clase_ids(clase_ids, turno.capacity)
+        billable_clase_ids = [cid for cid in clase_ids if cid not in full_clase_ids]
+
+        confirmed_covered, deposit_covered = await self._repo.get_single_covered_clase_ids(user_id, billable_clase_ids)
 
         class_price = Decimal(turno.class_price)
-        amount, original_amount, discount_deposit_single = self._compute_amounts(
+        original_amount = class_price * len(clase_ids)
+        discount_full_classes = class_price * len(full_clase_ids)
+        amount, _, discount_deposit_single = self._compute_amounts(
             class_price=class_price,
-            period_clase_ids=clase_ids,
+            period_clase_ids=billable_clase_ids,
             confirmed_covered=confirmed_covered,
             deposit_covered=deposit_covered,
         )
 
-        # start_date gate: si el período elegido es futuro, la suscripción arranca el 1°
-        # de ese mes para no ocupar (ni cobrar) meses ya llenos.
-        today = date.today()
-        period_start = date(period_year, period_month, 1)
-        start_date = today if (period_month, period_year) == (today.month, today.year) else period_start
+        # start_date = primera clase con cupo en el período; así la suscripción no ocupa
+        # fechas anteriores que ya estaban llenas (evita contadores sobre-capacidad).
+        start_date = period_clases[0].date
 
         due_date = _end_of_month(period_year, period_month)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
@@ -72,17 +75,21 @@ class SubscriptionService:
             expires_at=expires_at,
         )
         charge.discount_deposit_single = discount_deposit_single
+        charge.discount_full_classes = discount_full_classes
         return charge
 
     async def _first_available_period(self, turno, future_clases):
-        """Primer (mes, año) con cupo, recorriendo los períodos de las clases futuras.
+        """Primer (mes, año) con al menos una clase con cupo combinado disponible.
 
-        Devuelve (month, year, clases_del_período) o (_, _, None) si están todos llenos.
+        Recorre clase a clase usando capacidad combinada (suscripciones + sueltas) para
+        evitar que la suscripción arranque en una fecha ya llena. Devuelve el período y
+        las clases a partir de la primera con cupo, o (_, _, None) si no hay ninguna.
         """
         for month, year, clases in self._periods(future_clases):
-            occupied = await self._repo.count_occupying_on(turno.id, clases[0].date)
-            if occupied < turno.capacity:
-                return month, year, clases
+            for i, clase in enumerate(clases):
+                combined = await self._repo.count_combined_on(turno.id, clase.id, clase.date)
+                if combined < turno.capacity:
+                    return month, year, clases[i:]
         return 0, 0, None
 
     @staticmethod

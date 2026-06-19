@@ -24,6 +24,7 @@ class SubscriptionChargeResponse(BaseModel):
     amount: Decimal
     original_amount: Decimal
     discount_deposit_single: Decimal
+    discount_full_classes: Decimal
     status: ChargeStatus
     expires_at: datetime | None
 
@@ -39,6 +40,7 @@ class SubscriptionChargeResponse(BaseModel):
             amount=charge.amount,
             original_amount=charge.original_amount,
             discount_deposit_single=charge.discount_deposit_single,
+            discount_full_classes=charge.discount_full_classes,
             status=charge.status,
             expires_at=charge.expires_at,
         )

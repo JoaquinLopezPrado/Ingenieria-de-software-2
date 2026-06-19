@@ -82,6 +82,7 @@ class SubscriptionCharge:
         self.created_at = created_at
         self.expires_at = expires_at
         self.discount_deposit_single = discount_deposit_single if discount_deposit_single is not None else Decimal(0)
+        self.discount_full_classes: Decimal = Decimal(0)
 
 
 class MySubscription:
