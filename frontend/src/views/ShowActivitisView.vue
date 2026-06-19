@@ -96,17 +96,15 @@
             SUSCRIPTO ✓
           </div>
           <div
-            v-else-if="turnosConClaseConfirmadaEnFecha.has(turno.id)"
-            class="clase-badge"
-          >
-            INSCRIPTO A CLASE ✓
-          </div>
-          <div
             v-else-if="turnosConSeniaPagada.has(turno.id)"
             class="senia-badge"
           >
             SEÑADA
           </div>
+          <div
+            v-if="turnosConClaseConfirmadaEnFecha.has(turno.id)"
+            class="lazo-clase"
+          ><span class="lazo-star">✦</span></div>
           <!-- CARD TOP: nombre + hora | agotado badge -->
           <div class="card-top">
             <div>
@@ -123,11 +121,8 @@
                 >{{ DAY_LABELS[day] ?? day }}</span>
               </div>
             </div>
-            <span v-if="turno.hasRemainingClasses && sinCupo(turno)" class="agotado-badge">
+            <span v-if="turno.hasRemainingClasses && sinCupoEnMes(turno)" class="agotado-badge">
               AGOTADO
-            </span>
-            <span v-else-if="turno.hasRemainingClasses && pct(turno) >= 70" class="ultimos-badge">
-              ¡Últimos lugares!
             </span>
           </div>
 
@@ -149,8 +144,8 @@
             <div class="cap-row">
               <span class="cap-text" :style="{ color: barColor(turno) }">
                 {{ sinCupo(turno)
-                  ? 'Sin lugares disponibles'
-                  : `${cupoLibre(turno)} lugar${cupoLibre(turno) !== 1 ? 'es' : ''} disponible${cupoLibre(turno) !== 1 ? 's' : ''}` }}
+                  ? 'Sin Cupos Disponibles'
+                  : `${cupoLibre(turno)} cupo${cupoLibre(turno) !== 1 ? 's' : ''} disponible${cupoLibre(turno) !== 1 ? 's' : ''}` }}
               </span>
 
               <span
@@ -179,7 +174,7 @@
           <template v-else>
             <div v-if="turnosPendienteMensual.has(turno.id)" class="acciones-card">
               <p class="pago-pendiente-info">
-                Suscripción pendiente
+                Suscripción Mensual Pendiente
               </p>
               <button
                 class="continuar-btn"
@@ -206,10 +201,10 @@
             <div v-else-if="!inscriptoEnFecha(turno)" class="acciones-card">
               <button
                 class="accion-btn"
-                :class="{ espera: sinCupo(turno) }"
+                :class="{ espera: sinCupoEnMes(turno) }"
                 @click="handleInscripcion(turno)"
               >
-                {{ sinCupo(turno)
+                {{ sinCupoEnMes(turno)
                   ? 'Lista de espera · Suscripción Mensual'
                   : 'Suscripción Mensual' }}
               </button>
@@ -276,6 +271,10 @@
 
           <div v-if="avisoLleno === turno.id && errorMensaje" class="error-aviso">
             {{ errorMensaje }}
+          </div>
+
+          <div v-if="pocosAbonosEnMes(turno) && !sinCupoEnMes(turno) && turno.hasRemainingClasses" class="marquee-wrapper">
+            <span class="marquee-text">✦ ¡Pocos abonos disponibles! ✦ ¡Pocos abonos disponibles!</span>
           </div>
 
         </div>
@@ -539,6 +538,26 @@ const cupoOcupado = (t) => { const c = claseSel(t); return c ? c.occupied : t.oc
 const cupoLibre = (t) => Math.max(cupoTotal(t) - cupoOcupado(t), 0)
 const sinCupo = (t) => cupoLibre(t) <= 0
 
+// Para suscripción mensual: sin cupo solo si TODAS las clases del mes están llenas.
+// Un abonado saliente con baja programada libera el mes siguiente, por eso hay que
+// mirar el mes completo, no solo la fecha seleccionada.
+const sinCupoEnMes = (t) => {
+  const selDate = new Date(`${selectedDate.value}T00:00:00`)
+  const mes = selDate.getMonth()
+  const anio = selDate.getFullYear()
+  const clasesDelMes = (classesByTurno.value.get(t.id) ?? []).filter(c => {
+    const d = new Date(`${c.rawDate}T00:00:00`)
+    return d.getMonth() === mes && d.getFullYear() === anio
+  })
+  if (!clasesDelMes.length) return true
+  return clasesDelMes.every(c => c.availableSpots <= 0)
+}
+
+const pocosAbonosEnMes = (t) => {
+  if (!t.total) return false
+  return t.ocup > 0 && t.ocup / t.total >= 0.7
+}
+
 // ¿El cliente está suscripto para la fecha seleccionada? (sub cubre [start_date, ends_on])
 const inscriptoEnFecha = (t) => {
   const sub = activeSubsByTurno.value.get(t.id)
@@ -600,6 +619,7 @@ const handleInscripcion = async (turno) => {
         amount:                  data.amount,
         original_amount:         data.original_amount,
         discount_deposit_single: data.discount_deposit_single,
+        discount_full_classes:   data.discount_full_classes,
         expires_at:              data.expires_at,
       },
     })
@@ -949,18 +969,6 @@ h1 {
   letter-spacing: 0.05em;
 }
 
-.clase-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: #0277bd;
-  color: white;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 6px 14px;
-  border-radius: 0 24px 0 16px;
-  letter-spacing: 0.05em;
-}
 
 .senia-badge {
   position: absolute;
@@ -1036,6 +1044,30 @@ h1 {
   letter-spacing: 0.03em;
 }
 
+.lazo-clase {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 52px;
+  height: 52px;
+  background: #00897b;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 7px 0 0 7px;
+  color: white;
+  pointer-events: none;
+}
+
+.lazo-star {
+  display: inline-block;
+  font-size: 16px;
+  transform: rotate(20deg);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.85), 0 1px 3px rgba(0, 0, 0, 0.2);
+  line-height: 1;
+}
+
 .periodo-chip {
   display: inline-block;
   margin-top: 6px;
@@ -1061,17 +1093,29 @@ h1 {
   border: 1px solid #FFCDD2;
 }
 
-.ultimos-badge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: #FFF3E0;
-  color: #E65100;
-  letter-spacing: 0.06em;
+.marquee-wrapper {
+  overflow: hidden;
   white-space: nowrap;
-  flex-shrink: 0;
-  border: 1px solid #FFE0B2;
+  margin: 0 -24px -24px -24px;
+  padding: 7px 0;
+  background: rgba(0, 137, 123, 0.06);
+  border-top: 1px solid rgba(0, 137, 123, 0.1);
+}
+
+.marquee-text {
+  display: inline-block;
+  padding-left: 100%;
+  white-space: nowrap;
+  animation: marquee-scroll 8s linear infinite;
+  font-size: 11px;
+  font-weight: 700;
+  color: #00897b;
+  letter-spacing: 0.05em;
+}
+
+@keyframes marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
 
 /* INSTRUCTOR */

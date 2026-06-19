@@ -195,8 +195,8 @@ const montoSenia = computed(() => Math.round(Number(route.query.amount ?? 0) * 0
 const discountFull          = computed(() => Number(route.query.discount_full_classes ?? 0))
 const discountDepositSingle = computed(() => Number(route.query.discount_deposit_single ?? 0))
 const discountSingle        = computed(() => Number(route.query.original_amount ?? 0) - Number(route.query.amount ?? 0))
-const discountConfirmed     = computed(() => discountSingle.value - discountDepositSingle.value)
-const precioBase            = computed(() => Number(route.query.original_amount ?? 0) + discountFull.value)
+const discountConfirmed     = computed(() => discountSingle.value - discountDepositSingle.value - discountFull.value)
+const precioBase            = computed(() => Number(route.query.original_amount ?? 0))
 
 const tieneDescuento = computed(() => discountFull.value > 0 || discountSingle.value > 0)
 
