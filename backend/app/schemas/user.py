@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
@@ -53,3 +53,21 @@ class UserMeResponse(BaseModel):
     is_2fa_enabled: bool = False
     client_profile: Optional[ClientProfileMeResponse] = None
     employee_profile: Optional[EmployeeProfileMeResponse] = None
+
+
+class ClienteListItem(BaseModel):
+    id: int
+    email: str
+    first_name: str
+    last_name: str
+    phone: str
+    doc_type_name: str
+    doc_number: str
+
+
+class ClientesPaginadosResponse(BaseModel):
+    items: List[ClienteListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
