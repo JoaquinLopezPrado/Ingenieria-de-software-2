@@ -6,22 +6,15 @@ import { enrollmentService } from '@/services/enrollmentService'
 
 type EnrollmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'deposit_paid' | 'deposit_forfeited' | 'refunded'
 
-interface RawSubscription {
-  enrollment_id: number
-  status: EnrollmentStatus
+interface PaidCharge {
+  charge_id: number
+  period_month: number
+  period_year: number
   amount: string
-  original_amount: string
-  discount_full_classes: string
-  expires_at: string | null
-  created_at: string
-  turno_id: number
-  turno_description: string
-  start_time: string
-  end_time: string
-  instructor: string
+  paid_at: string | null
   activity_name: string
-  days: string[]
-  last_payment_date: string | null
+  turno_description: string
+  instructor: string
 }
 
 interface RawSingle {
@@ -42,7 +35,7 @@ interface RawSingle {
 
 const PAID_STATUSES: EnrollmentStatus[] = ['confirmed', 'deposit_paid', 'deposit_forfeited', 'refunded']
 
-const suscripciones = ref<RawSubscription[]>([])
+const cargos = ref<PaidCharge[]>([])
 const clasesIndividuales = ref<RawSingle[]>([])
 const isLoading = ref(true)
 const hasError = ref(false)
@@ -61,29 +54,24 @@ const formatFecha = (raw: string): string => {
   return `${dia} ${mes}`
 }
 
-const periodoLabel = (item: RawSubscription): string => {
-  const ref = item.last_payment_date ?? item.created_at.slice(0, 10)
-  const parts = ref.split('-')
-  if (parts.length < 2) return ''
+const periodoLabel = (charge: PaidCharge): string => {
   const meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ]
-  const mes = meses[parseInt(parts[1] ?? '0', 10) - 1] ?? ''
-  return `${mes} ${parts[0]}`
+  const mes = meses[charge.period_month - 1] ?? ''
+  return `${mes} ${charge.period_year}`
 }
 
 const fetchPagos = async () => {
   try {
     isLoading.value = true
     hasError.value = false
-    const [resSub, resSingle] = await Promise.all([
-      enrollmentService.getMySubscription(),
+    const [resCharges, resSingle] = await Promise.all([
+      enrollmentService.getMyCharges(),
       enrollmentService.getMySingle(),
     ])
-    suscripciones.value = (resSub.data as RawSubscription[]).filter(e =>
-      PAID_STATUSES.includes(e.status),
-    )
+    cargos.value = resCharges.data as PaidCharge[]
     clasesIndividuales.value = (resSingle.data as RawSingle[]).filter(e =>
       PAID_STATUSES.includes(e.status),
     )
@@ -115,9 +103,8 @@ const STATUS_CLASS: Record<EnrollmentStatus, string> = {
 }
 
 const totalPagado = computed(() => {
-  const sumSub = suscripciones.value
-    .filter(e => e.status === 'confirmed')
-    .reduce((acc, e) => acc + parseFloat(e.amount), 0)
+  const sumSub = cargos.value
+    .reduce((acc, c) => acc + parseFloat(c.amount), 0)
   const sumSingle = clasesIndividuales.value
     .filter(e => e.status === 'confirmed' || e.status === 'deposit_paid')
     .reduce((acc, e) => acc + parseFloat(e.amount) * (e.status === 'deposit_paid' ? 0.3 : 1), 0)
@@ -180,7 +167,7 @@ const handleCancelDeposit = async (enrollmentId: number) => {
           {{ cancelError }}
         </div>
 
-        <div v-if="suscripciones.length > 0 || clasesIndividuales.length > 0" class="resumen-banner">
+        <div v-if="cargos.length > 0 || clasesIndividuales.length > 0" class="resumen-banner">
           <span class="resumen-label">Total abonado</span>
           <span class="resumen-monto">{{ formatPeso(totalPagado) }}</span>
         </div>
@@ -192,38 +179,24 @@ const handleCancelDeposit = async (enrollmentId: number) => {
               <h3>Turnos Fijos</h3>
             </div>
             <div class="cards-stack">
-              <div v-if="suscripciones.length === 0" class="empty-column">
+              <div v-if="cargos.length === 0" class="empty-column">
                 <span>No hay pagos de turnos registrados</span>
               </div>
               <template v-else>
                 <ItemCard
-                  v-for="sub in suscripciones"
-                  :key="sub.enrollment_id"
-                  :title="sub.activity_name"
-                  :subtitle="sub.turno_description"
+                  v-for="charge in cargos"
+                  :key="charge.charge_id"
+                  :title="charge.activity_name"
+                  :subtitle="charge.turno_description"
                   class="pago-card"
                 >
                   <template #right>
                     <div class="pago-right">
-                      <span :class="['status-badge', STATUS_CLASS[sub.status]]">
-                        {{ STATUS_LABEL[sub.status] }}
-                      </span>
+                      <span class="status-badge badge-pagado">Pagado</span>
                       <div class="precio-container">
-                        <span v-if="parseFloat(sub.discount_full_classes) > 0" class="precio-original">
-                          {{ formatPeso(sub.original_amount) }}
-                        </span>
-                        <span class="precio-label">{{ formatPeso(sub.amount) }}</span>
+                        <span class="precio-label">{{ formatPeso(charge.amount) }}</span>
                       </div>
-                      <span v-if="parseFloat(sub.discount_full_classes) > 0" class="descuento-label">
-                        Descuento -{{ formatPeso(sub.discount_full_classes) }}
-                      </span>
-                      <div class="dias-badge-container">
-                        <span v-for="dia in sub.days" :key="dia" class="dia-badge">
-                          {{ dia.slice(0, 3) }}
-                        </span>
-                      </div>
-                      <span class="horario-label">{{ sub.start_time }} - {{ sub.end_time }}</span>
-                      <span class="periodo-label">{{ periodoLabel(sub) }} · Prof. {{ sub.instructor }}</span>
+                      <span class="periodo-label">{{ periodoLabel(charge) }} · Prof. {{ charge.instructor }}</span>
                     </div>
                   </template>
                 </ItemCard>

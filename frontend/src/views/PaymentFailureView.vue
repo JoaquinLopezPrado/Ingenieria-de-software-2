@@ -79,11 +79,15 @@ onMounted(async () => {
 })
 
 const verActividades = async () => {
-  const enrollmentId = Number(route.query.enrollment_id)
-  if (enrollmentId) {
+  // ref: "single:{id}" | "sub:{charge_id}" (MP lo reenvía en la back_url y en external_reference).
+  const ref = String(route.query.ref || route.query.external_reference || '')
+  const [source, idStr] = ref.split(':')
+  const id = Number(idStr)
+  // Solo cancelamos sueltas acá; la suscripción pendiente la libera el job de expiración.
+  if (source === 'single' && id) {
     cancelando.value = true
     try {
-      await enrollmentService.cancelEnrollment(enrollmentId)
+      await enrollmentService.cancelSingle(id)
     } catch {
       // Si falla la cancelación, el job de expiración lo limpiará
     } finally {

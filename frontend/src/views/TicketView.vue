@@ -187,7 +187,9 @@ const router = useRouter()
 const fmt = (val) => Number(val ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })
 
 const esSinCosto = computed(() => Number(route.query.amount ?? 0) === 0)
-const esSingle   = computed(() => route.query.enrollment_type === 'single')
+// kind: 'subscription' | 'single' (compat: enrollment_type viejo === 'single')
+const kind       = computed(() => route.query.kind || (route.query.enrollment_type === 'single' ? 'single' : 'subscription'))
+const esSingle   = computed(() => kind.value === 'single')
 const montoSenia = computed(() => Math.round(Number(route.query.amount ?? 0) * 0.30 * 100) / 100)
 
 const discountFull          = computed(() => Number(route.query.discount_full_classes ?? 0))
@@ -249,9 +251,12 @@ onMounted(() => {
     if (remaining === 0) {
       expirado.value = true
       clearInterval(intervalo)
-      const enrollmentId = Number(route.query.enrollment_id)
-      if (enrollmentId) {
-        enrollmentService.cancelEnrollment(enrollmentId).catch(() => {})
+      if (esSingle.value) {
+        const enrollmentId = Number(route.query.enrollment_id)
+        if (enrollmentId) enrollmentService.cancelSingle(enrollmentId).catch(() => {})
+      } else {
+        const subscriptionId = Number(route.query.subscription_id)
+        if (subscriptionId) enrollmentService.cancelSubscription(subscriptionId).catch(() => {})
       }
     }
   }
@@ -263,14 +268,15 @@ onMounted(() => {
 onUnmounted(() => clearInterval(intervalo))
 
 const confirmarGratis = async () => {
-  const enrollmentId = Number(route.query.enrollment_id)
-  if (!enrollmentId) return
+  // Solo suscripciones pueden tener costo 0.
+  const chargeId = Number(route.query.charge_id)
+  if (!chargeId) return
   pagando.value = true
   try {
-    await enrollmentService.freeConfirm(enrollmentId)
+    await enrollmentService.freeConfirmSubscription(chargeId)
     router.push({ name: 'list' })
   } catch {
-    alert('No se pudo confirmar la inscripción. Intentá de nuevo.')
+    alert('No se pudo confirmar la suscripción. Intentá de nuevo.')
   } finally {
     pagando.value = false
   }
@@ -278,12 +284,19 @@ const confirmarGratis = async () => {
 
 const pagar = async () => {
   if (expirado.value) return
-  const enrollmentId = Number(route.query.enrollment_id)
-  if (!enrollmentId) return
 
   pagando.value = true
   try {
-    const { data } = await enrollmentService.createPaymentPreference(enrollmentId)
+    let data
+    if (esSingle.value) {
+      const enrollmentId = Number(route.query.enrollment_id)
+      if (!enrollmentId) { pagando.value = false; return }
+      ;({ data } = await enrollmentService.createSinglePreference(enrollmentId))
+    } else {
+      const chargeId = Number(route.query.charge_id)
+      if (!chargeId) { pagando.value = false; return }
+      ;({ data } = await enrollmentService.createSubscriptionPreference(chargeId))
+    }
     window.location.href = data.init_point
   } catch {
     pagando.value = false

@@ -402,8 +402,8 @@ async function handleSubmit() {
     router.push({
       name: 'ticket',
       query: {
+        kind:            'single',
         enrollment_id:   data.id,
-        enrollment_type: 'single',
         actividad:       actividad.value,
         dia:             diaLabel,
         duracion:        `${horaInicio.value} - ${horaFin.value}`,

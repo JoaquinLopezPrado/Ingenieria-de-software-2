@@ -19,7 +19,7 @@
         </div>
         <div>
           <div class="card-label">Pago procesado correctamente</div>
-          <div class="card-value">N° de inscripción {{ route.query.enrollment_id }}</div>
+          <div class="card-value">N° de comprobante {{ referencia }}</div>
         </div>
       </div>
 
@@ -36,10 +36,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route  = useRoute()
 const router = useRouter()
+
+// ref: "single:{id}" | "sub:{charge_id}". Fallback al payment_id de MP.
+const referencia = computed(() => {
+  const ref = String(route.query.ref || route.query.external_reference || '')
+  const [, idStr] = ref.split(':')
+  return idStr || route.query.payment_id || ''
+})
 </script>
 
 <style scoped>
