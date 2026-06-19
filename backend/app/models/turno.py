@@ -21,7 +21,8 @@ class Turno(IDMixin, TimestampMixin, Base):
     activity = relationship("Activity", back_populates="turnos")
     days = relationship("TurnoDia", back_populates="turno", cascade="all, delete-orphan")
     clases = relationship("Clase", back_populates="turno", cascade="all, delete-orphan")
-    enrollments = relationship("Enrollment", back_populates="turno")
+    subscriptions = relationship("Subscription", back_populates="turno")
+    single_enrollments = relationship("SingleEnrollment", back_populates="turno")
 
     __table_args__ = (
         UniqueConstraint("activity_id", "description", "start_time", "end_time", name="uq_turno_actividad_descripcion_horario"),

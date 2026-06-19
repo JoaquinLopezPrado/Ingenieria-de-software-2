@@ -14,4 +14,4 @@ class Clase(IDMixin, TimestampMixin, Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     turno = relationship("Turno", back_populates="clases")
-    slots = relationship("EnrollmentSlot", back_populates="clase")
+    single_slots = relationship("SingleEnrollmentSlot", back_populates="clase")

@@ -7,10 +7,9 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
-from app.domain.enrollment import EnrollmentStatus
 from app.models.clase import Clase as ClaseORM
-from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as EnrollmentSlotORM
 from app.models.turno import Turno as TurnoORM
+from app.repositories.capacity import occupied_subq
 
 
 class AbstractClaseRepository(ABC):
@@ -74,16 +73,7 @@ class ClaseRepository(AbstractClaseRepository):
         next_month_year = today.year + (1 if today.month == 12 else 0)
         end_date = date(next_month_year, next_month, calendar.monthrange(next_month_year, next_month)[1])
 
-        enrolled_subquery = (
-            select(func.count())
-            .select_from(EnrollmentSlotORM)
-            .join(EnrollmentORM, EnrollmentSlotORM.enrollment_id == EnrollmentORM.id)
-            .where(
-                EnrollmentSlotORM.clase_id == ClaseORM.id,
-                EnrollmentORM.status.in_([EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED, EnrollmentStatus.DEPOSIT_PAID]),
-            )
-            .scalar_subquery()
-        )
+        enrolled_subquery = occupied_subq(ClaseORM.turno_id, ClaseORM.id, ClaseORM.date)
         result = await self._session.execute(
             select(ClaseORM, TurnoORM.start_time, TurnoORM.end_time, enrolled_subquery.label("enrolled"))
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)

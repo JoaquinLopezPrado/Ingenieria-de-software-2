@@ -10,7 +10,6 @@ from app.domain.turno import DiaSemana, Turno
 from app.repositories.activity_repository import AbstractActivityRepository
 from app.repositories.clase_repository import AbstractClaseRepository
 from app.repositories.config_repository import AbstractConfigRepository
-from app.repositories.enrollment_repository import AbstractEnrollmentRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
 
 _DEFAULT_PAGE_SIZE = 20
@@ -55,13 +54,11 @@ class TurnoService:
         clase_repo: AbstractClaseRepository,
         activity_repo: AbstractActivityRepository,
         config_repo: AbstractConfigRepository,
-        enrollment_repo: AbstractEnrollmentRepository,
     ):
         self._turno_repo = turno_repo
         self._clase_repo = clase_repo
         self._activity_repo = activity_repo
         self._config_repo = config_repo
-        self._enrollment_repo = enrollment_repo
 
     async def list(
         self,
@@ -145,12 +142,9 @@ class TurnoService:
         if not dates:
             return 0
 
+        # Los abonados no materializan slots: su asiento se cuenta al vuelo sobre
+        # la suscripción activa. El cron solo genera las filas Clase.
         clase_ids = await self._clase_repo.create_many(turno.id, dates, turno.capacity)
-
-        subscription_ids = await self._enrollment_repo.get_active_subscription_ids(turno_id)
-        if subscription_ids:
-            await self._enrollment_repo.create_slots_for_clases(subscription_ids, clase_ids)
-
         return len(clase_ids)
 
     async def list_clases_by_activity(self, activity_id: int) -> List[Clase]:

@@ -1,15 +1,17 @@
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
-from app.domain.enrollment import EnrollmentType
 from app.models.mixins import IDMixin
 
 
 class Payment(IDMixin, Base):
     __tablename__ = "payments"
 
-    enrollment_id = Column(Integer, ForeignKey("enrollments.id"), nullable=False)
+    # Fuente del pago: exactamente una de las dos FKs está poblada.
+    subscription_charge_id = Column(Integer, ForeignKey("subscription_charges.id"), nullable=True)
+    single_enrollment_id = Column(Integer, ForeignKey("single_enrollments.id"), nullable=True)
+
     amount = Column(Numeric(10, 2), nullable=False)
     class_price_snapshot = Column(Numeric(10, 2), nullable=False)
     num_classes_snapshot = Column(Integer, nullable=False)
@@ -20,9 +22,8 @@ class Payment(IDMixin, Base):
     activity_name_snapshot = Column(String, nullable=False)
     month_snapshot = Column(Integer, nullable=False)
     year_snapshot = Column(Integer, nullable=False)
-    enrollment_type_snapshot = Column(
-        Enum(EnrollmentType, name="enrollment_type_enum", create_constraint=False, values_callable=lambda x: [e.value for e in x]),
-        nullable=False,
-    )
+    # "subscription" | "single"
+    source_type_snapshot = Column(String, nullable=False)
 
-    enrollment = relationship("Enrollment", back_populates="payments")
+    subscription_charge = relationship("SubscriptionCharge", back_populates="payments")
+    single_enrollment = relationship("SingleEnrollment", back_populates="payments")

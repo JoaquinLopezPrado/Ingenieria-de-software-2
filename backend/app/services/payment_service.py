@@ -8,10 +8,17 @@ import mercadopago
 from fastapi import HTTPException, status
 
 from app.core.config import settings
-from app.domain.enrollment import EnrollmentStatus, EnrollmentType
+from app.domain.single_enrollment import SingleEnrollmentStatus
+from app.domain.subscription import ChargeStatus
 from app.repositories.config_repository import AbstractConfigRepository
-from app.repositories.enrollment_repository import AbstractEnrollmentRepository, DepositInfo, _DEPOSIT_DEADLINE_HOURS, _DEPOSIT_RATIO
 from app.repositories.payment_repository import AbstractPaymentRepository
+from app.repositories.single_enrollment_repository import (
+    AbstractSingleEnrollmentRepository,
+    DepositInfo,
+    _DEPOSIT_DEADLINE_HOURS,
+    _DEPOSIT_RATIO,
+)
+from app.repositories.subscription_repository import AbstractSubscriptionRepository
 from app.repositories.user_repository import AbstractUserRepository
 from app.services.email_service import EmailService
 
@@ -21,30 +28,23 @@ _logger = logging.getLogger(__name__)
 
 
 def _mp_isoformat(dt) -> str:
-    """Formatea datetime al formato que espera MP: 'YYYY-MM-DDTHH:MM:SS.000-03:00'.
-    Si asyncpg devuelve naive (sin tzinfo) asumimos UTC antes de convertir a ART."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(_ART).strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
-
-
-_MP_STATUS_MAP = {
-    "approved": EnrollmentStatus.CONFIRMED,
-    "rejected": EnrollmentStatus.CANCELLED,
-    "cancelled": EnrollmentStatus.CANCELLED,
-}
 
 
 class PaymentService:
 
     def __init__(
         self,
-        enrollment_repo: AbstractEnrollmentRepository,
+        subscription_repo: AbstractSubscriptionRepository,
+        single_repo: AbstractSingleEnrollmentRepository,
         user_repo: AbstractUserRepository,
         payment_repo: AbstractPaymentRepository,
         config_repo: AbstractConfigRepository,
     ):
-        self._enrollment_repo = enrollment_repo
+        self._subscription_repo = subscription_repo
+        self._single_repo = single_repo
         self._user_repo = user_repo
         self._payment_repo = payment_repo
         self._config_repo = config_repo
@@ -52,41 +52,55 @@ class PaymentService:
         self._sdk = mercadopago.SDK(settings.mp_access_token)
 
     # ------------------------------------------------------------------ #
-    # Preferencias de pago                                                 #
+    # Preferencias — suscripción (cargo mensual)                          #
     # ------------------------------------------------------------------ #
 
-    async def create_preference(self, enrollment_id: int, user_id: int) -> str:
-        details = await self._enrollment_repo.get_payment_details(enrollment_id)
-
+    async def create_subscription_charge_preference(self, charge_id: int, user_id: int) -> str:
+        details = await self._subscription_repo.get_charge_details(charge_id)
         if details.user_id != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permisos.")
-
-        if details.status != EnrollmentStatus.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="La inscripción no está en estado pendiente.",
-            )
+        if details.status not in (ChargeStatus.PENDING, ChargeStatus.OVERDUE):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El cargo no está pendiente de pago.")
 
         return await self._build_preference(
-            enrollment_id=enrollment_id,
-            title=f"Inscripción a {details.activity_name} — {details.turno_description}",
-            amount=float(details.price),
-            external_reference=str(enrollment_id),
+            ref_id=charge_id,
+            title=f"Suscripción a {details.activity_name} — {details.turno_description}",
+            amount=float(details.amount),
+            external_reference=f"sub:{charge_id}",
             expires_at=details.expires_at,
         )
 
-    async def create_deposit_preference(self, enrollment_id: int, user_id: int) -> str:
-        details = await self._enrollment_repo.get_payment_details(enrollment_id)
-
+    async def free_confirm_subscription(self, charge_id: int, user_id: int) -> None:
+        details = await self._subscription_repo.get_charge_details(charge_id)
         if details.user_id != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permisos.")
-
-        if details.status != EnrollmentStatus.PENDING:
+        if details.status not in (ChargeStatus.PENDING, ChargeStatus.OVERDUE):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El cargo no está pendiente de pago.")
+        if details.amount != 0:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="La inscripción no está en estado pendiente.",
+                detail="Este cargo requiere pago a través de Mercado Pago.",
             )
+        await self._confirm_subscription_charge(charge_id, "free")
 
+    # ------------------------------------------------------------------ #
+    # Preferencias — clase suelta                                         #
+    # ------------------------------------------------------------------ #
+
+    async def create_single_preference(self, enrollment_id: int, user_id: int) -> str:
+        details = await self._single_repo.get_single_details(enrollment_id)
+        self._assert_single_pending(details, user_id)
+        return await self._build_preference(
+            ref_id=enrollment_id,
+            title=f"Inscripción a {details.activity_name} — {details.turno_description}",
+            amount=float(details.amount),
+            external_reference=f"single:{enrollment_id}",
+            expires_at=details.expires_at,
+        )
+
+    async def create_single_deposit_preference(self, enrollment_id: int, user_id: int) -> str:
+        details = await self._single_repo.get_single_details(enrollment_id)
+        self._assert_single_pending(details, user_id)
         if details.clase_start:
             deadline = details.clase_start - timedelta(hours=_DEPOSIT_DEADLINE_HOURS)
             if datetime.now(timezone.utc) >= deadline:
@@ -94,64 +108,49 @@ class PaymentService:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Ya no es posible pagar la seña. La clase comienza en menos de 1 hora.",
                 )
-
-        deposit_amount = (details.price * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
-
+        deposit_amount = (details.amount * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
         return await self._build_preference(
-            enrollment_id=enrollment_id,
+            ref_id=enrollment_id,
             title=f"Seña — {details.activity_name} — {details.turno_description}",
             amount=float(deposit_amount),
-            external_reference=f"{enrollment_id}:deposit",
+            external_reference=f"single:{enrollment_id}:deposit",
             expires_at=details.expires_at,
         )
 
-    async def create_balance_preference(self, enrollment_id: int, user_id: int) -> str:
-        details = await self._enrollment_repo.get_payment_details(enrollment_id)
-
+    async def create_single_balance_preference(self, enrollment_id: int, user_id: int) -> str:
+        details = await self._single_repo.get_single_details(enrollment_id)
         if details.user_id != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permisos.")
-
-        if details.status != EnrollmentStatus.DEPOSIT_PAID:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="La inscripción no tiene una seña confirmada.",
-            )
-
+        if details.status != SingleEnrollmentStatus.DEPOSIT_PAID:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La inscripción no tiene una seña confirmada.")
         if details.expires_at and details.expires_at <= datetime.now(timezone.utc):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="El plazo para completar el pago ha vencido.",
-            )
-
-        balance_amount = (details.price * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
-
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El plazo para completar el pago ha vencido.")
+        balance_amount = (details.amount * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
         return await self._build_preference(
-            enrollment_id=enrollment_id,
+            ref_id=enrollment_id,
             title=f"Saldo — {details.activity_name} — {details.turno_description}",
             amount=float(balance_amount),
-            external_reference=f"{enrollment_id}:balance",
+            external_reference=f"single:{enrollment_id}:balance",
             expires_at=details.expires_at,
         )
 
-    async def _build_preference(
-        self,
-        enrollment_id: int,
-        title: str,
-        amount: float,
-        external_reference: str,
-        expires_at,
-    ) -> str:
+    def _assert_single_pending(self, details, user_id: int) -> None:
+        if details.user_id != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permisos.")
+        if details.status != SingleEnrollmentStatus.PENDING:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La inscripción no está en estado pendiente.")
+
+    # ------------------------------------------------------------------ #
+    # Construcción de preferencia MP                                       #
+    # ------------------------------------------------------------------ #
+
+    async def _build_preference(self, ref_id: int, title: str, amount: float, external_reference: str, expires_at) -> str:
         preference_data = {
-            "items": [{
-                "title": title,
-                "quantity": 1,
-                "unit_price": amount,
-                "currency_id": "ARS",
-            }],
+            "items": [{"title": title, "quantity": 1, "unit_price": amount, "currency_id": "ARS"}],
             "back_urls": {
-                "success": f"{settings.mp_frontend_url}/payment/success?enrollment_id={enrollment_id}",
-                "failure": f"{settings.mp_frontend_url}/payment/failure?enrollment_id={enrollment_id}",
-                "pending": f"{settings.mp_frontend_url}/payment/pending?enrollment_id={enrollment_id}",
+                "success": f"{settings.mp_frontend_url}/payment/success?ref={external_reference}",
+                "failure": f"{settings.mp_frontend_url}/payment/failure?ref={external_reference}",
+                "pending": f"{settings.mp_frontend_url}/payment/pending?ref={external_reference}",
             },
             "external_reference": external_reference,
             **({"auto_return": "approved"} if settings.mp_frontend_url.startswith("https://") else {}),
@@ -161,17 +160,13 @@ class PaymentService:
             preference_data["notification_url"] = settings.mp_notification_url
 
         loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None, partial(self._sdk.preference().create, preference_data)
-        )
-
+        response = await loop.run_in_executor(None, partial(self._sdk.preference().create, preference_data))
         if response["status"] not in (200, 201):
             _logger.error("MP preference error: %s", response)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"MP error {response['status']}: {response.get('response')}",
             )
-
         return response["response"].get("init_point")
 
     # ------------------------------------------------------------------ #
@@ -180,43 +175,75 @@ class PaymentService:
 
     async def handle_webhook(self, payment_id: str) -> None:
         loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None, partial(self._sdk.payment().get, payment_id)
-        )
-
+        response = await loop.run_in_executor(None, partial(self._sdk.payment().get, payment_id))
         if response["status"] != 200:
             return
 
         payment = response["response"]
         mp_status = payment.get("status")
         external_reference = payment.get("external_reference") or ""
-
         parts = external_reference.split(":")
-        if not parts[0].isdigit():
+        if len(parts) < 2 or not parts[1].isdigit():
             return
 
-        enrollment_id = int(parts[0])
-        payment_type = parts[1] if len(parts) > 1 else "full"
+        source, ref_id = parts[0], int(parts[1])
 
-        if mp_status == "approved":
-            if payment_type == "deposit":
-                await self._handle_deposit_approved(enrollment_id, payment_id)
-            elif payment_type == "balance":
-                await self._handle_balance_approved(enrollment_id, payment_id)
-            else:
-                await self._handle_full_payment_approved(enrollment_id, payment_id)
-        elif mp_status in ("rejected", "cancelled"):
-            if payment_type == "full":
-                await self._enrollment_repo.update_payment(
-                    enrollment_id=enrollment_id,
-                    new_status=EnrollmentStatus.CANCELLED,
+        if source == "sub":
+            if mp_status == "approved":
+                await self._confirm_subscription_charge(ref_id, payment_id)
+            return
+
+        if source == "single":
+            kind = parts[2] if len(parts) > 2 else "full"
+            if mp_status == "approved":
+                if kind == "deposit":
+                    await self._handle_single_deposit_approved(ref_id, payment_id)
+                elif kind == "balance":
+                    await self._handle_single_balance_approved(ref_id, payment_id)
+                else:
+                    await self._handle_single_full_approved(ref_id, payment_id)
+            elif mp_status in ("rejected", "cancelled") and kind == "full":
+                await self._single_repo.update_payment(
+                    enrollment_id=ref_id,
+                    new_status=SingleEnrollmentStatus.CANCELLED,
                     payment_id=payment_id,
                 )
 
-    async def _handle_deposit_approved(self, enrollment_id: int, payment_id: str) -> None:
-        details = await self._enrollment_repo.get_payment_details(enrollment_id)
-        deposit_amount = (details.price * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
-        confirmed = await self._enrollment_repo.confirm_deposit(
+    async def _confirm_subscription_charge(self, charge_id: int, payment_id: str) -> None:
+        confirmed = await self._subscription_repo.mark_charge_paid(charge_id, payment_id)
+        if not confirmed:
+            return
+        details = await self._subscription_repo.get_charge_details(charge_id)
+        await self._payment_repo.create(
+            amount=details.amount,
+            class_price_snapshot=details.class_price_snapshot,
+            num_classes_snapshot=details.num_classes_snapshot,
+            payment_provider_id=payment_id,
+            confirmed_at=datetime.now(timezone.utc),
+            activity_id=details.activity_id,
+            activity_name_snapshot=details.activity_name,
+            month_snapshot=details.period_month,
+            year_snapshot=details.period_year,
+            source_type_snapshot="subscription",
+            subscription_charge_id=charge_id,
+        )
+        await self._send_subscription_email(details, payment_id)
+
+    async def _handle_single_full_approved(self, enrollment_id: int, payment_id: str) -> None:
+        updated = await self._single_repo.update_payment(
+            enrollment_id=enrollment_id,
+            new_status=SingleEnrollmentStatus.CONFIRMED,
+            payment_id=payment_id,
+        )
+        if updated:
+            details = await self._single_repo.get_single_details(enrollment_id)
+            await self._create_single_payment(details, payment_id)
+            await self._send_single_email(details, payment_id)
+
+    async def _handle_single_deposit_approved(self, enrollment_id: int, payment_id: str) -> None:
+        details = await self._single_repo.get_single_details(enrollment_id)
+        deposit_amount = (details.amount * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
+        confirmed = await self._single_repo.confirm_deposit(
             enrollment_id=enrollment_id,
             deposit_payment_id=payment_id,
             deposit_amount=deposit_amount,
@@ -224,188 +251,101 @@ class PaymentService:
         if confirmed:
             await self._send_deposit_email(details, payment_id, deposit_amount)
 
-    async def _handle_balance_approved(self, enrollment_id: int, payment_id: str) -> None:
-        updated = await self._enrollment_repo.confirm_balance(
-            enrollment_id=enrollment_id,
-            payment_id=payment_id,
-        )
+    async def _handle_single_balance_approved(self, enrollment_id: int, payment_id: str) -> None:
+        updated = await self._single_repo.confirm_balance(enrollment_id=enrollment_id, payment_id=payment_id)
         if updated:
-            details = await self._enrollment_repo.get_payment_details(enrollment_id)
-            await self._payment_repo.create(
-                enrollment_id=enrollment_id,
-                amount=details.price,
-                class_price_snapshot=details.class_price_snapshot,
-                num_classes_snapshot=details.num_classes_snapshot,
-                payment_provider_id=payment_id,
-                confirmed_at=datetime.now(timezone.utc),
-                activity_id=details.activity_id,
-                activity_name_snapshot=details.activity_name,
-                month_snapshot=details.month,
-                year_snapshot=details.year,
-                enrollment_type_snapshot=details.enrollment_type,
-            )
+            details = await self._single_repo.get_single_details(enrollment_id)
+            await self._create_single_payment(details, payment_id)
             await self._send_balance_email(details, payment_id)
 
-    async def _handle_full_payment_approved(self, enrollment_id: int, payment_id: str) -> None:
-        updated = await self._enrollment_repo.update_payment(
-            enrollment_id=enrollment_id,
-            new_status=EnrollmentStatus.CONFIRMED,
-            payment_id=payment_id,
+    async def _create_single_payment(self, details, payment_id: str) -> None:
+        today = datetime.now(_ART).date()
+        await self._payment_repo.create(
+            amount=details.amount,
+            class_price_snapshot=details.class_price_snapshot,
+            num_classes_snapshot=details.num_classes_snapshot,
+            payment_provider_id=payment_id,
+            confirmed_at=datetime.now(timezone.utc),
+            activity_id=details.activity_id,
+            activity_name_snapshot=details.activity_name,
+            month_snapshot=today.month,
+            year_snapshot=today.year,
+            source_type_snapshot="single",
+            single_enrollment_id=details.enrollment_id,
         )
-        if updated:
-            details = await self._enrollment_repo.get_payment_details(enrollment_id)
-            await self._payment_repo.create(
-                enrollment_id=enrollment_id,
-                amount=details.price,
-                class_price_snapshot=details.class_price_snapshot,
-                num_classes_snapshot=details.num_classes_snapshot,
-                payment_provider_id=payment_id,
-                confirmed_at=datetime.now(timezone.utc),
-                activity_id=details.activity_id,
-                activity_name_snapshot=details.activity_name,
-                month_snapshot=details.month,
-                year_snapshot=details.year,
-                enrollment_type_snapshot=details.enrollment_type,
-            )
-            await self._send_payment_email(enrollment_id, payment_id)
 
     # ------------------------------------------------------------------ #
-    # Cancelación con reintegro de seña                                    #
+    # Cancelación con reintegro de seña (clase suelta)                     #
     # ------------------------------------------------------------------ #
 
     async def cancel_deposit_enrollment(self, enrollment_id: int, user_id: int) -> dict:
-        info = await self._enrollment_repo.get_deposit_info(enrollment_id, user_id)
+        info = await self._single_repo.get_deposit_info(enrollment_id, user_id)
         if info is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Inscripción con seña no encontrada.",
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inscripción con seña no encontrada.")
 
         refund_window_hours = await self._config_repo.get_int("refund_window_hours", 24)
         now = datetime.now(_ART)
-        refund_deadline = info.clase_start - timedelta(hours=refund_window_hours)
-        eligible_for_refund = now < refund_deadline
+        eligible_for_refund = now < info.clase_start - timedelta(hours=refund_window_hours)
 
         if eligible_for_refund:
-            await self._enrollment_repo.cancel_deposit_with_refund(
-                enrollment_id=enrollment_id,
-                user_id=user_id,
-                refund_id="manual",
-            )
+            await self._single_repo.cancel_deposit_with_refund(enrollment_id=enrollment_id, user_id=user_id, refund_id="manual")
             await self._send_refund_email(enrollment_id, user_id, info)
             return {"refund": True}
-        else:
-            await self._enrollment_repo.cancel_deposit_no_refund(
-                enrollment_id=enrollment_id,
-                user_id=user_id,
-            )
-            return {"refund": False}
-
-    async def _send_refund_email(self, enrollment_id: int, user_id: int, info: "DepositInfo") -> None:
-        try:
-            user = await self._user_repo.get_by_id(user_id)
-            details = await self._enrollment_repo.get_payment_details(enrollment_id)
-            if user and user.client_profile:
-                self._email_service.send_deposit_refunded(
-                    to=user.email,
-                    first_name=user.client_profile.first_name,
-                    activity_name=details.activity_name,
-                    turno_description=details.turno_description,
-                    clase_start=info.clase_start,
-                    deposit_amount=info.deposit_amount,
-                )
-        except Exception:
-            _logger.exception("Error al enviar email de reembolso para enrollment %s", enrollment_id)
-
-    async def _process_mp_refund(self, payment_id: str, amount: Decimal) -> str:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,
-            partial(self._sdk.refund().create, int(payment_id), {"amount": float(amount)}),
-        )
-        if response["status"] not in (200, 201):
-            _logger.error("MP refund error: %s", response)
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="No se pudo procesar el reintegro con Mercado Pago.",
-            )
-        return str(response["response"].get("id", ""))
+        await self._single_repo.cancel_deposit_no_refund(enrollment_id=enrollment_id, user_id=user_id)
+        return {"refund": False}
 
     # ------------------------------------------------------------------ #
     # Utilidades                                                           #
     # ------------------------------------------------------------------ #
 
-    async def free_confirm(self, enrollment_id: int, user_id: int) -> None:
-        details = await self._enrollment_repo.get_payment_details(enrollment_id)
-
-        if details.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permisos.")
-
-        if details.status != EnrollmentStatus.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="La inscripción no está en estado pendiente.",
-            )
-
-        if details.price != 0:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Esta inscripción requiere pago a través de Mercado Pago.",
-            )
-
-        await self._enrollment_repo.update_payment(
-            enrollment_id=enrollment_id,
-            new_status=EnrollmentStatus.CONFIRMED,
-            payment_id="free",
-        )
-        await self._send_payment_email(enrollment_id, "free")
-
     async def get_mp_status_detail(self, payment_id: str) -> str | None:
         if not payment_id or payment_id == "0":
             return None
         loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None, partial(self._sdk.payment().get, payment_id)
-        )
+        response = await loop.run_in_executor(None, partial(self._sdk.payment().get, payment_id))
         if response["status"] != 200:
             return None
         return response["response"].get("status_detail")
 
-    async def _send_payment_email(self, enrollment_id: int, payment_id: str) -> None:
-        details = await self._enrollment_repo.get_payment_details(enrollment_id)
+    # ------------------------------------------------------------------ #
+    # Emails                                                               #
+    # ------------------------------------------------------------------ #
+
+    async def _send_subscription_email(self, details, payment_id: str) -> None:
         user = await self._user_repo.get_by_id(details.user_id)
         if not user or not user.client_profile:
             return
-        first_name = user.client_profile.first_name
-        if details.enrollment_type == EnrollmentType.SUBSCRIPTION:
-            self._email_service.send_subscription_confirmed(
-                to=user.email,
-                first_name=first_name,
-                activity_name=details.activity_name,
-                turno_description=details.turno_description,
-                amount=details.price,
-                original_amount=details.original_amount,
-                discount_full_classes=details.discount_full_classes,
-                payment_id=payment_id,
-            )
-        else:
-            self._email_service.send_single_confirmed(
-                to=user.email,
-                first_name=first_name,
-                activity_name=details.activity_name,
-                turno_description=details.turno_description,
-                num_classes=details.num_classes_snapshot,
-                class_price=details.class_price_snapshot,
-                amount=details.price,
-                payment_id=payment_id,
-                clase_dates=details.clase_dates,
-            )
+        self._email_service.send_subscription_confirmed(
+            to=user.email,
+            first_name=user.client_profile.first_name,
+            activity_name=details.activity_name,
+            turno_description=details.turno_description,
+            amount=details.amount,
+            original_amount=details.original_amount,
+            payment_id=payment_id,
+        )
+
+    async def _send_single_email(self, details, payment_id: str) -> None:
+        user = await self._user_repo.get_by_id(details.user_id)
+        if not user or not user.client_profile:
+            return
+        self._email_service.send_single_confirmed(
+            to=user.email,
+            first_name=user.client_profile.first_name,
+            activity_name=details.activity_name,
+            turno_description=details.turno_description,
+            num_classes=details.num_classes_snapshot,
+            class_price=details.class_price_snapshot,
+            amount=details.amount,
+            payment_id=payment_id,
+            clase_dates=details.clase_dates,
+        )
 
     async def _send_deposit_email(self, details, payment_id: str, deposit_amount: Decimal) -> None:
         user = await self._user_repo.get_by_id(details.user_id)
         if not user or not user.client_profile:
             return
-        balance_amount = (details.price * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
+        balance_amount = (details.amount * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
         self._email_service.send_deposit_confirmed(
             to=user.email,
             first_name=user.client_profile.first_name,
@@ -421,8 +361,8 @@ class PaymentService:
         user = await self._user_repo.get_by_id(details.user_id)
         if not user or not user.client_profile:
             return
-        deposit_amount = (details.price * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
-        balance_amount = (details.price * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
+        deposit_amount = (details.amount * _DEPOSIT_RATIO).quantize(Decimal("0.01"))
+        balance_amount = (details.amount * (1 - _DEPOSIT_RATIO)).quantize(Decimal("0.01"))
         self._email_service.send_balance_confirmed(
             to=user.email,
             first_name=user.client_profile.first_name,
@@ -434,3 +374,19 @@ class PaymentService:
             balance_amount=balance_amount,
             payment_id=payment_id,
         )
+
+    async def _send_refund_email(self, enrollment_id: int, user_id: int, info: "DepositInfo") -> None:
+        try:
+            user = await self._user_repo.get_by_id(user_id)
+            details = await self._single_repo.get_single_details(enrollment_id)
+            if user and user.client_profile:
+                self._email_service.send_deposit_refunded(
+                    to=user.email,
+                    first_name=user.client_profile.first_name,
+                    activity_name=details.activity_name,
+                    turno_description=details.turno_description,
+                    clase_start=info.clase_start,
+                    deposit_amount=info.deposit_amount,
+                )
+        except Exception:
+            _logger.exception("Error al enviar email de reembolso para enrollment %s", enrollment_id)

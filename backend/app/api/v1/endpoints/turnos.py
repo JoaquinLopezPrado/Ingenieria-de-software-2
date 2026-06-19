@@ -9,7 +9,6 @@ from app.core.dependencies import get_db, require_roles
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
-from app.repositories.enrollment_repository import EnrollmentRepository
 from app.repositories.turno_repository import TurnoRepository
 from app.schemas.turno import ClaseDetalleResponse, CreateTurnoRequest, GenerateClassesResponse, TurnoPageResponse, TurnoResponse
 from app.services.turno_service import TurnoService
@@ -23,7 +22,6 @@ def get_turno_service(db: AsyncSession = Depends(get_db)) -> TurnoService:
         clase_repo=ClaseRepository(db),
         activity_repo=ActivityRepository(db),
         config_repo=ConfigRepository(db),
-        enrollment_repo=EnrollmentRepository(db),
     )
 
 

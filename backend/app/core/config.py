@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     # Enrollment
     enrollment_ttl_minutes: int = 2
     enrollment_expiry_check_seconds: int = 30
+    monthly_charges_check_seconds: int = 86400  # cron de respaldo: genera cargos del mes 1×/día
 
     # Google OAuth
     google_client_id: str = ""

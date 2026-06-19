@@ -7,13 +7,10 @@ from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.domain.enrollment import EnrollmentStatus, EnrollmentType
 from app.domain.turno import DiaSemana, Turno
 from app.models.clase import Clase as ClaseORM
-from app.models.enrollment import Enrollment as EnrollmentORM, EnrollmentSlot as EnrollmentSlotORM
 from app.models.turno import Turno as TurnoORM, TurnoDia as TurnoDiaORM
-
-_ACTIVE_STATUSES = [EnrollmentStatus.PENDING, EnrollmentStatus.CONFIRMED]
+from app.repositories.capacity import active_subscriptions_subq, occupied_subq
 
 
 class AbstractTurnoRepository(ABC):
@@ -87,32 +84,14 @@ class TurnoRepository(AbstractTurnoRepository):
             select(func.count()).select_from(base.subquery())
         )).scalar_one()
 
-        enrolled_subq = (
-            select(func.count(EnrollmentORM.id))
-            .where(
-                EnrollmentORM.turno_id == TurnoORM.id,
-                EnrollmentORM.enrollment_type == EnrollmentType.SUBSCRIPTION,
-                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
-            )
-            .correlate(TurnoORM)
-            .scalar_subquery()
-        )
-
         _ART = timezone(timedelta(hours=-3))
         now_art = datetime.now(_ART)
         today = now_art.date()
         now_time = now_art.time()
 
-        active_slots_subq = (
-            select(func.count(EnrollmentSlotORM.id))
-            .join(EnrollmentORM, EnrollmentORM.id == EnrollmentSlotORM.enrollment_id)
-            .where(
-                EnrollmentSlotORM.clase_id == ClaseORM.id,
-                EnrollmentORM.status.in_(_ACTIVE_STATUSES),
-            )
-            .correlate(ClaseORM)
-            .scalar_subquery()
-        )
+        # Ocupación de abonados a nivel turno: la del período vigente (hoy).
+        enrolled_subq = active_subscriptions_subq(TurnoORM.id, today)
+        occupied = occupied_subq(ClaseORM.turno_id, ClaseORM.id, ClaseORM.date)
 
         future_date_filter = or_(
             ClaseORM.date > today,
@@ -127,7 +106,7 @@ class TurnoRepository(AbstractTurnoRepository):
             .where(
                 ClaseORM.turno_id == TurnoORM.id,
                 ClaseORM.is_active == True,
-                ClaseORM.capacity > active_slots_subq,
+                ClaseORM.capacity > occupied,
                 future_date_filter,
             )
             .correlate(TurnoORM)

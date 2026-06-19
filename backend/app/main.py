@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.dependencies import get_db
-from app.core.tasks import enrollment_expiry_loop
+from app.core.tasks import enrollment_expiry_loop, monthly_charges_loop
 from app.api.v1.router import api_router
 from app.api.exception_handlers import http_exception_handler, validation_exception_handler
 
@@ -19,12 +19,16 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(
         enrollment_expiry_loop(settings.enrollment_expiry_check_seconds)
     )
+    charges_task = asyncio.create_task(
+        monthly_charges_loop(settings.monthly_charges_check_seconds)
+    )
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for t in (task, charges_task):
+        t.cancel()
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
