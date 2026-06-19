@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.docs.user_responses import ME_RESPONSES
@@ -7,7 +9,7 @@ from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.attendance import AsistenciaResponse
-from app.schemas.user import UserMeResponse
+from app.schemas.user import ClienteListItem, ClientesPaginadosResponse, UserMeResponse
 from app.services.attendance_service import AttendanceService
 from app.services.user_service import UserService
 
@@ -33,6 +35,17 @@ async def me(
     return await service.get_me(user_id)
 
 
+@router.get("", response_model=ClientesPaginadosResponse)
+async def list_clients(
+    q: Optional[str] = Query(default=None, description="Buscar por nombre, apellido o documento"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    _=require_roles("admin", "empleado"),
+    service: UserService = Depends(get_user_service),
+):
+    return await service.list_clients(q=q or None, page=page, page_size=page_size)
+
+
 @router.get("/{user_id}/asistencias", response_model=list[AsistenciaResponse])
 async def get_user_asistencias(
     user_id: int,
@@ -41,3 +54,12 @@ async def get_user_asistencias(
 ):
     registros = await service.get_historial(user_id=user_id)
     return [AsistenciaResponse.from_registro(r) for r in registros]
+
+
+@router.get("/{user_id}", response_model=ClienteListItem)
+async def get_client(
+    user_id: int,
+    _=require_roles("admin", "empleado"),
+    service: UserService = Depends(get_user_service),
+):
+    return await service.get_client_by_id(user_id)
