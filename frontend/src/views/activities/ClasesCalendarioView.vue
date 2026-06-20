@@ -594,7 +594,7 @@ onMounted(async () => {
 /* ── Badges ── */
 
 .status-badge {
-  align-self: flex-start;
+  align-self: center;
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -603,7 +603,7 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 
-.badge-programada { background: #dbeafe; color: #1d4ed8; }
+.badge-programada { background: #ffedd5; color: #c2410c; }
 .badge-hoy        { background: #dcfce7; color: #15803d; }
 .badge-finalizada { background: #f3f4f6; color: #6b7280; }
 .badge-cancelada  { background: #fff1f2; color: #be123c; }
