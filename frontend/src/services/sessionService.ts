@@ -170,6 +170,11 @@ export const getClasesByTurno = async (turnoId: number): Promise<ClaseDetalle[]>
   return res.data
 }
 
+export const getClasesByTurnoAdmin = async (turnoId: number): Promise<ClaseDetalle[]> => {
+  const res = await api.get<ClaseDetalle[]>(`/turnos/${turnoId}/clases`, { params: { include_past: true } })
+  return res.data
+}
+
 export const generateClasses = async (turnoId: number): Promise<{ generated: number }> => {
   const res = await api.post(`/turnos/${turnoId}/generate-classes`)
   return res.data

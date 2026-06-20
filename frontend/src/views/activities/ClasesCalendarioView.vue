@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getClasesByTurno, type ClaseDetalle } from '@/services/sessionService'
+import { getClasesByTurnoAdmin, type ClaseDetalle } from '@/services/sessionService'
 
 const route   = useRoute()
 const router  = useRouter()
@@ -105,7 +105,7 @@ function cerrarModalCancelar()               { claseAConfirmar.value = null }
 
 onMounted(async () => {
   try {
-    clases.value = await getClasesByTurno(turnoId)
+    clases.value = await getClasesByTurnoAdmin(turnoId)
   } catch {
     error.value = 'No se pudieron cargar las clases del turno.'
   } finally {
