@@ -109,13 +109,10 @@ const REPORTS: ReportDef[] = [
 
 const currentIndex = ref(0)
 const activeChip   = ref<number | null>(0)
-const menuOpen     = ref(false)
 const toastVisible = ref(false)
 const toastMsg     = ref('')
 const isLoading    = ref(false)
 const errorMsg     = ref('')
-
-const exportWrapperRef = ref<HTMLElement | null>(null)
 
 const current = computed(() => REPORTS[currentIndex.value] as ReportDef)
 
@@ -271,16 +268,7 @@ const bars = computed(() => {
 
 // ─── Exportar ─────────────────────────────────────────────────────────────────
 
-function toggleMenu() { menuOpen.value = !menuOpen.value }
-
-function onDocClick(e: MouseEvent) {
-  if (!exportWrapperRef.value?.contains(e.target as Node)) menuOpen.value = false
-}
-onMounted(()       => document.addEventListener('click', onDocClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
-
 function doExport() {
-  menuOpen.value = false
   const r = current.value
   const { labels, data, metrics } = chartData.value
   const aoa: (string | number)[][] = [
@@ -317,19 +305,10 @@ function showToast(msg: string) {
         <h1>Reportes</h1>
         <p>Análisis y métricas del centro</p>
       </div>
-      <div class="export-wrapper" ref="exportWrapperRef">
-        <button class="btn-export" @click="toggleMenu">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar reporte
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div class="export-menu" :class="{ open: menuOpen }">
-          <button class="export-opt" @click="doExport()">
-            <span class="opt-badge excel">XLS</span>
-            <div><p>Descargar Excel</p><span>Con métricas y datos</span></div>
-          </button>
-        </div>
-      </div>
+      <button class="btn-export" @click="doExport()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar Excel
+      </button>
     </div>
 
     <!-- Tarjetas -->
@@ -490,39 +469,15 @@ function showToast(msg: string) {
 .topbar-left h1 { font-size: 22px; font-weight: 700; color: #0d3027; margin: 0; letter-spacing: -0.3px; }
 .topbar-left p  { font-size: 13px; color: #8fa8a2; margin: 3px 0 0; }
 
-.export-wrapper { position: relative; align-self: flex-end; }
 .btn-export {
   display: flex; align-items: center; gap: 7px;
+  align-self: flex-end;
   padding: 10px 18px; background: #11998e; border: none; border-radius: 10px;
   color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
 .btn-export:hover  { background: #0d3027; }
 .btn-export:active { transform: scale(0.98); }
-
-.export-menu {
-  display: none; position: absolute; top: calc(100% + 8px); right: 0;
-  background: #fff; border: 1px solid #e5e9e8; border-radius: 12px;
-  min-width: 210px; z-index: 50; box-shadow: 0 8px 28px rgba(13,48,39,0.12);
-  overflow: hidden; padding: 6px;
-}
-.export-menu.open { display: block; }
-.export-divider   { height: 1px; background: #f0f4f3; margin: 2px 0; }
-.export-opt {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  cursor: pointer; border: none; background: none; width: 100%;
-  text-align: left; border-radius: 8px; transition: background 0.12s;
-}
-.export-opt:hover { background: #f0f7f6; }
-.export-opt p     { margin: 0; font-weight: 600; font-size: 13px; color: #0d3027; }
-.export-opt span  { font-size: 11px; color: #8fa8a2; margin-top: 1px; display: block; }
-.opt-badge {
-  width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center;
-  justify-content: center; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; flex-shrink: 0;
-}
-.opt-badge.excel { background: rgba(21,128,61,0.12); color: #15803d; }
-.opt-badge.csv   { background: rgba(17,153,142,0.12); color: #0d3027; }
-.opt-badge.json  { background: rgba(13,48,39,0.08); color: #0d3027; }
 
 .report-cards {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
