@@ -33,7 +33,7 @@ function getMonday(d: Date): Date {
 }
 
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 const today      = isoDate(new Date())
@@ -100,6 +100,7 @@ const STATUS_LABEL: Record<ClaseStatus, string> = {
 
 function cupoClass(c: ClaseDetalle): string {
   if (c.capacity === 0) return 'cupo-libre'
+  if (c.enrolled >= c.capacity) return 'cupo-completo'
   const pct = c.enrolled / c.capacity
   if (pct >= 0.70) return 'cupo-alto'
   return 'cupo-libre'
@@ -556,13 +557,13 @@ onMounted(async () => {
   transition: width 0.3s ease;
 }
 
-.cupo-libre    { color: #15803d; }
+.cupo-libre    { color: #dc2626; }
 .cupo-alto     { color: #d97706; }
-.cupo-completo { color: #dc2626; font-weight: 700; }
+.cupo-completo { color: #15803d; font-weight: 700; }
 
-.cupo-bar-fill.cupo-libre    { background: #15803d; }
+.cupo-bar-fill.cupo-libre    { background: #dc2626; }
 .cupo-bar-fill.cupo-alto     { background: #d97706; }
-.cupo-bar-fill.cupo-completo { background: #dc2626; }
+.cupo-bar-fill.cupo-completo { background: #15803d; }
 
 /* ── Badges ── */
 
