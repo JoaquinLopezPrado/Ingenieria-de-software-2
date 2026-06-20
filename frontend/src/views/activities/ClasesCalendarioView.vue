@@ -96,13 +96,16 @@ const STATUS_LABEL: Record<ClaseStatus, string> = {
   programada: 'Programada',
 }
 
-// ─── Indicador asistencia ────────────────────────────────────────────────────
+// ─── Cupo ────────────────────────────────────────────────────────────────────
 
-const ASISTENCIA_LABEL: Record<string, string> = {
-  'asist-completa': 'Asistencia Completa',
-  'asist-parcial':  'Asistencia Parcial',
-  'asist-vacia':    'Asistencia Vacía',
+function cupoClass(c: ClaseDetalle): string {
+  if (c.capacity === 0) return 'cupo-libre'
+  const pct = c.enrolled / c.capacity
+  if (pct >= 0.70) return 'cupo-alto'
+  return 'cupo-libre'
 }
+
+// ─── Indicador asistencia ────────────────────────────────────────────────────
 
 function asistenciaBadgeClass(c: ClaseDetalle): string {
   if (c.presentes_count === 0)                return 'asist-vacia'
@@ -200,19 +203,39 @@ onMounted(async () => {
               :key="clase.id"
               :class="['clase-card', `card-${claseStatus(clase)}`]"
             >
-              <div class="clase-cupo">cupo: {{ clase.enrolled }}/{{ clase.capacity }}</div>
+              <div class="cupo-bar-wrapper">
+                <span :class="['cupo-label', cupoClass(clase)]">
+                  {{ clase.enrolled >= clase.capacity ? 'COMPLETO' : `Cupo: ${clase.enrolled}/${clase.capacity}` }}
+                </span>
+                <div class="cupo-bar-track">
+                  <div
+                    class="cupo-bar-fill"
+                    :class="cupoClass(clase)"
+                    :style="{ width: `${Math.min(clase.capacity > 0 ? (clase.enrolled / clase.capacity) * 100 : 0, 100)}%` }"
+                  ></div>
+                </div>
+              </div>
               <span
                 v-if="claseStatus(clase) !== 'hoy'"
                 :class="['status-badge', `badge-${claseStatus(clase)}`]"
               >
                 {{ STATUS_LABEL[claseStatus(clase)] }}
               </span>
-              <span
+              <div
                 v-if="(claseStatus(clase) === 'finalizada' || claseStatus(clase) === 'hoy') && clase.enrolled > 0"
-                :class="['asistencia-badge', asistenciaBadgeClass(clase)]"
+                class="cupo-bar-wrapper"
               >
-                {{ ASISTENCIA_LABEL[asistenciaBadgeClass(clase)] }}
-              </span>
+                <span :class="['cupo-label', asistenciaBadgeClass(clase)]">
+                  Asist.: {{ clase.presentes_count }}/{{ clase.enrolled }}
+                </span>
+                <div class="cupo-bar-track">
+                  <div
+                    class="cupo-bar-fill"
+                    :class="asistenciaBadgeClass(clase)"
+                    :style="{ width: `${clase.enrolled > 0 ? (clase.presentes_count / clase.enrolled) * 100 : 0}%` }"
+                  ></div>
+                </div>
+              </div>
               <div class="clase-actions">
                 <RouterLink
                   :to="{
@@ -508,10 +531,38 @@ onMounted(async () => {
   color: #1f2937;
 }
 
-.clase-cupo {
-  font-size: 0.72rem;
-  color: #6b7280;
+.cupo-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
+
+.cupo-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.cupo-bar-track {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.cupo-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.cupo-libre    { color: #15803d; }
+.cupo-alto     { color: #d97706; }
+.cupo-completo { color: #dc2626; font-weight: 700; }
+
+.cupo-bar-fill.cupo-libre    { background: #15803d; }
+.cupo-bar-fill.cupo-alto     { background: #d97706; }
+.cupo-bar-fill.cupo-completo { background: #dc2626; }
 
 /* ── Badges ── */
 
@@ -540,11 +591,13 @@ onMounted(async () => {
   border-radius: 99px;
 }
 
-.asistencia-badge { padding: 0.15rem 0.45rem; }
+.asist-completa { color: #15803d; }
+.asist-parcial  { color: #d97706; }
+.asist-vacia    { color: #dc2626; }
 
-.asist-completa { background: #dcfce7; color: #15803d; }
-.asist-parcial  { background: #fef9c3; color: #92400e; }
-.asist-vacia    { background: #fee2e2; color: #dc2626; }
+.cupo-bar-fill.asist-completa { background: #15803d; }
+.cupo-bar-fill.asist-parcial  { background: #d97706; }
+.cupo-bar-fill.asist-vacia    { background: #dc2626; }
 
 /* ── Acciones ── */
 
