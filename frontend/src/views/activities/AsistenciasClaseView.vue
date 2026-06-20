@@ -64,8 +64,8 @@ const totalAusentes  = computed(() => roster.value.filter(r => r.estado === 'aus
 const totalSinMarcar = computed(() => roster.value.filter(r => r.estado === null).length)
 
 const sourceLabel: Record<string, string> = {
-  subscription:      'Suscripción',
-  single_enrollment: 'Clase suelta',
+  subscription: 'Mensual',
+  single:       'Clase',
 }
 </script>
 
@@ -136,7 +136,7 @@ const sourceLabel: Record<string, string> = {
             <thead>
               <tr>
                 <th>Alumno</th>
-                <th>Inscripción</th>
+                <th>T. Suscripción</th>
                 <th>Estado</th>
                 <th>Acción</th>
               </tr>
