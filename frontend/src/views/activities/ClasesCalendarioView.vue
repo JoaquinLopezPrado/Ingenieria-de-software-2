@@ -66,6 +66,12 @@ function nextWeek() {
   weekStart.value = d
 }
 
+function goToToday() {
+  weekStart.value = getMonday(new Date())
+}
+
+const isCurrentWeek = computed(() => isoDate(weekStart.value) === isoDate(getMonday(new Date())))
+
 function onDatePick(e: Event) {
   const val = (e.target as HTMLInputElement).value
   if (val) weekStart.value = getMonday(new Date(val + 'T12:00:00'))
@@ -163,6 +169,12 @@ onMounted(async () => {
         <button class="week-btn" type="button" @click="prevWeek" aria-label="Semana anterior">←</button>
         <span class="week-label">{{ weekLabel }}</span>
         <button class="week-btn" type="button" @click="nextWeek" aria-label="Semana siguiente">→</button>
+        <button
+          v-if="!isCurrentWeek"
+          class="week-btn today-btn"
+          type="button"
+          @click="goToToday"
+        >Hoy</button>
         <input
           type="date"
           class="week-picker"
@@ -239,11 +251,14 @@ onMounted(async () => {
               </div>
               <div class="clase-actions">
                 <RouterLink
+                  v-if="claseStatus(clase) !== 'cancelada'"
                   :to="{
                     name: 'clase-asistencias',
                     params: { claseId: clase.id },
                     query: {
                       actividad: actividadNombre,
+                      descripcion: descripcionLabel,
+                      instructor: instructorLabel,
                       fecha: clase.date,
                       horario: `${clase.start_time} – ${clase.end_time}`,
                     }
@@ -379,6 +394,17 @@ onMounted(async () => {
 .week-btn:hover {
   background: #f3f4f6;
   border-color: #9ca3af;
+}
+
+.today-btn {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.today-btn:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
 }
 
 .week-label {

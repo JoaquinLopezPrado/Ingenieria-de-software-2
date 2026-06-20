@@ -14,9 +14,17 @@ const route   = useRoute()
 const router  = useRouter()
 const claseId = Number(route.params.claseId)
 
-const actividadNombre = computed(() => String(route.query.actividad ?? `Clase #${claseId}`))
-const fechaLabel      = computed(() => String(route.query.fecha    ?? ''))
-const horarioLabel    = computed(() => String(route.query.horario  ?? ''))
+const actividadNombre  = computed(() => String(route.query.actividad   ?? `Clase #${claseId}`))
+const descripcionLabel = computed(() => String(route.query.descripcion ?? ''))
+const instructorLabel  = computed(() => String(route.query.instructor  ?? ''))
+const horarioLabel     = computed(() => String(route.query.horario     ?? ''))
+
+const fechaLabel = computed(() => {
+  const raw = String(route.query.fecha ?? '')
+  if (!raw) return ''
+  const d = new Date(raw + 'T12:00:00')
+  return d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+})
 
 // ─── Datos ───────────────────────────────────────────────────────────────────
 
@@ -98,7 +106,12 @@ const sourceLabel: Record<string, string> = {
           <button class="btn-back" type="button" @click="router.go(-1)">← Volver</button>
           <div>
             <h1 class="page-title">{{ actividadNombre }}</h1>
-            <p class="page-subtitle">
+            <p v-if="descripcionLabel || instructorLabel" class="page-desc">
+              <span v-if="descripcionLabel">{{ descripcionLabel }}</span>
+              <span v-if="descripcionLabel && instructorLabel"> · </span>
+              <span v-if="instructorLabel">{{ instructorLabel }}</span>
+            </p>
+            <p v-if="fechaLabel || horarioLabel" class="page-subtitle">
               <span v-if="fechaLabel">{{ fechaLabel }}</span>
               <span v-if="fechaLabel && horarioLabel"> · </span>
               <span v-if="horarioLabel">{{ horarioLabel }}</span>
@@ -251,6 +264,13 @@ const sourceLabel: Record<string, string> = {
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 0.2rem;
+}
+
+.page-desc {
+  color: #374151;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.15rem 0 0;
 }
 
 .page-subtitle {
