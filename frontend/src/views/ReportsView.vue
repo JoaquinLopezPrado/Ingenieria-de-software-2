@@ -118,7 +118,7 @@ const current = computed(() => REPORTS[currentIndex.value] as ReportDef)
 
 // ─── Fecha desde / hasta ──────────────────────────────────────────────────────
 
-const initialRange = REPORTS[0].chipRanges[0]!()
+const initialRange = REPORTS[0]!.chipRanges[0]!()
 const desde = ref(initialRange.desde)
 const hasta = ref(initialRange.hasta)
 

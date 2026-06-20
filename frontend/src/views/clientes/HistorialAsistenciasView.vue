@@ -73,7 +73,7 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 
 function formatFecha(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
-  return `${d} ${MESES[m - 1]}. ${y}`
+  return `${d} ${MESES[(m ?? 1) - 1]}. ${y}`
 }
 
 function limpiarFiltros() {
