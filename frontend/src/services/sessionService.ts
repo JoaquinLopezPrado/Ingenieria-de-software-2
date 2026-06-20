@@ -154,6 +154,22 @@ export const getTurnos = async (params?: {
  * Obtiene todos los turnos (activos e inactivos) desde GET /api/v1/turnos/all.
  * Solo accesible para admins.
  */
+export interface ClaseDetalle {
+  id: number
+  turno_id: number
+  date: string       // "YYYY-MM-DD"
+  start_time: string // "H:MM"
+  end_time: string
+  capacity: number
+  enrolled: number
+  is_active: boolean
+}
+
+export const getClasesByTurno = async (turnoId: number): Promise<ClaseDetalle[]> => {
+  const res = await api.get<ClaseDetalle[]>(`/turnos/${turnoId}/clases`)
+  return res.data
+}
+
 export const generateClasses = async (turnoId: number): Promise<{ generated: number }> => {
   const res = await api.post(`/turnos/${turnoId}/generate-classes`)
   return res.data
