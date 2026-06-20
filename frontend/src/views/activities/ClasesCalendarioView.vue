@@ -94,6 +94,20 @@ const STATUS_LABEL: Record<ClaseStatus, string> = {
   programada: 'Programada',
 }
 
+// ─── Indicador asistencia ────────────────────────────────────────────────────
+
+function asistenciaLabel(c: ClaseDetalle): string {
+  if (c.marked_count === 0)              return 'Sin tomar'
+  if (c.marked_count < c.enrolled)       return `${c.enrolled - c.marked_count} sin marcar`
+  return '✓ Completa'
+}
+
+function asistenciaBadgeClass(c: ClaseDetalle): string {
+  if (c.marked_count === 0)              return 'asist-pendiente'
+  if (c.marked_count < c.enrolled)       return 'asist-parcial'
+  return 'asist-completa'
+}
+
 // ─── Modal cancelar (stub) ────────────────────────────────────────────────────
 
 const claseAConfirmar = ref<ClaseDetalle | null>(null)
@@ -183,6 +197,12 @@ onMounted(async () => {
               <div class="clase-cupo">{{ clase.enrolled }} / {{ clase.capacity }}</div>
               <span :class="['status-badge', `badge-${claseStatus(clase)}`]">
                 {{ STATUS_LABEL[claseStatus(clase)] }}
+              </span>
+              <span
+                v-if="(claseStatus(clase) === 'finalizada' || claseStatus(clase) === 'hoy') && clase.enrolled > 0"
+                :class="['asistencia-badge', asistenciaBadgeClass(clase)]"
+              >
+                {{ asistenciaLabel(clase) }}
               </span>
               <div class="clase-actions">
                 <RouterLink
@@ -493,6 +513,21 @@ onMounted(async () => {
 .badge-hoy        { background: #dcfce7; color: #15803d; }
 .badge-finalizada { background: #f3f4f6; color: #6b7280; }
 .badge-cancelada  { background: #fff1f2; color: #be123c; }
+
+/* ── Badge asistencia ── */
+
+.asistencia-badge {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 99px;
+}
+
+.asist-completa  { background: #dcfce7; color: #15803d; }
+.asist-parcial   { background: #fef9c3; color: #92400e; }
+.asist-pendiente { background: #fee2e2; color: #dc2626; }
 
 /* ── Acciones ── */
 
