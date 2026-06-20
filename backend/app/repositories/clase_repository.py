@@ -3,13 +3,16 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
+from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.models.clase import Clase as ClaseORM
+from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
+from app.models.subscription import Subscription as SubscriptionORM
 from app.models.turno import Turno as TurnoORM
-from app.repositories.capacity import occupied_subq
+from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 
 
 class AbstractClaseRepository(ABC):
@@ -73,10 +76,40 @@ class ClaseRepository(AbstractClaseRepository):
         next_month_year = today.year + (1 if today.month == 12 else 0)
         end_date = date(next_month_year, next_month, calendar.monthrange(next_month_year, next_month)[1])
 
-        enrolled_subquery = occupied_subq(ClaseORM.turno_id, ClaseORM.id, ClaseORM.date)
+        # Non-correlated enrolled count via UNION + GROUP BY + LEFT JOIN
+        sub_subs = (
+            select(ClaseORM.id.label("clase_id"), SubscriptionORM.user_id.label("user_id"))
+            .join(SubscriptionORM, SubscriptionORM.turno_id == ClaseORM.turno_id)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+                SubscriptionORM.start_date <= ClaseORM.date,
+                or_(SubscriptionORM.ends_on.is_(None), ClaseORM.date <= SubscriptionORM.ends_on),
+            )
+        )
+        sub_singles = (
+            select(SingleSlotORM.clase_id.label("clase_id"), SingleEnrollmentORM.user_id.label("user_id"))
+            .join(SingleEnrollmentORM, SingleEnrollmentORM.id == SingleSlotORM.enrollment_id)
+            .join(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                SingleEnrollmentORM.status.in_(ACTIVE_SINGLE_STATUSES),
+            )
+        )
+        combined = union(sub_subs, sub_singles).subquery()
+        enrolled_per_clase = (
+            select(combined.c.clase_id, func.count().label("cnt"))
+            .group_by(combined.c.clase_id)
+            .subquery()
+        )
+
         result = await self._session.execute(
-            select(ClaseORM, TurnoORM.start_time, TurnoORM.end_time, enrolled_subquery.label("enrolled"))
+            select(
+                ClaseORM, TurnoORM.start_time, TurnoORM.end_time,
+                func.coalesce(enrolled_per_clase.c.cnt, 0).label("enrolled"),
+            )
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
+            .outerjoin(enrolled_per_clase, enrolled_per_clase.c.clase_id == ClaseORM.id)
             .where(
                 ClaseORM.turno_id == turno_id,
                 ClaseORM.is_active == True,
