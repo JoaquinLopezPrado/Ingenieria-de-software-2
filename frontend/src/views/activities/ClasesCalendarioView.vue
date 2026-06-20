@@ -265,7 +265,7 @@ onMounted(async () => {
                   }"
                   class="btn-action btn-ver"
                 >
-                  Ver asistencias
+                  Ver inscriptos
                 </RouterLink>
                 <button
                   v-if="claseStatus(clase) === 'programada' || claseStatus(clase) === 'hoy'"
@@ -273,7 +273,7 @@ onMounted(async () => {
                   class="btn-action btn-cancelar"
                   @click="abrirModalCancelar(clase)"
                 >
-                  Cancelar
+                  Cancelar clase
                 </button>
               </div>
             </div>
