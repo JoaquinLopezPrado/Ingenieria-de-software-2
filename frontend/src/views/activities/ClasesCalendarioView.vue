@@ -8,9 +8,11 @@ const route   = useRoute()
 const router  = useRouter()
 const turnoId = Number(route.params.id)
 
-const actividadNombre = computed(() => String(route.query.actividad ?? `Turno #${turnoId}`))
-const horarioLabel    = computed(() => String(route.query.horario ?? ''))
-const diasLabel       = computed(() => String(route.query.dias ?? ''))
+const actividadNombre = computed(() => String(route.query.actividad  ?? `Turno #${turnoId}`))
+const horarioLabel    = computed(() => String(route.query.horario    ?? ''))
+const diasLabel       = computed(() => String(route.query.dias       ?? ''))
+const descripcionLabel = computed(() => String(route.query.descripcion ?? ''))
+const instructorLabel  = computed(() => String(route.query.instructor  ?? ''))
 
 // ─── Datos ───────────────────────────────────────────────────────────────────
 
@@ -140,6 +142,11 @@ onMounted(async () => {
           </button>
           <div>
             <h1 class="page-title">{{ actividadNombre }}</h1>
+            <p v-if="descripcionLabel || instructorLabel" class="page-desc">
+              <span v-if="descripcionLabel">{{ descripcionLabel }}</span>
+              <span v-if="descripcionLabel && instructorLabel"> · </span>
+              <span v-if="instructorLabel">{{ instructorLabel }}</span>
+            </p>
             <p v-if="diasLabel || horarioLabel" class="page-subtitle">
               {{ diasLabel }}<span v-if="diasLabel && horarioLabel"> · </span>{{ horarioLabel }}
             </p>
@@ -193,7 +200,6 @@ onMounted(async () => {
               :key="clase.id"
               :class="['clase-card', `card-${claseStatus(clase)}`]"
             >
-              <div class="clase-horario">{{ clase.start_time }} – {{ clase.end_time }}</div>
               <div class="clase-cupo">cupo: {{ clase.enrolled }}/{{ clase.capacity }}</div>
               <span
                 v-if="claseStatus(clase) !== 'hoy'"
@@ -297,10 +303,17 @@ onMounted(async () => {
   margin: 0 0 0.2rem;
 }
 
+.page-desc {
+  color: #374151;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.15rem 0 0;
+}
+
 .page-subtitle {
   color: #6b7280;
-  font-size: 0.88rem;
-  margin: 0;
+  font-size: 0.82rem;
+  margin: 0.1rem 0 0;
 }
 
 .btn-secondary {

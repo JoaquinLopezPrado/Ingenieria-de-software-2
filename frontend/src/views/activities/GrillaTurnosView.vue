@@ -408,6 +408,8 @@ onMounted(async () => {
                       actividad: activityName(turno.activity_id),
                       horario: `${turno.start_time} – ${turno.end_time}`,
                       dias: turno.days.map(d => DAY_LABELS[d] ?? d).join(', '),
+                      descripcion: turno.description ?? '',
+                      instructor: turno.instructor ?? '',
                     }
                   }"
                   class="btn-clases"
