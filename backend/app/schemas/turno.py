@@ -64,7 +64,7 @@ class ClaseDetalleResponse(BaseModel):
     end_time: time
     capacity: int
     enrolled: int
-    marked_count: int
+    presentes_count: int
     is_active: bool
 
     @field_serializer("start_time", "end_time")

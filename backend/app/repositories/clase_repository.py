@@ -3,11 +3,12 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
-from sqlalchemy import and_, func, or_, select, union
+from sqlalchemy import and_, case, func, or_, select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
+from app.domain.attendance import AttendanceStatus
 from app.models.attendance import Attendance as AttendanceORM
 from app.models.clase import Clase as ClaseORM
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
@@ -104,8 +105,11 @@ class ClaseRepository(AbstractClaseRepository):
             .subquery()
         )
 
-        marked_per_clase = (
-            select(AttendanceORM.clase_id, func.count().label("cnt"))
+        attendance_per_clase = (
+            select(
+                AttendanceORM.clase_id,
+                func.count(case((AttendanceORM.status == AttendanceStatus.PRESENTE, 1))).label("presentes"),
+            )
             .group_by(AttendanceORM.clase_id)
             .subquery()
         )
@@ -131,11 +135,11 @@ class ClaseRepository(AbstractClaseRepository):
             select(
                 ClaseORM, TurnoORM.start_time, TurnoORM.end_time,
                 func.coalesce(enrolled_per_clase.c.cnt, 0).label("enrolled"),
-                func.coalesce(marked_per_clase.c.cnt, 0).label("marked_count"),
+                func.coalesce(attendance_per_clase.c.presentes, 0).label("presentes_count"),
             )
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
             .outerjoin(enrolled_per_clase, enrolled_per_clase.c.clase_id == ClaseORM.id)
-            .outerjoin(marked_per_clase, marked_per_clase.c.clase_id == ClaseORM.id)
+            .outerjoin(attendance_per_clase, attendance_per_clase.c.clase_id == ClaseORM.id)
             .where(ClaseORM.turno_id == turno_id, ClaseORM.is_active == True, *date_filters)
             .order_by(ClaseORM.date)
         )
@@ -148,7 +152,7 @@ class ClaseRepository(AbstractClaseRepository):
                 end_time=row.end_time,
                 capacity=row.Clase.capacity,
                 enrolled=row.enrolled,
-                marked_count=row.marked_count,
+                presentes_count=row.presentes_count,
                 is_active=row.Clase.is_active,
             )
             for row in result

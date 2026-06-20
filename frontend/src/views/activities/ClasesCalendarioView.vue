@@ -96,15 +96,15 @@ const STATUS_LABEL: Record<ClaseStatus, string> = {
 
 // ─── Indicador asistencia ────────────────────────────────────────────────────
 
-function asistenciaLabel(c: ClaseDetalle): string {
-  if (c.marked_count === 0)              return 'Sin tomar'
-  if (c.marked_count < c.enrolled)       return `${c.enrolled - c.marked_count} sin marcar`
-  return '✓ Completa'
+const ASISTENCIA_LABEL: Record<string, string> = {
+  'asist-completa': 'Asistencia Completa',
+  'asist-parcial':  'Asistencia Parcial',
+  'asist-vacia':    'Asistencia Vacía',
 }
 
 function asistenciaBadgeClass(c: ClaseDetalle): string {
-  if (c.marked_count === 0)              return 'asist-pendiente'
-  if (c.marked_count < c.enrolled)       return 'asist-parcial'
+  if (c.presentes_count === 0)                return 'asist-vacia'
+  if (c.presentes_count < c.enrolled)         return 'asist-parcial'
   return 'asist-completa'
 }
 
@@ -202,7 +202,7 @@ onMounted(async () => {
                 v-if="(claseStatus(clase) === 'finalizada' || claseStatus(clase) === 'hoy') && clase.enrolled > 0"
                 :class="['asistencia-badge', asistenciaBadgeClass(clase)]"
               >
-                {{ asistenciaLabel(clase) }}
+                {{ ASISTENCIA_LABEL[asistenciaBadgeClass(clase)] }}
               </span>
               <div class="clase-actions">
                 <RouterLink
@@ -521,13 +521,14 @@ onMounted(async () => {
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  padding: 0.15rem 0.45rem;
   border-radius: 99px;
 }
 
-.asist-completa  { background: #dcfce7; color: #15803d; }
-.asist-parcial   { background: #fef9c3; color: #92400e; }
-.asist-pendiente { background: #fee2e2; color: #dc2626; }
+.asistencia-badge { padding: 0.15rem 0.45rem; }
+
+.asist-completa { background: #dcfce7; color: #15803d; }
+.asist-parcial  { background: #fef9c3; color: #92400e; }
+.asist-vacia    { background: #fee2e2; color: #dc2626; }
 
 /* ── Acciones ── */
 

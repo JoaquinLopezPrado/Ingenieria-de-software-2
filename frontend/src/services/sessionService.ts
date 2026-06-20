@@ -162,7 +162,7 @@ export interface ClaseDetalle {
   end_time: string
   capacity: number
   enrolled: number
-  marked_count: number
+  presentes_count: number
   is_active: boolean
 }
 

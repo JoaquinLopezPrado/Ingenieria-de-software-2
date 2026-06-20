@@ -20,7 +20,7 @@ class ClaseDetalle:
         end_time: time,
         capacity: int,
         enrolled: int,
-        marked_count: int,
+        presentes_count: int,
         is_active: bool,
     ):
         self.id = id
@@ -30,5 +30,5 @@ class ClaseDetalle:
         self.end_time = end_time
         self.capacity = capacity
         self.enrolled = enrolled
-        self.marked_count = marked_count
+        self.presentes_count = presentes_count
         self.is_active = is_active
