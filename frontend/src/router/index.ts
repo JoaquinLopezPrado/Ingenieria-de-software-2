@@ -110,6 +110,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresStaff: true },
     },
     {
+      path: '/activities/clases/:claseId/asistencias',
+      name: 'clase-asistencias',
+      component: () => import('../views/activities/AsistenciasClaseView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
       path: '/auth/callback',
       name: 'auth-callback',
       component: () => import('../views/GoogleCallbackView.vue'),

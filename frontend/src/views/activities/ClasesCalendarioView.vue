@@ -186,7 +186,15 @@ onMounted(async () => {
               </span>
               <div class="clase-actions">
                 <RouterLink
-                  :to="`/activities/clases/${clase.id}/asistencias`"
+                  :to="{
+                    name: 'clase-asistencias',
+                    params: { claseId: clase.id },
+                    query: {
+                      actividad: actividadNombre,
+                      fecha: clase.date,
+                      horario: `${clase.start_time} – ${clase.end_time}`,
+                    }
+                  }"
                   class="btn-action btn-ver"
                 >
                   Ver asistencias
