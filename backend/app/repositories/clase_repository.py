@@ -69,7 +69,7 @@ class ClaseRepository(AbstractClaseRepository):
         )
         return [self._to_domain(orm) for orm in result.scalars()]
 
-    async def list_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
+    async def list_by_turno(self, turno_id: int, include_past: bool = False) -> List[ClaseDetalle]:
         now_art = datetime.now(timezone(timedelta(hours=-3)))
         today = now_art.date()
         next_month = today.month % 12 + 1
@@ -103,6 +103,23 @@ class ClaseRepository(AbstractClaseRepository):
             .subquery()
         )
 
+        date_filters = [ClaseORM.date <= end_date]
+        if include_past:
+            three_months_ago = today.replace(day=1)
+            for _ in range(3):
+                if three_months_ago.month == 1:
+                    three_months_ago = three_months_ago.replace(year=three_months_ago.year - 1, month=12)
+                else:
+                    three_months_ago = three_months_ago.replace(month=three_months_ago.month - 1)
+            date_filters.append(ClaseORM.date >= three_months_ago)
+        else:
+            date_filters.append(
+                or_(
+                    ClaseORM.date > today,
+                    and_(ClaseORM.date == today, TurnoORM.start_time > now_art.time()),
+                )
+            )
+
         result = await self._session.execute(
             select(
                 ClaseORM, TurnoORM.start_time, TurnoORM.end_time,
@@ -110,18 +127,7 @@ class ClaseRepository(AbstractClaseRepository):
             )
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
             .outerjoin(enrolled_per_clase, enrolled_per_clase.c.clase_id == ClaseORM.id)
-            .where(
-                ClaseORM.turno_id == turno_id,
-                ClaseORM.is_active == True,
-                ClaseORM.date <= end_date,
-                or_(
-                    ClaseORM.date > today,
-                    and_(
-                        ClaseORM.date == today,
-                        TurnoORM.start_time > now_art.time(),
-                    ),
-                ),
-            )
+            .where(ClaseORM.turno_id == turno_id, ClaseORM.is_active == True, *date_filters)
             .order_by(ClaseORM.date)
         )
         return [

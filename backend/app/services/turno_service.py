@@ -120,14 +120,14 @@ class TurnoService:
 
         return turno
 
-    async def list_clases_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
+    async def list_clases_by_turno(self, turno_id: int, include_past: bool = False) -> List[ClaseDetalle]:
         turno = await self._turno_repo.get_by_id(turno_id)
         if not turno:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Turno no encontrado.",
             )
-        return await self._clase_repo.list_by_turno(turno_id)
+        return await self._clase_repo.list_by_turno(turno_id, include_past=include_past)
 
     async def generate_upcoming_classes(self, turno_id: int) -> int:
         turno = await self._turno_repo.get_by_id(turno_id)

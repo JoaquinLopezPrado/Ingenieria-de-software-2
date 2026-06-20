@@ -77,10 +77,11 @@ async def list_all_turnos(
 )
 async def list_clases_by_turno(
     turno_id: int,
+    include_past: bool = Query(False),
     _=require_roles("admin", "empleado", "cliente"),
     service: TurnoService = Depends(get_turno_service),
 ):
-    return await service.list_clases_by_turno(turno_id)
+    return await service.list_clases_by_turno(turno_id, include_past=include_past)
 
 
 @router.post(
