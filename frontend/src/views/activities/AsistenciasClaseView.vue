@@ -5,6 +5,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import {
   getRoster,
   markAttendance,
+  deleteAttendance,
   type RosterEntry,
   type AttendanceStatus,
 } from '@/services/asistenciasService'
@@ -50,6 +51,24 @@ async function marcar(entry: RosterEntry, estado: AttendanceStatus) {
     if (idx !== -1) roster.value[idx] = { ...roster.value[idx]!, estado }
   } catch {
     saveError.value = { ...saveError.value, [entry.user_id]: 'Error al guardar' }
+  } finally {
+    const next = new Set(saving.value)
+    next.delete(entry.user_id)
+    saving.value = next
+  }
+}
+
+async function borrar(entry: RosterEntry) {
+  if (saving.value.has(entry.user_id)) return
+  saving.value = new Set(saving.value).add(entry.user_id)
+  delete saveError.value[entry.user_id]
+
+  try {
+    await deleteAttendance(entry.user_id, claseId)
+    const idx = roster.value.findIndex(r => r.user_id === entry.user_id)
+    if (idx !== -1) roster.value[idx] = { ...roster.value[idx]!, estado: null }
+  } catch {
+    saveError.value = { ...saveError.value, [entry.user_id]: 'Error al borrar' }
   } finally {
     const next = new Set(saving.value)
     next.delete(entry.user_id)
@@ -176,6 +195,14 @@ const sourceLabel: Record<string, string> = {
                       @click="marcar(entry, 'ausente')"
                     >
                       ✗ Ausente
+                    </button>
+                    <button
+                      v-if="entry.estado !== null"
+                      type="button"
+                      class="btn-borrar"
+                      @click="borrar(entry)"
+                    >
+                      ✕
                     </button>
                   </template>
                   <span v-if="saveError[entry.user_id]" class="save-error">
@@ -427,6 +454,19 @@ const sourceLabel: Record<string, string> = {
 .btn-ausente:hover        { background: #fee2e2; border-color: #fca5a5; }
 .btn-ausente.active       { background: #dc2626; border-color: #dc2626; color: white; }
 .btn-ausente.active:hover { background: #b91c1c; }
+
+.btn-borrar {
+  background: transparent;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.btn-borrar:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
 
 .saving-indicator {
   color: #9ca3af;

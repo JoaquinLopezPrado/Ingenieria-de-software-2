@@ -38,3 +38,7 @@ export const markAttendance = async (
 ): Promise<void> => {
   await api.post('/attendances', { user_id: userId, clase_id: claseId, estado })
 }
+
+export const deleteAttendance = async (userId: number, claseId: number): Promise<void> => {
+  await api.delete('/attendances', { data: { user_id: userId, clase_id: claseId } })
+}
