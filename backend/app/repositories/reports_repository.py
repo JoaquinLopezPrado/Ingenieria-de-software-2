@@ -10,8 +10,10 @@ from app.models.activity import Activity as ActivityORM
 from app.models.attendance import Attendance as AttendanceORM
 from app.models.clase import Clase as ClaseORM
 from app.models.payment import Payment as PaymentORM
+from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
 from app.models.subscription import Subscription as SubscriptionORM
 from app.models.turno import Turno as TurnoORM
+from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 
 
 def _utc(d: date, end: bool = False) -> datetime:
@@ -77,14 +79,30 @@ class ReportsRepository:
             .where(
                 SubscriptionORM.turno_id.in_(turno_ids),
                 SubscriptionORM.start_date <= hasta,
-                or_(
-                    SubscriptionORM.cancelled_at.is_(None),
-                    SubscriptionORM.cancelled_at >= _utc(desde),
-                ),
+                or_(SubscriptionORM.cancelled_at.is_(None), SubscriptionORM.cancelled_at >= _utc(desde)),
+                or_(SubscriptionORM.ends_on.is_(None), SubscriptionORM.ends_on >= desde),
             )
             .group_by(SubscriptionORM.turno_id)
         )
-        enrolled_by_turno = {r.turno_id: r.enrolled for r in sub_rows.all()}
+        enrolled_by_turno: dict[int, int] = {r.turno_id: r.enrolled for r in sub_rows.all()}
+
+        single_rows = await self._session.execute(
+            select(
+                SingleEnrollmentORM.turno_id,
+                func.count(func.distinct(SingleEnrollmentORM.id)).label("enrolled"),
+            )
+            .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
+            .join(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)
+            .where(
+                SingleEnrollmentORM.turno_id.in_(turno_ids),
+                SingleEnrollmentORM.status.in_(ACTIVE_SINGLE_STATUSES),
+                ClaseORM.date >= desde,
+                ClaseORM.date <= hasta,
+            )
+            .group_by(SingleEnrollmentORM.turno_id)
+        )
+        for r in single_rows.all():
+            enrolled_by_turno[r.turno_id] = enrolled_by_turno.get(r.turno_id, 0) + r.enrolled
 
         slot_enrolled: dict[tuple, int] = defaultdict(int)
         slot_capacity: dict[tuple, int] = defaultdict(int)

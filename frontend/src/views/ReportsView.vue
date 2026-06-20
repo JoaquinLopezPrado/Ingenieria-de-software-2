@@ -11,7 +11,9 @@ function volver() { router.back() }
 
 // ─── Utilidades de fecha ──────────────────────────────────────────────────────
 
-function toDateStr(d: Date) { return d.toISOString().slice(0, 10) }
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function rangeYear(year: number)   { return { desde: `${year}-01-01`, hasta: `${year}-12-31` } }
 function rangeThisWeek()           {
