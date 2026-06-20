@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date, datetime, time, timezone
 from typing import List, Tuple
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.attendance import AttendanceStatus
@@ -89,7 +89,7 @@ class ReportsRepository:
         single_rows = await self._session.execute(
             select(
                 SingleEnrollmentORM.turno_id,
-                func.count(func.distinct(SingleEnrollmentORM.id)).label("enrolled"),
+                func.count(distinct(SingleEnrollmentORM.id)).label("enrolled"),
             )
             .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
             .join(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)

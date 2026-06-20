@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import * as XLSX from 'xlsx'
 import {
   getIngresos, getOcupacion, getAusencias, getCancelaciones,
 } from '@/services/reportsService'
@@ -228,7 +229,7 @@ function selectReport(idx: number) {
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
-watch([desde, hasta], () => {
+watch([desde, hasta, currentIndex], () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(loadReport, 400)
 })
@@ -278,26 +279,27 @@ function onDocClick(e: MouseEvent) {
 onMounted(()       => document.addEventListener('click', onDocClick))
 onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
-function doExport(fmt: 'csv' | 'json') {
+function doExport() {
   menuOpen.value = false
-  const r   = current.value
-  const { labels, data } = chartData.value
-  let content: string, mime: string, ext: string
-  if (fmt === 'csv') {
-    content = [r.csvHeaders.join(','), ...labels.map((l, i) => `${l},${data[i]}`)].join('\n')
-    mime = 'text/csv'; ext = 'csv'
-  } else {
-    const obj = labels.map((l, i) => ({ [r.csvHeaders[0]]: l, [r.csvHeaders[1]]: data[i] }))
-    content = JSON.stringify({ reporte: r.title, desde: desde.value, hasta: hasta.value, generado: new Date().toISOString(), datos: obj }, null, 2)
-    mime = 'application/json'; ext = 'json'
-  }
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob([content], { type: mime })),
-    download: `${r.filename}_${desde.value}_${hasta.value}.${ext}`,
-  })
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(a.href), 100)
-  showToast(`${r.filename}.${ext} descargado`)
+  const r = current.value
+  const { labels, data, metrics } = chartData.value
+  const aoa: (string | number)[][] = [
+    ['Reporte',  r.title],
+    ['Período',  `${desde.value} – ${hasta.value}`],
+    ['Generado', new Date().toLocaleString('es-AR')],
+    [],
+    ['Métrica', 'Valor'],
+    ...metrics.map(m => [m.label, m.value + (m.delta ? ` (${m.delta})` : '')]),
+    [],
+    [r.csvHeaders[0]!, r.csvHeaders[1]!],
+    ...labels.map((l, i) => [l, data[i] ?? 0]),
+  ]
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = [{ wch: 28 }, { wch: 20 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Reporte')
+  XLSX.writeFile(wb, `${r.filename}_${desde.value}_${hasta.value}.xlsx`)
+  showToast(`${r.filename}.xlsx descargado`)
 }
 
 function showToast(msg: string) {
@@ -322,14 +324,9 @@ function showToast(msg: string) {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="export-menu" :class="{ open: menuOpen }">
-          <button class="export-opt" @click="doExport('csv')">
-            <span class="opt-badge csv">CSV</span>
-            <div><p>Descargar CSV</p><span>Compatible con Excel</span></div>
-          </button>
-          <div class="export-divider"></div>
-          <button class="export-opt" @click="doExport('json')">
-            <span class="opt-badge json">JSON</span>
-            <div><p>Descargar JSON</p><span>Para integraciones</span></div>
+          <button class="export-opt" @click="doExport()">
+            <span class="opt-badge excel">XLS</span>
+            <div><p>Descargar Excel</p><span>Con métricas y datos</span></div>
           </button>
         </div>
       </div>
@@ -523,8 +520,9 @@ function showToast(msg: string) {
   width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center;
   justify-content: center; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; flex-shrink: 0;
 }
-.opt-badge.csv  { background: rgba(17,153,142,0.12); color: #0d3027; }
-.opt-badge.json { background: rgba(13,48,39,0.08); color: #0d3027; }
+.opt-badge.excel { background: rgba(21,128,61,0.12); color: #15803d; }
+.opt-badge.csv   { background: rgba(17,153,142,0.12); color: #0d3027; }
+.opt-badge.json  { background: rgba(13,48,39,0.08); color: #0d3027; }
 
 .report-cards {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
