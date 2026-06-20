@@ -104,6 +104,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/activities/turnos/:id/clases',
+      name: 'clases-calendario',
+      component: () => import('../views/activities/ClasesCalendarioView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
       path: '/auth/callback',
       name: 'auth-callback',
       component: () => import('../views/GoogleCallbackView.vue'),
