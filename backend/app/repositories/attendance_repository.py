@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,10 @@ class AbstractAttendanceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def delete(self, user_id: int, clase_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_roster(self, clase_id: int) -> list[RosterEntry]:
         raise NotImplementedError
 
@@ -80,6 +84,14 @@ class AttendanceRepository(AbstractAttendanceRepository):
             )
             for row in result.all()
         ]
+
+    async def delete(self, user_id: int, clase_id: int) -> None:
+        await self._session.execute(
+            delete(AttendanceORM).where(
+                AttendanceORM.user_id == user_id,
+                AttendanceORM.clase_id == clase_id,
+            )
+        )
 
     async def mark(self, user_id: int, clase_id: int, status: AttendanceStatus) -> Attendance:
         clase = await self._session.get(ClaseORM, clase_id)

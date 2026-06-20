@@ -55,3 +55,8 @@ class MarkAttendanceRequest(BaseModel):
     user_id: int
     clase_id: int
     estado: AttendanceStatus
+
+
+class DeleteAttendanceRequest(BaseModel):
+    user_id: int
+    clase_id: int

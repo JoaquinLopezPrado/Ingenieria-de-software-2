@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_roles
 from app.repositories.attendance_repository import AttendanceRepository
-from app.schemas.attendance import MarkAttendanceRequest, RosterEntryResponse
+from app.schemas.attendance import DeleteAttendanceRequest, MarkAttendanceRequest, RosterEntryResponse
 from app.services.attendance_service import AttendanceService
 
 router = APIRouter()
@@ -31,3 +31,12 @@ async def mark_attendance(
 ):
     await service.mark(user_id=body.user_id, clase_id=body.clase_id, status=body.estado)
     return {"ok": True}
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_attendance(
+    body: DeleteAttendanceRequest,
+    _=require_roles("admin", "empleado"),
+    service: AttendanceService = Depends(get_attendance_service),
+):
+    await service.delete(user_id=body.user_id, clase_id=body.clase_id)

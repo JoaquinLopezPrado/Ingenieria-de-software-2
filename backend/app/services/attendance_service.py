@@ -15,3 +15,6 @@ class AttendanceService:
 
     async def mark(self, user_id: int, clase_id: int, status: AttendanceStatus) -> Attendance:
         return await self._repo.mark(user_id=user_id, clase_id=clase_id, status=status)
+
+    async def delete(self, user_id: int, clase_id: int) -> None:
+        await self._repo.delete(user_id=user_id, clase_id=clase_id)
