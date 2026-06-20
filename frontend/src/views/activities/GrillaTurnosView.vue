@@ -400,6 +400,20 @@ onMounted(async () => {
                 >
                   Editar
                 </RouterLink>
+                <RouterLink
+                  :to="{
+                    name: 'clases-calendario',
+                    params: { id: turno.id },
+                    query: {
+                      actividad: activityName(turno.activity_id),
+                      horario: `${turno.start_time} – ${turno.end_time}`,
+                      dias: turno.days.map(d => DAY_LABELS[d] ?? d).join(', '),
+                    }
+                  }"
+                  class="btn-clases"
+                >
+                  Ver clases
+                </RouterLink>
                 <button
                   class="btn-generate"
                   :disabled="generatingTurnoId === turno.id"
@@ -884,6 +898,27 @@ onMounted(async () => {
 .btn-generate:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.btn-clases {
+  display: inline-flex;
+  align-items: center;
+  background-color: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  text-decoration: none;
+  transition: background-color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.btn-clases:hover {
+  background-color: #ede9fe;
+  border-color: #c4b5fd;
 }
 
 .generate-result {
