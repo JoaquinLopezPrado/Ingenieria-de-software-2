@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     attendances,
     auth,
     payments,
+    reports,
     single_enrollments,
     subscriptions,
     turnos,
@@ -22,3 +23,4 @@ api_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["
 api_router.include_router(single_enrollments.router, prefix="/single-enrollments", tags=["single-enrollments"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 api_router.include_router(attendances.router, prefix="/attendances", tags=["attendances"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
