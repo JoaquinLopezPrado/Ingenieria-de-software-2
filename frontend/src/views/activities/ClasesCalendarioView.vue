@@ -194,7 +194,7 @@ onMounted(async () => {
               :class="['clase-card', `card-${claseStatus(clase)}`]"
             >
               <div class="clase-horario">{{ clase.start_time }} – {{ clase.end_time }}</div>
-              <div class="clase-cupo">{{ clase.enrolled }} / {{ clase.capacity }}</div>
+              <div class="clase-cupo">cupo: {{ clase.enrolled }}/{{ clase.capacity }}</div>
               <span
                 v-if="claseStatus(clase) !== 'hoy'"
                 :class="['status-badge', `badge-${claseStatus(clase)}`]"
