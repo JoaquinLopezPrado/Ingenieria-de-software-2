@@ -52,3 +52,5 @@ class CancelacionesResponse(BaseModel):
     items: List[CancelacionItem]
     total_cancelaciones: int
     actividad_mas_bajas: Optional[str]
+    clases_canceladas_centro: List[CancelacionItem]
+    total_clases_canceladas_centro: int

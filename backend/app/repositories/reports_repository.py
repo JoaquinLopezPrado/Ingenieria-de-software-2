@@ -162,9 +162,14 @@ class ReportsRepository:
 
     async def get_cancelaciones(
         self, desde: date, hasta: date
-    ) -> Tuple[List[Tuple[str, int]], int]:
-        """Retorna (items: [(actividad, cancelaciones)], total)."""
-        rows = await self._session.execute(
+    ) -> Tuple[List[Tuple[str, int]], int, List[Tuple[str, int]], int]:
+        """Retorna (cliente_items, cliente_total, centro_items, centro_total).
+
+        cliente_items: bajas de suscripción por actividad.
+        centro_items: clases canceladas por el centro por actividad.
+        """
+        # ── Cancelaciones de clientes (bajas de suscripción) ───────────────
+        sub_rows = await self._session.execute(
             select(
                 ActivityORM.name,
                 func.count(SubscriptionORM.id).label("cancelaciones"),
@@ -178,6 +183,26 @@ class ReportsRepository:
             .group_by(ActivityORM.name)
             .order_by(func.count(SubscriptionORM.id).desc())
         )
-        items = [(r.name, r.cancelaciones) for r in rows.all()]
-        total = sum(c for _, c in items)
-        return items, total
+        cliente_items = [(r.name, r.cancelaciones) for r in sub_rows.all()]
+        cliente_total = sum(c for _, c in cliente_items)
+
+        # ── Clases canceladas por el centro ────────────────────────────────
+        clase_rows = await self._session.execute(
+            select(
+                ActivityORM.name,
+                func.count(ClaseORM.id).label("clases_canceladas"),
+            )
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .where(
+                ClaseORM.cancelled_at.isnot(None),
+                ClaseORM.cancelled_at >= _utc(desde),
+                ClaseORM.cancelled_at <= _utc(hasta, end=True),
+            )
+            .group_by(ActivityORM.name)
+            .order_by(func.count(ClaseORM.id).desc())
+        )
+        centro_items = [(r.name, r.clases_canceladas) for r in clase_rows.all()]
+        centro_total = sum(c for _, c in centro_items)
+
+        return cliente_items, cliente_total, centro_items, centro_total

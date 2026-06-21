@@ -31,6 +31,8 @@ export interface CancelacionesResponse {
   items: CancelacionItem[]
   total_cancelaciones: number
   actividad_mas_bajas: string | null
+  clases_canceladas_centro: CancelacionItem[]
+  total_clases_canceladas_centro: number
 }
 
 const params = (desde: string, hasta: string) => ({ desde, hasta })

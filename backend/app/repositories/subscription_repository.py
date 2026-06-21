@@ -22,6 +22,7 @@ from app.models.activity import Activity as ActivityORM
 from app.models.clase import Clase as ClaseORM
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
 from app.models.subscription import Subscription as SubscriptionORM, SubscriptionCharge as SubscriptionChargeORM
+from app.models.subscription_class_discount import SubscriptionClassDiscount as DiscountORM
 from app.models.turno import Turno as TurnoORM
 
 _ACTIVE_SINGLE_STATUSES = [
@@ -566,16 +567,32 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
     async def add_charge(
         self, subscription_id: int, period_month: int, period_year: int, amount: Decimal, original_amount: Decimal, due_date: date
     ) -> None:
-        self._session.add(SubscriptionChargeORM(
+        # Consumir descuentos pendientes por clases canceladas
+        discounts_result = await self._session.execute(
+            select(DiscountORM).where(
+                DiscountORM.subscription_id == subscription_id,
+                DiscountORM.applied_to_charge_id.is_(None),
+            )
+        )
+        pending_discounts = list(discounts_result.scalars())
+        total_discount = sum(Decimal(d.amount) for d in pending_discounts)
+
+        final_amount = max(Decimal("0.00"), amount - total_discount)
+
+        charge = SubscriptionChargeORM(
             subscription_id=subscription_id,
             period_month=period_month,
             period_year=period_year,
-            amount=amount,
+            amount=final_amount,
             original_amount=original_amount,
             status=ChargeStatus.PENDING,
             due_date=due_date,
-        ))
+        )
+        self._session.add(charge)
         await self._session.flush()
+
+        for d in pending_discounts:
+            d.applied_to_charge_id = charge.id
 
     async def get_overdue(self, min_unpaid: int) -> list[dict]:
         """Suscripciones ACTIVE con >= min_unpaid cargos impagos (pending/overdue)."""

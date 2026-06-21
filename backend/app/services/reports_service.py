@@ -92,13 +92,15 @@ class ReportsService:
         )
 
     async def get_cancelaciones(self, desde: date, hasta: date) -> CancelacionesResponse:
-        items_raw, total = await self._repo.get_cancelaciones(desde, hasta)
+        cliente_raw, cliente_total, centro_raw, centro_total = await self._repo.get_cancelaciones(desde, hasta)
 
-        items = [CancelacionItem(actividad=name, cancelaciones=count) for name, count in items_raw]
-        actividad_mas_bajas = items[0].actividad if items else None
+        items = [CancelacionItem(actividad=name, cancelaciones=count) for name, count in cliente_raw]
+        centro_items = [CancelacionItem(actividad=name, cancelaciones=count) for name, count in centro_raw]
 
         return CancelacionesResponse(
             items=items,
-            total_cancelaciones=total,
-            actividad_mas_bajas=actividad_mas_bajas,
+            total_cancelaciones=cliente_total,
+            actividad_mas_bajas=items[0].actividad if items else None,
+            clases_canceladas_centro=centro_items,
+            total_clases_canceladas_centro=centro_total,
         )

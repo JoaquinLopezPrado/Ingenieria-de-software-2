@@ -107,12 +107,13 @@ const REPORTS: ReportDef[] = [
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
 
-const currentIndex = ref(0)
-const activeChip   = ref<number | null>(0)
-const toastVisible = ref(false)
-const toastMsg     = ref('')
-const isLoading    = ref(false)
-const errorMsg     = ref('')
+const currentIndex      = ref(0)
+const activeChip        = ref<number | null>(0)
+const toastVisible      = ref(false)
+const toastMsg          = ref('')
+const isLoading         = ref(false)
+const errorMsg          = ref('')
+const clasesCanceladas  = ref<{ actividad: string; cancelaciones: number }[]>([])
 
 const current = computed(() => REPORTS[currentIndex.value] as ReportDef)
 
@@ -156,6 +157,7 @@ async function loadReport() {
   if (!desde.value || !hasta.value) return
   isLoading.value = true
   errorMsg.value  = ''
+  clasesCanceladas.value = []
   try {
     const d = desde.value, h = hasta.value
     const type = current.value.type
@@ -198,13 +200,15 @@ async function loadReport() {
       }
     } else {
       const res = await getCancelaciones(d, h)
+      clasesCanceladas.value = res.clases_canceladas_centro
       chartData.value = {
         labels:  res.items.map(i => i.actividad),
         data:    res.items.map(i => i.cancelaciones),
         meta:    `${d} – ${h}`,
         metrics: [
-          { label: 'Total cancelaciones', value: String(res.total_cancelaciones),   delta: '', up: false },
-          { label: 'Clase con más bajas', value: res.actividad_mas_bajas ?? '—',    delta: '', up: false },
+          { label: 'Bajas de suscripción',      value: String(res.total_cancelaciones),            delta: '', up: false },
+          { label: 'Clases canceladas (centro)', value: String(res.total_clases_canceladas_centro), delta: '', up: false },
+          { label: 'Actividad con más bajas',    value: res.actividad_mas_bajas ?? '—',             delta: '', up: false },
         ],
       }
     }
@@ -446,6 +450,25 @@ function showToast(msg: string) {
           </svg>
         </div>
       </template>
+
+      <!-- Tabla clases canceladas por el centro (solo reporte cancelaciones) -->
+      <div v-if="current.type === 'cancelaciones' && clasesCanceladas.length > 0" class="centro-table-wrapper">
+        <h3 class="centro-table-title">Clases canceladas por el centro</h3>
+        <table class="centro-table">
+          <thead>
+            <tr>
+              <th>Actividad</th>
+              <th>Clases canceladas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in clasesCanceladas" :key="row.actividad">
+              <td>{{ row.actividad }}</td>
+              <td class="text-center">{{ row.cancelaciones }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Toast -->
@@ -575,4 +598,13 @@ function showToast(msg: string) {
 .btn-volver:hover { background: #11998e; transform: translateY(-2px); }
 
 .reportes-page { display: flex; flex-direction: column; gap: 20px; background: #f4f8f7; min-height: 100vh; padding: 20px; }
+
+/* ── Tabla clases canceladas por centro ── */
+.centro-table-wrapper { margin-top: 18px; }
+.centro-table-title { font-size: 0.9rem; font-weight: 700; color: #374151; margin: 0 0 8px; }
+.centro-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.centro-table th { background: #f3f4f6; color: #6b7280; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.centro-table td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
+.centro-table tbody tr:last-child td { border-bottom: none; }
+.text-center { text-align: center; }
 </style>
