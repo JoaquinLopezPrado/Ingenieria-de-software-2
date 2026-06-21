@@ -741,11 +741,40 @@ const handleInscripcionSingle = async (turno) => {
   errorMensaje.value = null
 
   try {
-    const { data } = await enrollmentService.createSingle([clase.id])
+    // Verificar créditos disponibles antes de crear el enrollment
+    let creditToOffer = null
+    try {
+      const { data: credits } = await enrollmentService.getCreditsForTurno(turno.id)
+      if (credits.length > 0) creditToOffer = credits[0]
+    } catch {}
+
     const d = new Date(`${clase.rawDate}T00:00:00`)
     const dayLabel = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(d)
     const displayDate = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
     const claseStart = new Date(`${clase.rawDate}T${turno.hora.padStart(5, '0')}:00`)
+
+    if (creditToOffer) {
+      // Ir al ticket en modo "oferta de crédito" (sin crear enrollment aún)
+      router.push({
+        name: 'ticket',
+        query: {
+          kind:          'single',
+          credit_offer:  'true',
+          credit_id:     String(creditToOffer.id),
+          credit_amount: String(creditToOffer.amount),
+          clase_id:      String(clase.id),
+          actividad:     turno.actividad,
+          dia:           `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,
+          duracion:      turno.dur,
+          instructor:    turno.inst,
+          clase_start:   claseStart.toISOString(),
+        },
+      })
+      return
+    }
+
+    // Sin crédito: crear enrollment y redirigir al ticket normalmente
+    const { data } = await enrollmentService.createSingle([clase.id])
 
     router.push({
       name: 'ticket',

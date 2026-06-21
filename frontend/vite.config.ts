@@ -21,6 +21,9 @@ export default defineConfig({
   server: {
     host: true, // Permite que Docker exponga el puerto hacia afuera del contenedor
     port: 5173, // Asegura que use el puerto que mapeaste en tu docker-compose
+    watch: {
+      usePolling: true,
+    },
     allowedHosts: [
       'frontend',          // Permite el nombre del servicio interno de Docker
       '.ngrok-free.app',   // Permite dominios públicos estándar de ngrok

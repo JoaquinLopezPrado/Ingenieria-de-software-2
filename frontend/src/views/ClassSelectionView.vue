@@ -177,7 +177,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { turnoService } from '@/services/turnoService'
-import { enrollmentService, type CreditInfo } from '@/services/enrollmentService'
+import { enrollmentService } from '@/services/enrollmentService'
 
 const route = useRoute()
 const router = useRouter()
@@ -190,7 +190,7 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const submitError = ref('')
 const clases = ref([])
-const credits = ref<CreditInfo[]>([])
+const credits = ref([])
 const useCredit = ref(false)
 const enrollmentConfirmed = ref(false)
 
@@ -284,12 +284,14 @@ const fetchClases = async () => {
       return
     }
 
-    const [clasesRes, mySingleRes, creditsRes] = await Promise.all([
+    const [clasesRes, mySingleRes] = await Promise.all([
       turnoService.getClasesByTurno(turnoId.value),
       enrollmentService.getMySingle(),
-      enrollmentService.getCreditsForTurno(Number(turnoId.value)),
     ])
-    credits.value = creditsRes.data
+
+    enrollmentService.getCreditsForTurno(Number(turnoId.value))
+      .then(r => { credits.value = r.data })
+      .catch(() => {})
 
     const now = Date.now()
     const myTurnoEnrollments = mySingleRes.data.filter(

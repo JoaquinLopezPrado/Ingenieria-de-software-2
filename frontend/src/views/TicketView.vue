@@ -9,7 +9,9 @@
         </svg>
       </div>
  
-      <h1>¡Se reservo tu lugar hasta finalizar el pago!</h1>
+      <h1 v-if="creditConfirmed">¡Inscripción confirmada!</h1>
+      <h1 v-else-if="creditOffer">Tenés un crédito disponible</h1>
+      <h1 v-else>¡Se reservo tu lugar hasta finalizar el pago!</h1>
       <p class="subtitle">Te esperamos.</p>
  
       <!-- Comprobante -->
@@ -80,7 +82,21 @@
  
         <div class="divider"></div>
  
-        <template v-if="route.query.precio_clase">
+        <template v-if="creditConfirmed">
+          <div class="monto-row">
+            <span class="monto-label">Precio de la clase</span>
+            <span class="monto-valor-base">$ {{ fmt(route.query.credit_amount) }}</span>
+          </div>
+          <div class="monto-row monto-row-descuento">
+            <span class="monto-label">Crédito aplicado 🎟</span>
+            <span class="monto-descuento">- $ {{ fmt(route.query.credit_amount) }}</span>
+          </div>
+          <div class="monto-row monto-row-total">
+            <span class="monto-label"><strong>Total pagado</strong></span>
+            <span class="monto-valor">$ 0,00</span>
+          </div>
+        </template>
+        <template v-else-if="route.query.precio_clase">
           <div class="monto-row">
             <span class="monto-label">Valor de la clase</span>
             <span class="monto-valor-base">$ {{ fmt(route.query.precio_clase) }}</span>
@@ -119,14 +135,25 @@
 
       </div>
  
+      <!-- Banner de crédito disponible -->
+      <div v-if="creditOffer && !creditConfirmed" class="credit-banner-ticket">
+        <div class="credit-banner-info">
+          <span class="credit-icon">🎟</span>
+          <div>
+            <strong>Crédito disponible: ${{ fmt(route.query.credit_amount) }}</strong>
+            <span class="credit-detail">Aplicalo y no pagues nada por esta clase</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Contador de tiempo -->
-      <div v-if="route.query.expires_at && !expirado" :class="['countdown', { urgente: countdownUrgente }]">
+      <div v-if="!creditOffer && route.query.expires_at && !expirado" :class="['countdown', { urgente: countdownUrgente }]">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
         </svg>
         Tiempo para pagar: <strong>{{ countdown }}</strong>
       </div>
-      <div v-else-if="expirado" class="countdown expirado">
+      <div v-else-if="!creditOffer && expirado" class="countdown expirado">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
@@ -135,7 +162,19 @@
 
       <!-- Botones -->
       <div class="botones">
-        <template v-if="esSinCosto">
+        <template v-if="creditConfirmed">
+          <button class="btn-volver" @click="router.push({ name: 'list' })">← Volver a actividades</button>
+        </template>
+        <template v-else-if="creditOffer">
+          <button class="btn-mp btn-credito" :disabled="pagando" @click="usarCredito">
+            {{ pagando ? 'Confirmando...' : '🎟  Confirmar con crédito (¡Gratis!)' }}
+          </button>
+          <button class="btn-mp btn-mp--senia" :disabled="pagando" @click="pagarSinCredito">
+            {{ pagando ? 'Procesando...' : 'Pagar sin usar el crédito' }}
+          </button>
+          <button class="btn-volver" :disabled="pagando" @click="router.push({ name: 'list' })">← Cancelar</button>
+        </template>
+        <template v-else-if="esSinCosto">
           <button class="btn-mp" :disabled="pagando" @click="confirmarGratis">
             {{ pagando ? 'Confirmando...' : 'Confirmar suscripción (sin costo)' }}
           </button>
@@ -153,7 +192,7 @@
             {{ pagando ? 'Redirigiendo...' : `Pagar seña $${fmt(montoSenia)} (30%)` }}
           </button>
         </template>
-        <button class="btn-volver" @click="router.push({ name: 'list' })">
+        <button v-if="!creditOffer && !creditConfirmed" class="btn-volver" @click="router.push({ name: 'list' })">
           ← Volver a actividades
         </button>
       </div>
@@ -216,6 +255,9 @@ const DAY_LABELS = {
 const diasArray = computed(() =>
   String(route.query.dia || '').split(' / ').filter(Boolean)
 )
+
+const creditOffer     = computed(() => route.query.credit_offer === 'true')
+const creditConfirmed = ref(false)
 
 const pagando  = ref(false)
 const expirado = ref(false)
@@ -316,6 +358,67 @@ const pagarSenia = async () => {
   } catch (e) {
     pagando.value = false
     errorMsg.value = e?.response?.data?.errors?.general || 'No se pudo iniciar el pago de la seña. Intentá de nuevo.'
+  }
+}
+
+const usarCredito = async () => {
+  pagando.value = true
+  try {
+    const { data } = await enrollmentService.createSingle(
+      [Number(route.query.clase_id)],
+      Number(route.query.credit_id),
+    )
+    if (data.status === 'confirmed') {
+      creditConfirmed.value = true
+    } else {
+      // Crédito cubre parcialmente: ir al ticket normal con el monto restante
+      router.replace({
+        name: 'ticket',
+        query: {
+          kind:          'single',
+          enrollment_id: data.id,
+          actividad:     route.query.actividad,
+          dia:           route.query.dia,
+          duracion:      route.query.duracion,
+          instructor:    route.query.instructor,
+          numero:        data.id,
+          amount:        data.amount,
+          precio_clase:  data.amount,
+          expires_at:    data.expires_at,
+          clase_start:   route.query.clase_start,
+        },
+      })
+    }
+  } catch (e) {
+    errorMsg.value = e?.response?.data?.errors?.general || 'No se pudo aplicar el crédito. Intentá de nuevo.'
+  } finally {
+    pagando.value = false
+  }
+}
+
+const pagarSinCredito = async () => {
+  pagando.value = true
+  try {
+    const { data } = await enrollmentService.createSingle([Number(route.query.clase_id)])
+    router.replace({
+      name: 'ticket',
+      query: {
+        kind:          'single',
+        enrollment_id: data.id,
+        actividad:     route.query.actividad,
+        dia:           route.query.dia,
+        duracion:      route.query.duracion,
+        instructor:    route.query.instructor,
+        numero:        data.id,
+        amount:        data.amount,
+        precio_clase:  data.amount,
+        expires_at:    data.expires_at,
+        clase_start:   route.query.clase_start,
+      },
+    })
+  } catch (e) {
+    errorMsg.value = e?.response?.data?.errors?.general || 'No se pudo crear la inscripción. Intentá de nuevo.'
+    pagando.value = false
   }
 }
 </script>
@@ -525,4 +628,45 @@ h1 { font-size: 24px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 }
 
 .error-modal-btn:hover { background: #B71C1C; }
+
+.credit-banner-ticket {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(237, 231, 246, 0.95), rgba(255, 255, 255, 0.9));
+  border: 1.5px solid rgba(103, 58, 183, 0.3);
+  margin-top: 20px;
+  margin-bottom: 4px;
+}
+
+.credit-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.credit-icon { font-size: 1.4rem; }
+
+.credit-banner-info strong {
+  display: block;
+  color: #4527a0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.credit-detail {
+  display: block;
+  color: #5e35b1;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.btn-credito {
+  background: #673ab7;
+}
+.btn-credito:hover { background: #512da8; }
 </style>
