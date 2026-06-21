@@ -142,9 +142,8 @@ class ClaseRepository(AbstractClaseRepository):
             .outerjoin(attendance_per_clase, attendance_per_clase.c.clase_id == ClaseORM.id)
             .where(
                 ClaseORM.turno_id == turno_id,
-                # include_past=True → contexto admin: mostrar activas + canceladas.
-                # include_past=False → vista cliente: solo activas.
-                (ClaseORM.is_active == True) | (include_past & ClaseORM.cancelled_at.isnot(None)),
+                (ClaseORM.is_active == True) | (ClaseORM.cancelled_at.isnot(None))
+                if include_past else ClaseORM.is_active == True,
                 *date_filters,
             )
             .order_by(ClaseORM.date)
