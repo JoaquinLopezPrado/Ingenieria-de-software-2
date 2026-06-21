@@ -164,7 +164,31 @@ export interface ClaseDetalle {
   enrolled: number
   presentes_count: number
   is_active: boolean
+  cancelled_reason: string | null
+  cancelled_at: string | null
 }
+
+export interface CancelPreviewAlumno {
+  user_id: number
+  full_name: string
+  email: string
+  tipo: 'suscripcion' | 'individual_completo' | 'individual_senia'
+  amount: number
+}
+
+export interface CancelPreviewResponse {
+  clase_id: number
+  clase_date: string
+  turno_description: string
+  afectados: CancelPreviewAlumno[]
+  total_afectados: number
+}
+
+export const getCancelPreview = (claseId: number): Promise<CancelPreviewResponse> =>
+  api.get<CancelPreviewResponse>(`/clases/${claseId}/cancel-preview`).then(r => r.data)
+
+export const cancelClase = (claseId: number, reason: string): Promise<{ message: string }> =>
+  api.post(`/clases/${claseId}/cancel`, { reason }).then(r => r.data)
 
 export const getClasesByTurno = async (turnoId: number): Promise<ClaseDetalle[]> => {
   const res = await api.get<ClaseDetalle[]>(`/turnos/${turnoId}/clases`)

@@ -2,7 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getClasesByTurnoAdmin, type ClaseDetalle } from '@/services/sessionService'
+import {
+  getClasesByTurnoAdmin,
+  getCancelPreview,
+  cancelClase,
+  extractBackendError,
+  type ClaseDetalle,
+  type CancelPreviewAlumno,
+  type CancelPreviewResponse,
+} from '@/services/sessionService'
 
 const route   = useRoute()
 const router  = useRouter()
@@ -89,8 +97,8 @@ function clasesDelDia(day: Date): ClaseDetalle[] {
 type ClaseStatus = 'cancelada' | 'finalizada' | 'hoy' | 'programada'
 
 function claseStatus(c: ClaseDetalle): ClaseStatus {
-  if (!c.is_active)    return 'cancelada'
-  if (c.date < today)  return 'finalizada'
+  if (c.cancelled_at)   return 'cancelada'
+  if (c.date < today)   return 'finalizada'
   if (c.date === today) return 'hoy'
   return 'programada'
 }
@@ -120,12 +128,60 @@ function asistenciaBadgeClass(c: ClaseDetalle): string {
   return 'asist-completa'
 }
 
-// ─── Modal cancelar (stub) ────────────────────────────────────────────────────
+// ─── Modal cancelar ───────────────────────────────────────────────────────────
 
-const claseAConfirmar = ref<ClaseDetalle | null>(null)
+const claseAConfirmar   = ref<ClaseDetalle | null>(null)
+const previewData       = ref<CancelPreviewResponse | null>(null)
+const previewLoading    = ref(false)
+const previewError      = ref('')
+const motivo            = ref('')
+const cancelando        = ref(false)
+const cancelError       = ref('')
+const toastMsg          = ref('')
 
-function abrirModalCancelar(c: ClaseDetalle) { claseAConfirmar.value = c }
-function cerrarModalCancelar()               { claseAConfirmar.value = null }
+const TIPO_LABEL: Record<CancelPreviewAlumno['tipo'], string> = {
+  suscripcion:          'Descuento en próximo cobro',
+  individual_completo:  'Crédito 30 días',
+  individual_senia:     'Reembolso de seña',
+}
+
+async function abrirModalCancelar(c: ClaseDetalle) {
+  claseAConfirmar.value = c
+  previewData.value     = null
+  previewError.value    = ''
+  motivo.value          = ''
+  cancelError.value     = ''
+  previewLoading.value  = true
+  try {
+    previewData.value = await getCancelPreview(c.id)
+  } catch (e) {
+    previewError.value = extractBackendError(e)
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+function cerrarModalCancelar() {
+  claseAConfirmar.value = null
+  previewData.value     = null
+}
+
+async function confirmarCancelacion() {
+  if (!claseAConfirmar.value || !motivo.value.trim()) return
+  cancelando.value  = true
+  cancelError.value = ''
+  try {
+    await cancelClase(claseAConfirmar.value.id, motivo.value.trim())
+    clases.value = await getClasesByTurnoAdmin(turnoId)
+    toastMsg.value = 'Clase cancelada. Los alumnos fueron notificados por email.'
+    setTimeout(() => { toastMsg.value = '' }, 5000)
+    cerrarModalCancelar()
+  } catch (e) {
+    cancelError.value = extractBackendError(e)
+  } finally {
+    cancelando.value = false
+  }
+}
 
 // ─── Carga ────────────────────────────────────────────────────────────────────
 
@@ -249,6 +305,9 @@ onMounted(async () => {
                   ></div>
                 </div>
               </div>
+              <p v-if="clase.cancelled_reason" class="cancelada-motivo">
+                {{ clase.cancelled_reason }}
+              </p>
               <div class="clase-actions">
                 <RouterLink
                   v-if="claseStatus(clase) !== 'cancelada'"
@@ -283,21 +342,71 @@ onMounted(async () => {
 
     </div>
 
-    <!-- Modal cancelar (stub) -->
+    <!-- Toast -->
+    <Teleport to="body">
+      <div v-if="toastMsg" class="toast-success">{{ toastMsg }}</div>
+    </Teleport>
+
+    <!-- Modal cancelar -->
     <Teleport to="body">
       <div v-if="claseAConfirmar" class="modal-overlay" @click.self="cerrarModalCancelar">
         <div class="modal-box" role="dialog" aria-modal="true">
           <h2 class="modal-title">Cancelar clase</h2>
-          <p class="modal-text">
-            ¿Confirmás la cancelación de la clase del
-            <strong>{{ claseAConfirmar.date }}</strong>
-            ({{ claseAConfirmar.start_time }} – {{ claseAConfirmar.end_time }})?
+          <p class="modal-subtitle">
+            {{ claseAConfirmar.date }} · {{ claseAConfirmar.start_time }} – {{ claseAConfirmar.end_time }}
           </p>
-          <p class="modal-pending">Esta funcionalidad estará disponible próximamente.</p>
-          <div class="modal-actions">
-            <button type="button" class="modal-btn-cancel" @click="cerrarModalCancelar">Volver</button>
-            <button type="button" class="modal-btn-confirm" disabled>Confirmar cancelación</button>
-          </div>
+
+          <!-- Cargando preview -->
+          <div v-if="previewLoading" class="modal-loading">Cargando alumnos afectados…</div>
+
+          <!-- Error en preview -->
+          <div v-else-if="previewError" class="modal-error">{{ previewError }}</div>
+
+          <!-- Preview cargado -->
+          <template v-else-if="previewData">
+            <div v-if="previewData.total_afectados === 0" class="modal-empty">
+              No hay alumnos inscriptos en esta clase.
+            </div>
+            <div v-else class="afectados-list">
+              <p class="afectados-header">
+                {{ previewData.total_afectados }} alumno{{ previewData.total_afectados !== 1 ? 's' : '' }} afectado{{ previewData.total_afectados !== 1 ? 's' : '' }}:
+              </p>
+              <div
+                v-for="a in previewData.afectados"
+                :key="a.user_id"
+                class="afectado-item"
+              >
+                <span class="afectado-name">{{ a.full_name }}</span>
+                <span class="afectado-tipo">{{ TIPO_LABEL[a.tipo] }}</span>
+              </div>
+            </div>
+
+            <div class="motivo-field">
+              <label class="motivo-label">Motivo de cancelación <span class="required">*</span></label>
+              <textarea
+                v-model="motivo"
+                class="motivo-textarea"
+                placeholder="Ej: fuerza mayor, problema con el local, etc."
+                rows="3"
+              />
+            </div>
+
+            <p v-if="cancelError" class="modal-error">{{ cancelError }}</p>
+
+            <div class="modal-actions">
+              <button type="button" class="modal-btn-cancel" :disabled="cancelando" @click="cerrarModalCancelar">
+                Volver
+              </button>
+              <button
+                type="button"
+                class="modal-btn-confirm"
+                :disabled="!motivo.trim() || cancelando"
+                @click="confirmarCancelacion"
+              >
+                {{ cancelando ? 'Cancelando…' : 'Confirmar cancelación' }}
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </Teleport>
@@ -699,11 +808,102 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
-.modal-pending {
-  margin: 0 0 20px;
-  font-size: 0.82rem;
-  color: #9ca3af;
+.modal-subtitle {
+  margin: -4px 0 14px;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.modal-loading {
+  padding: 1rem 0;
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.modal-empty {
+  padding: 0.75rem 0;
+  color: #6b7280;
+  font-size: 0.88rem;
   font-style: italic;
+}
+
+.modal-error {
+  color: #b91c1c;
+  font-size: 0.82rem;
+  margin: 0 0 10px;
+  background: #fff1f2;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+}
+
+.afectados-list {
+  text-align: left;
+  margin-bottom: 14px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.afectados-header {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.afectado-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.8rem;
+}
+.afectado-item:last-child { border-bottom: none; }
+
+.afectado-name { color: #1f2937; font-weight: 500; }
+.afectado-tipo { color: #6b7280; font-size: 0.72rem; }
+
+.motivo-field {
+  text-align: left;
+  margin-bottom: 16px;
+}
+
+.motivo-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.required { color: #dc2626; }
+
+.motivo-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.7rem;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+  color: #1f2937;
+}
+.motivo-textarea:focus {
+  outline: none;
+  border-color: #11998e;
+  box-shadow: 0 0 0 3px rgba(17,153,142,0.12);
+}
+
+.cancelada-motivo {
+  font-size: 0.7rem;
+  color: #be123c;
+  font-style: italic;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .modal-actions {
@@ -726,13 +926,32 @@ onMounted(async () => {
   background: #f3f4f6;
   color: #374151;
 }
-.modal-btn-cancel:hover { background: #e5e7eb; }
+.modal-btn-cancel:hover:not(:disabled) { background: #e5e7eb; }
+.modal-btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .modal-btn-confirm {
   background: #fee2e2;
   color: #b91c1c;
-  opacity: 0.5;
-  cursor: not-allowed;
+}
+.modal-btn-confirm:hover:not(:disabled) { background: #fecaca; }
+.modal-btn-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Toast ── */
+
+.toast-success {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #166534;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 99px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  white-space: nowrap;
 }
 
 /* ── Responsivo ── */
