@@ -140,7 +140,13 @@ class ClaseRepository(AbstractClaseRepository):
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
             .outerjoin(enrolled_per_clase, enrolled_per_clase.c.clase_id == ClaseORM.id)
             .outerjoin(attendance_per_clase, attendance_per_clase.c.clase_id == ClaseORM.id)
-            .where(ClaseORM.turno_id == turno_id, ClaseORM.is_active == True, *date_filters)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                # Mostrar clases activas + canceladas (is_active=False por cancelación tiene cancelled_at).
+                # Las inactivas por otras razones (sin cancelled_at) no se muestran.
+                (ClaseORM.is_active == True) | (ClaseORM.cancelled_at.isnot(None)),
+                *date_filters,
+            )
             .order_by(ClaseORM.date)
         )
         return [
@@ -154,6 +160,8 @@ class ClaseRepository(AbstractClaseRepository):
                 enrolled=row.enrolled,
                 presentes_count=row.presentes_count,
                 is_active=row.Clase.is_active,
+                cancelled_reason=row.Clase.cancelled_reason,
+                cancelled_at=row.Clase.cancelled_at,
             )
             for row in result
         ]

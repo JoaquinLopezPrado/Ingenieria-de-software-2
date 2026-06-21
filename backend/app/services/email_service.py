@@ -11,6 +11,9 @@ import httpx
 from app.core.config import settings
 from app.services.email_templates import (
     balance_confirmed,
+    clase_cancelada_individual_completo,
+    clase_cancelada_individual_senia,
+    clase_cancelada_suscripcion,
     deposit_confirmed,
     deposit_refunded,
     password_reset,
@@ -126,6 +129,56 @@ class EmailService:
         )
         asyncio.create_task(
             self._send(to, f"Pago completado — {activity_name}", html)
+        )
+
+    def send_clase_cancelada_suscripcion(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clase_date: date,
+        descuento: Decimal,
+        reason: str,
+    ) -> None:
+        html = clase_cancelada_suscripcion(first_name, activity_name, turno_description, clase_date, descuento, reason)
+        asyncio.create_task(
+            self._send(to, f"Clase cancelada — {activity_name}", html)
+        )
+
+    def send_clase_cancelada_individual_completo(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clase_date: date,
+        credito: Decimal,
+        expires_days: int,
+        reason: str,
+    ) -> None:
+        html = clase_cancelada_individual_completo(
+            first_name, activity_name, turno_description, clase_date, credito, expires_days, reason
+        )
+        asyncio.create_task(
+            self._send(to, f"Clase cancelada — {activity_name}", html)
+        )
+
+    def send_clase_cancelada_individual_senia(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clase_date: date,
+        senia: Decimal,
+        reason: str,
+    ) -> None:
+        html = clase_cancelada_individual_senia(
+            first_name, activity_name, turno_description, clase_date, senia, reason
+        )
+        asyncio.create_task(
+            self._send(to, f"Clase cancelada — {activity_name}", html)
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:

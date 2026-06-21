@@ -1,6 +1,6 @@
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
@@ -66,6 +66,8 @@ class ClaseDetalleResponse(BaseModel):
     enrolled: int
     presentes_count: int
     is_active: bool
+    cancelled_reason: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
 
     @field_serializer("start_time", "end_time")
     def serialize_time(self, value: time) -> str:

@@ -1,4 +1,5 @@
-from datetime import date, time
+from datetime import date, datetime, time
+from typing import Optional
 
 
 class Clase:
@@ -22,6 +23,8 @@ class ClaseDetalle:
         enrolled: int,
         presentes_count: int,
         is_active: bool,
+        cancelled_reason: Optional[str] = None,
+        cancelled_at: Optional[datetime] = None,
     ):
         self.id = id
         self.turno_id = turno_id
@@ -32,3 +35,5 @@ class ClaseDetalle:
         self.enrolled = enrolled
         self.presentes_count = presentes_count
         self.is_active = is_active
+        self.cancelled_reason = cancelled_reason
+        self.cancelled_at = cancelled_at
