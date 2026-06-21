@@ -304,11 +304,6 @@ export const getDeactivationImpact = async (id: number): Promise<DeactivationImp
   return res.data
 }
 
-export const getClasesByTurno = async (turnoId: number): Promise<Clase[]> => {
-  const res = await api.get(`/turnos/${turnoId}/clases`)
-  return res.data
-}
-
 export interface UpdateTurnoPayload {
   description?: string
   days?:        string[]

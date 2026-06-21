@@ -395,20 +395,6 @@ onMounted(async () => {
               </td>
               <td class="cell-actions">
                 <RouterLink
-                  :to="{
-                    name: 'turno-clases',
-                    params: { id: turno.id },
-                    query: {
-                      desc:         turno.description,
-                      actividad:    activityName(turno.activity_id),
-                      turno_active: turno.is_active ? '1' : '0',
-                    }
-                  }"
-                  class="btn-clases"
-                >
-                  Ver Clases
-                </RouterLink>
-                <RouterLink
                   :to="`/activities/turnos/${turno.id}/edit`"
                   class="btn-edit"
                 >
@@ -875,27 +861,6 @@ onMounted(async () => {
 
 .cell-actions {
   white-space: nowrap;
-}
-
-.btn-clases {
-  display: inline-flex;
-  align-items: center;
-  background-color: #f0fdf4;
-  color: #0c8a70;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.3rem 0.75rem;
-  text-decoration: none;
-  margin-right: 0.4rem;
-  transition: background-color 0.12s, border-color 0.12s;
-  white-space: nowrap;
-}
-
-.btn-clases:hover {
-  background-color: #dcfce7;
-  border-color: #86efac;
 }
 
 .btn-edit {

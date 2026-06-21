@@ -5,7 +5,6 @@ import { isAdminUser, isEmployeeUser, isStaffUser } from '@/utils/role'
 
 import ScheduleSessionView from '@/views/activities/ScheduleSessionView.vue'
 import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
-import CalendarioClasesView from '@/views/activities/CalendarioClasesView.vue'
 import EditTurnoView from '@/views/activities/EditTurnoView.vue'
 import ListaActividadesView from '@/views/activities/ListaActividadesView.vue'
 import EditActividadView from '@/views/activities/EditActividadView.vue'
@@ -91,12 +90,6 @@ const router = createRouter({
       path: '/activities/turnos',
       name: 'turnos-grilla',
       component: GrillaTurnosView,
-      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
-    },
-    {
-      path: '/activities/turnos/:id/clases',
-      name: 'turno-clases',
-      component: CalendarioClasesView,
       meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {
