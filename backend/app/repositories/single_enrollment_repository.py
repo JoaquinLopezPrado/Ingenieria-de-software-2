@@ -16,6 +16,7 @@ from app.models.clase import Clase as ClaseORM
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
 from app.models.turno import Turno as TurnoORM
 from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
+from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
 
 _ART = timezone(timedelta(hours=-3))
 _DEPOSIT_RATIO = Decimal("0.30")
@@ -37,7 +38,7 @@ class DepositInfo:
 class AbstractSingleEnrollmentRepository(ABC):
 
     @abstractmethod
-    async def create_single(self, clase_ids: list[int], user_id: int) -> SingleEnrollment:
+    async def create_single(self, clase_ids: list[int], user_id: int, credit_id: int | None = None) -> SingleEnrollment:
         raise NotImplementedError
 
     @abstractmethod
@@ -90,7 +91,7 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
     # Creación                                                            #
     # ------------------------------------------------------------------ #
 
-    async def create_single(self, clase_ids: list[int], user_id: int) -> SingleEnrollment:
+    async def create_single(self, clase_ids: list[int], user_id: int, credit_id: int | None = None) -> SingleEnrollment:
         clases: list[ClaseORM] = []
         turno: TurnoORM | None = None
         for clase_id in sorted(clase_ids):
@@ -104,19 +105,47 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
 
         amount = Decimal(turno.class_price) * len(clases)
 
-        enrollment_orm = SingleEnrollmentORM(
-            turno_id=turno.id,
-            user_id=user_id,
-            amount=amount,
-            status=SingleEnrollmentStatus.PENDING,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
-        )
+        credit_repo = ClaseCancellationRepository(self._session)
+        credit = None
+        if credit_id is not None:
+            credit = await credit_repo.get_credit_by_id(credit_id, user_id)
+            if credit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El crédito no es válido o ya fue utilizado.",
+                )
+            if credit.turno_id != turno.id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El crédito no corresponde a este turno.",
+                )
+            amount = max(Decimal("0.00"), amount - Decimal(str(credit.amount)))
+
+        if amount == Decimal("0.00"):
+            enrollment_orm = SingleEnrollmentORM(
+                turno_id=turno.id,
+                user_id=user_id,
+                amount=Decimal("0.00"),
+                status=SingleEnrollmentStatus.CONFIRMED,
+                expires_at=None,
+            )
+        else:
+            enrollment_orm = SingleEnrollmentORM(
+                turno_id=turno.id,
+                user_id=user_id,
+                amount=amount,
+                status=SingleEnrollmentStatus.PENDING,
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes),
+            )
         self._session.add(enrollment_orm)
         await self._session.flush()
 
         for clase in clases:
             self._session.add(SingleSlotORM(enrollment_id=enrollment_orm.id, clase_id=clase.id))
         await self._session.flush()
+
+        if credit is not None:
+            await credit_repo.mark_credit_used(credit.id, clases[0].id)
 
         return self._to_domain(enrollment_orm)
 

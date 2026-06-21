@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_serializer
 
@@ -13,6 +13,7 @@ def _fmt_time(value: time) -> str:
 
 class CreateSingleEnrollmentRequest(BaseModel):
     clase_ids: list[int] = Field(min_length=1)
+    credit_id: Optional[int] = None
 
 
 class SingleEnrollmentResponse(BaseModel):

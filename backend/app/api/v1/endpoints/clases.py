@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, status as http_status
+from fastapi import APIRouter, Depends, Query, status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, require_roles
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.domain.user import User
-from app.schemas.clases import CancelClaseRequest, CancelPreviewResponse
+from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
+from app.schemas.clases import CancelClaseRequest, CancelPreviewResponse, CreditInfo
 from app.services.clase_cancellation_service import ClaseCancellationService
 
 router = APIRouter()
@@ -11,6 +12,25 @@ router = APIRouter()
 
 def _get_service(db: AsyncSession = Depends(get_db)) -> ClaseCancellationService:
     return ClaseCancellationService(db)
+
+
+@router.get("/credits", response_model=list[CreditInfo])
+async def get_my_credits(
+    turno_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[CreditInfo]:
+    repo = ClaseCancellationRepository(db)
+    credits = await repo.get_credits_for_user_turno(current_user.id, turno_id)
+    return [
+        CreditInfo(
+            id=c.id,
+            amount=c.amount,
+            expires_at=c.expires_at,
+            source_clase_date=c.source_clase.date if c.source_clase else None,
+        )
+        for c in credits
+    ]
 
 
 @router.get("/{clase_id}/cancel-preview", response_model=CancelPreviewResponse)

@@ -1,5 +1,12 @@
 import axios from 'axios'
 
+export interface CreditInfo {
+  id: number
+  amount: number
+  expires_at: string
+  source_clase_date: string | null
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 const apiClient = axios.create({
@@ -41,8 +48,11 @@ export const enrollmentService = {
     apiClient.post('/payments/subscription-free-confirm', { charge_id }),
 
   // --- Clases sueltas (drop-in) ---
-  createSingle: (clase_ids: number[]) =>
-    apiClient.post('/single-enrollments', { clase_ids }),
+  createSingle: (clase_ids: number[], credit_id?: number) =>
+    apiClient.post('/single-enrollments', { clase_ids, ...(credit_id !== undefined ? { credit_id } : {}) }),
+
+  getCreditsForTurno: (turno_id: number) =>
+    apiClient.get<CreditInfo[]>('/clases/credits', { params: { turno_id } }),
 
   getMySingle: () =>
     apiClient.get('/single-enrollments/me'),

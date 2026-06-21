@@ -1,5 +1,6 @@
+from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -22,3 +23,10 @@ class CancelPreviewResponse(BaseModel):
     turno_description: str
     afectados: List[CancelPreviewAlumno]
     total_afectados: int
+
+
+class CreditInfo(BaseModel):
+    id: int
+    amount: Decimal
+    expires_at: datetime
+    source_clase_date: Optional[date] = None

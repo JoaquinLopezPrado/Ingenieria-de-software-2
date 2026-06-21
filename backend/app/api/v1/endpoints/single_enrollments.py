@@ -24,7 +24,7 @@ async def create_single_enrollment(
     current_user: User = Depends(get_current_user),
     service: SingleEnrollmentService = Depends(get_single_service),
 ):
-    enrollment = await service.create_single(clase_ids=body.clase_ids, user_id=current_user.id)
+    enrollment = await service.create_single(clase_ids=body.clase_ids, user_id=current_user.id, credit_id=body.credit_id)
     return SingleEnrollmentResponse.model_validate(enrollment.__dict__)
 
 

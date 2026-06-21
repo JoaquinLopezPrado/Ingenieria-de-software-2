@@ -14,7 +14,15 @@
         <p><strong>Instructor/a:</strong> {{ instructor }}</p>
       </div>
 
-      <div v-if="loading" class="state-box">
+      <!-- Estado: inscripción confirmada con crédito -->
+      <div v-if="enrollmentConfirmed" class="credit-confirmed">
+        <div class="credit-confirmed-icon">✓</div>
+        <h3>¡Inscripción confirmada!</h3>
+        <p>Tu crédito fue aplicado y la inscripción quedó confirmada sin necesidad de pago.</p>
+        <button class="back-btn" style="margin-top:20px" @click="router.back()">Volver</button>
+      </div>
+
+      <div v-if="!enrollmentConfirmed && loading" class="state-box">
         Cargando clases...
       </div>
 
@@ -22,8 +30,27 @@
         {{ errorMessage }}
       </div>
 
-      <div v-else class="field-group">
+      <div v-else-if="!enrollmentConfirmed" class="field-group">
         <label class="label">Opciones disponibles</label>
+
+        <!-- Banner de crédito disponible -->
+        <div v-if="credits.length > 0" class="credit-banner">
+          <div class="credit-banner-info">
+            <span class="credit-icon">🎟</span>
+            <div>
+              <strong>Tenés {{ credits.length === 1 ? '1 crédito' : `${credits.length} créditos` }} disponible{{ credits.length !== 1 ? 's' : '' }}</strong>
+              <span class="credit-detail">
+                ${{ credits[0].amount }}
+                {{ credits[0].source_clase_date ? `· clase del ${formatDate(credits[0].source_clase_date)}` : '' }}
+                · vence {{ formatDate(credits[0].expires_at.slice(0, 10)) }}
+              </span>
+            </div>
+          </div>
+          <label class="credit-toggle">
+            <input type="checkbox" v-model="useCredit" />
+            <span>Aplicar crédito</span>
+          </label>
+        </div>
 
         <!-- Week strip -->
         <div v-if="availableDayKeys.length > 1" class="week-strip-wrapper">
@@ -108,15 +135,15 @@
         </p>
       </div>
 
-      <div v-if="hasDepositPending && !selectedDepositOption && selectedIds.size === 0" class="deposit-pending-notice">
+      <div v-if="!enrollmentConfirmed && hasDepositPending && !selectedDepositOption && selectedIds.size === 0" class="deposit-pending-notice">
         Tenés clases con seña pendiente · Seleccioná la tarjeta para completar el pago
       </div>
 
-      <div v-if="submitError" class="state-box error submit-error">
+      <div v-if="!enrollmentConfirmed && submitError" class="state-box error submit-error">
         {{ submitError }}
       </div>
 
-      <div class="actions">
+      <div v-if="!enrollmentConfirmed" class="actions">
         <button
           class="back-btn"
           type="button"
@@ -150,7 +177,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { turnoService } from '@/services/turnoService'
-import { enrollmentService } from '@/services/enrollmentService'
+import { enrollmentService, type CreditInfo } from '@/services/enrollmentService'
 
 const route = useRoute()
 const router = useRouter()
@@ -163,6 +190,9 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const submitError = ref('')
 const clases = ref([])
+const credits = ref<CreditInfo[]>([])
+const useCredit = ref(false)
+const enrollmentConfirmed = ref(false)
 
 const turnoId = computed(() => String(route.query.turnoId || ''))
 const actividad = computed(() => String(route.query.actividad || 'Clase'))
@@ -254,10 +284,12 @@ const fetchClases = async () => {
       return
     }
 
-    const [clasesRes, mySingleRes] = await Promise.all([
+    const [clasesRes, mySingleRes, creditsRes] = await Promise.all([
       turnoService.getClasesByTurno(turnoId.value),
       enrollmentService.getMySingle(),
+      enrollmentService.getCreditsForTurno(Number(turnoId.value)),
     ])
+    credits.value = creditsRes.data
 
     const now = Date.now()
     const myTurnoEnrollments = mySingleRes.data.filter(
@@ -386,7 +418,13 @@ async function handleSubmit() {
 
   try {
     const clase_ids = selectedOptions.value.map(o => o.id)
-    const { data } = await enrollmentService.createSingle(clase_ids)
+    const selectedCredit = useCredit.value && credits.value.length > 0 ? credits.value[0] : undefined
+    const { data } = await enrollmentService.createSingle(clase_ids, selectedCredit?.id)
+
+    if (data.status === 'confirmed') {
+      enrollmentConfirmed.value = true
+      return
+    }
 
     const count = selectedOptions.value.length
     const diaLabel = count === 1
@@ -883,6 +921,103 @@ async function handleSubmit() {
 }
 
 .week-day-card.active .wdc-count { color: white; }
+
+/* CREDIT BANNER */
+.credit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(237, 231, 246, 0.9), rgba(255, 255, 255, 0.85));
+  border: 1.5px solid rgba(103, 58, 183, 0.25);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.credit-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.credit-icon {
+  font-size: 1.5rem;
+}
+
+.credit-banner-info strong {
+  display: block;
+  color: #4527a0;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.credit-detail {
+  display: block;
+  color: #5e35b1;
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
+
+.credit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #4527a0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.credit-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #673ab7;
+  cursor: pointer;
+}
+
+/* CONFIRMED STATE */
+.credit-confirmed {
+  text-align: center;
+  padding: 40px 20px;
+  animation: fade-in 0.4s ease;
+}
+
+.credit-confirmed-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-weight: 900;
+}
+
+.credit-confirmed h3 {
+  color: #1b5e20;
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+
+.credit-confirmed p {
+  color: #455a64;
+  font-size: 0.95rem;
+  max-width: 380px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 @media (max-width: 768px) {
   .class-page {

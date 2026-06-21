@@ -3,8 +3,9 @@ from decimal import Decimal
 from typing import List
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.domain.single_enrollment import SingleEnrollmentStatus
 from app.domain.subscription import ChargeStatus, SubscriptionStatus, OCCUPYING_SUBSCRIPTION_STATUSES
@@ -209,7 +210,9 @@ class ClaseCancellationRepository:
     async def get_credits_for_user_turno(self, user_id: int, turno_id: int) -> list[ClassCreditORM]:
         now = datetime.now(timezone.utc)
         result = await self._session.execute(
-            select(ClassCreditORM).where(
+            select(ClassCreditORM)
+            .options(selectinload(ClassCreditORM.source_clase))
+            .where(
                 ClassCreditORM.user_id == user_id,
                 ClassCreditORM.turno_id == turno_id,
                 ClassCreditORM.used_at.is_(None),
@@ -217,3 +220,23 @@ class ClaseCancellationRepository:
             )
         )
         return list(result.scalars())
+
+    async def get_credit_by_id(self, credit_id: int, user_id: int) -> ClassCreditORM | None:
+        now = datetime.now(timezone.utc)
+        result = await self._session.execute(
+            select(ClassCreditORM).where(
+                ClassCreditORM.id == credit_id,
+                ClassCreditORM.user_id == user_id,
+                ClassCreditORM.used_at.is_(None),
+                ClassCreditORM.expires_at > now,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_credit_used(self, credit_id: int, used_for_clase_id: int) -> None:
+        now = datetime.now(timezone.utc)
+        await self._session.execute(
+            update(ClassCreditORM)
+            .where(ClassCreditORM.id == credit_id)
+            .values(used_at=now, used_for_clase_id=used_for_clase_id)
+        )
