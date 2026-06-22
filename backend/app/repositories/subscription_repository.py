@@ -104,8 +104,7 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def schedule_cancellation(self, subscription_id: int, user_id: int) -> "tuple[date, int] | None":
-        """Programa baja al fin del período pagado. Retorna (ends_on, turno_id) o None."""
+    async def schedule_cancellation(self, subscription_id: int, user_id: int) -> "date | None":
         raise NotImplementedError
 
     @abstractmethod
@@ -480,10 +479,9 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         )
         return row[0]
 
-    async def schedule_cancellation(self, subscription_id: int, user_id: int) -> "tuple[date, int] | None":
+    async def schedule_cancellation(self, subscription_id: int, user_id: int) -> "date | None":
         """Baja voluntaria de un abonado activo: sigue ocupando el lugar hasta el fin del
-        período pagado (ends_on) y luego un job la efectiviza. Anula cargos pendientes.
-        Retorna (ends_on, turno_id) o None si no existe."""
+        período pagado (ends_on) y luego un job la efectiviza. Anula cargos pendientes."""
         sub = (await self._session.execute(
             select(SubscriptionORM).where(
                 SubscriptionORM.id == subscription_id,
@@ -521,7 +519,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             .values(status=ChargeStatus.WAIVED)
         )
         await self._session.flush()
-        return ends_on, sub.turno_id
+        return ends_on
 
     async def effectivize_scheduled_cancellations(self) -> list[int]:
         today = date.today()
