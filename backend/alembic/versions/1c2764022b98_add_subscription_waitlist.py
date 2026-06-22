@@ -14,40 +14,29 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # DO...EXCEPTION tolera el caso en que el tipo ya exista (DB sucia por migración
-    # anterior fallida), sin afectar una instalación limpia.
-    op.execute("""
-        DO $$
-        BEGIN
-            CREATE TYPE waitlist_status_enum AS ENUM ('waiting', 'promoted', 'cancelled');
-        EXCEPTION WHEN duplicate_object THEN
-            NULL;
-        END
-        $$;
-    """)
+    # Crear el enum explícitamente con checkfirst para evitar error si ya existe.
+    # En create_table usamos create_type=False para que SQLAlchemy no lo reintente.
+    waitlist_status = sa.Enum("waiting", "promoted", "cancelled", name="waitlist_status_enum")
+    waitlist_status.create(op.get_bind(), checkfirst=True)
 
-    op.execute("""
-        CREATE TABLE IF NOT EXISTS subscription_waitlist (
-            id          SERIAL PRIMARY KEY,
-            user_id     INTEGER NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
-            turno_id    INTEGER NOT NULL REFERENCES turnos(id) ON DELETE CASCADE,
-            status      waitlist_status_enum NOT NULL,
-            joined_at   TIMESTAMPTZ NOT NULL,
-            promoted_at TIMESTAMPTZ,
-            cancelled_at TIMESTAMPTZ,
-            created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-        )
-    """)
-
-    op.create_index("ix_subscription_waitlist_id",           "subscription_waitlist", ["id"])
-    op.create_index("ix_subscription_waitlist_turno_status", "subscription_waitlist", ["turno_id", "status"])
-    op.create_index("ix_subscription_waitlist_user",         "subscription_waitlist", ["user_id"])
+    op.create_table(
+        "subscription_waitlist",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("turno_id", sa.Integer(), sa.ForeignKey("turnos.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("status", sa.Enum("waiting", "promoted", "cancelled", name="waitlist_status_enum", create_type=False), nullable=False),
+        sa.Column("joined_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("promoted_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("cancelled_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.Index("ix_subscription_waitlist_id", "id"),
+        sa.Index("ix_subscription_waitlist_turno_status", "turno_id", "status"),
+        sa.Index("ix_subscription_waitlist_user", "user_id"),
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_subscription_waitlist_user",         table_name="subscription_waitlist")
-    op.drop_index("ix_subscription_waitlist_turno_status", table_name="subscription_waitlist")
-    op.drop_index("ix_subscription_waitlist_id",           table_name="subscription_waitlist")
     op.drop_table("subscription_waitlist")
     op.execute("DROP TYPE IF EXISTS waitlist_status_enum")
