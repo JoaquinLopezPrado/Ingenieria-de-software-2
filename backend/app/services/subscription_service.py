@@ -20,7 +20,7 @@ class SubscriptionService:
     def __init__(self, subscription_repo: AbstractSubscriptionRepository):
         self._repo = subscription_repo
 
-    async def create(self, turno_id: int, user_id: int, expires_at_override: "datetime | None" = None) -> SubscriptionCharge:
+    async def create(self, turno_id: int, user_id: int) -> SubscriptionCharge:
         turno = await self._repo.lock_active_turno(turno_id)
         await self._repo.check_duplicate(turno_id, user_id)
 
@@ -76,7 +76,7 @@ class SubscriptionService:
         start_date = period_clases[0].date
 
         due_date = _end_of_month(period_year, period_month)
-        expires_at = expires_at_override or datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
 
         _, charge = await self._repo.create(
             turno_id=turno_id,

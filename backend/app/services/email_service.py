@@ -19,7 +19,6 @@ from app.services.email_templates import (
     password_reset,
     single_payment_confirmed,
     subscription_payment_confirmed,
-    waitlist_promoted,
     welcome,
 )
 
@@ -180,21 +179,6 @@ class EmailService:
         )
         asyncio.create_task(
             self._send(to, f"Clase cancelada — {activity_name}", html)
-        )
-
-    def send_waitlist_promoted(
-        self,
-        to: str,
-        first_name: str,
-        activity_name: str,
-        turno_description: str,
-        amount: Decimal,
-        ticket_url: str,
-        ttl_hours: int = 24,
-    ) -> None:
-        html = waitlist_promoted(first_name, activity_name, turno_description, float(amount), ticket_url, ttl_hours)
-        asyncio.create_task(
-            self._send(to, f"¡Tenés un lugar en {activity_name}! — Centro de Actividades", html)
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:
