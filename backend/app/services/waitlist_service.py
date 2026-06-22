@@ -63,6 +63,7 @@ class WaitlistService:
         email, first_name = await self._repo.get_user_contact(entry.user_id)
         activity_name, turno_description = await self._repo.get_turno_info(turno_id)
 
+        ticket_url = f"{settings.frontend_url}/ticket?charge_id={charge.id}"
         if email:
             self._email_service.send_waitlist_promoted(
                 to=email,
@@ -70,6 +71,7 @@ class WaitlistService:
                 activity_name=activity_name,
                 turno_description=turno_description,
                 amount=charge.amount,
+                ticket_url=ticket_url,
                 ttl_hours=settings.waitlist_ttl_hours,
             )
 
