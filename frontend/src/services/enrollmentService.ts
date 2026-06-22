@@ -72,16 +72,6 @@ export const enrollmentService = {
   cancelDeposit: (enrollment_id: number) =>
     apiClient.post<{ refund: boolean; refund_id: string | null }>('/payments/cancel-deposit', { enrollment_id }),
 
-  // --- Lista de espera (abono mensual) ---
-  joinWaitlist: (turno_id: number) =>
-    apiClient.post('/subscriptions/waitlist', { turno_id }),
-
-  getMyWaitlist: () =>
-    apiClient.get('/subscriptions/waitlist/me'),
-
-  leaveWaitlist: (entry_id: number) =>
-    apiClient.delete(`/subscriptions/waitlist/${entry_id}`),
-
   // --- Común ---
   getMpStatusDetail: (payment_id: string) =>
     apiClient.get<{ status_detail: string | null }>(`/payments/mp-status`, { params: { payment_id } }),
