@@ -219,13 +219,16 @@
                 Completar pago de seña
               </button>
               <button
-                v-else-if="!turnosConClaseConfirmadaEnFecha.has(turno.id) && !sinCupo(turno)"
+                v-else-if="!turnosConClaseConfirmadaEnFecha.has(turno.id)"
                 class="secondary-btn"
+                :class="{ 'secondary-btn--espera': sinCupo(turno) }"
                 type="button"
                 @click="handleInscripcionSingle(turno)"
                 :disabled="loadingTurno === turno.id"
               >
-                Suscripción a Clase
+                {{ sinCupo(turno)
+                  ? 'Lista de espera · Suscripción a Clase'
+                  : 'Suscripción a Clase' }}
               </button>
               </template>
             </div>
