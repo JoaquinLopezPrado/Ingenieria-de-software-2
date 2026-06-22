@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     enrollment_expiry_check_seconds: int = 30
     monthly_charges_check_seconds: int = 86400  # cron de respaldo: genera cargos del mes 1×/día
     # Lista de espera: tiempo máximo para pagar tras ser promovido (el cargo expira si no paga)
-    waitlist_ttl_minutes: int = 1
+    waitlist_ttl_hours: int = 24
 
     # Google OAuth
     google_client_id: str = ""
