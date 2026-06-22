@@ -234,9 +234,9 @@
             </div>
 
             <div v-else class="acciones-card">
-              <div v-if="activeSubsByTurno.get(turno.id)?.ends_on" class="baja-info">
+              <div v-if="subForDate(turno)?.ends_on" class="baja-info">
                 Baja programada: tu lugar sigue activo hasta el
-                {{ formatBaja(activeSubsByTurno.get(turno.id).ends_on) }}
+                {{ formatBaja(subForDate(turno).ends_on) }}
               </div>
               <template v-else-if="confirmandoBaja === turno.id">
                 <p class="baja-confirm-msg">¿Confirmás la baja? Mantenés el lugar hasta el fin del período pagado.</p>
@@ -372,7 +372,7 @@ const TODOS_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" 
 const tabs = computed(() => ['Todos', ...activities.value.map(a => a.name)])
 const currentTab = ref('')
 const inscriptos = ref(new Set())
-const activeSubsByTurno = ref(new Map()) // turno_id → { subscription_id, ends_on }
+const activeSubsByTurno = ref(new Map()) // turno_id → [{ subscription_id, start_date, ends_on }]
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
 const myWaitlistByTurno = ref(new Map()) // turno_id → { entry_id }
@@ -434,9 +434,13 @@ const loadEnrollments = async () => {
 
   const activeSubs = mySubscriptionRes.data.filter((s) => s.status === 'active')
   inscriptos.value = new Set(activeSubs.map((s) => s.turno_id))
-  activeSubsByTurno.value = new Map(
-    activeSubs.map((s) => [s.turno_id, { subscription_id: s.subscription_id, start_date: s.start_date, ends_on: s.ends_on }])
-  )
+  const subsByTurno = new Map()
+  activeSubs.forEach((s) => {
+    const entry = { subscription_id: s.subscription_id, start_date: s.start_date, ends_on: s.ends_on }
+    if (!subsByTurno.has(s.turno_id)) subsByTurno.set(s.turno_id, [])
+    subsByTurno.get(s.turno_id).push(entry)
+  })
+  activeSubsByTurno.value = subsByTurno
 
   turnosPendienteMensual.value = new Map(
     mySubscriptionRes.data
@@ -596,13 +600,16 @@ const pocosAbonosEnMes = (t) => {
   return t.ocup > 0 && t.ocup / t.total >= 0.7
 }
 
-// ¿El cliente está suscripto para la fecha seleccionada? (sub cubre [start_date, ends_on])
-const inscriptoEnFecha = (t) => {
-  const sub = activeSubsByTurno.value.get(t.id)
-  if (!sub) return false
+// Retorna la suscripción activa que cubre la fecha seleccionada, o null.
+const subForDate = (t) => {
+  const subs = activeSubsByTurno.value.get(t.id)
+  if (!subs?.length) return null
   const d = selectedDate.value
-  return (!sub.start_date || sub.start_date <= d) && (!sub.ends_on || d <= sub.ends_on)
+  return subs.find(s => (!s.start_date || s.start_date <= d) && (!s.ends_on || d <= s.ends_on)) ?? null
 }
+
+// ¿El cliente está suscripto para la fecha seleccionada?
+const inscriptoEnFecha = (t) => subForDate(t) !== null
 
 
 const pct = (t) => {
@@ -686,7 +693,7 @@ const formatBaja = (rawDate) => {
 }
 
 const handleBaja = async (turno) => {
-  const sub = activeSubsByTurno.value.get(turno.id)
+  const sub = subForDate(turno)
   if (!sub) return
 
   loadingTurno.value = turno.id
@@ -694,7 +701,10 @@ const handleBaja = async (turno) => {
     const { data } = await enrollmentService.unsubscribe(sub.subscription_id)
     confirmandoBaja.value = null
     const next = new Map(activeSubsByTurno.value)
-    next.set(turno.id, { ...sub, ends_on: data.ends_on })
+    const updated = (next.get(turno.id) || []).map(s =>
+      s.subscription_id === sub.subscription_id ? { ...s, ends_on: data.ends_on } : s
+    )
+    next.set(turno.id, updated)
     activeSubsByTurno.value = next
   } catch {
     confirmandoBaja.value = null
