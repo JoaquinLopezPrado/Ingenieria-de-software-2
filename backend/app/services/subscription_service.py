@@ -131,9 +131,8 @@ class SubscriptionService:
         await self._ensure_current_charges(user_id=user_id)
         return await self._repo.get_subscriptions_by_user(user_id=user_id)
 
-    async def cancel(self, subscription_id: int, user_id: int) -> "int | None":
-        """Cancela suscripción PENDING. Retorna turno_id liberado o None si no existía."""
-        return await self._repo.cancel_pending(subscription_id=subscription_id, user_id=user_id)
+    async def cancel(self, subscription_id: int, user_id: int) -> None:
+        await self._repo.cancel_pending(subscription_id=subscription_id, user_id=user_id)
 
     async def unsubscribe(self, subscription_id: int, user_id: int) -> date:
         """Baja voluntaria de un abonado activo: efectiva al fin del período pagado."""
@@ -154,8 +153,7 @@ class SubscriptionService:
     async def get_overdue(self, min_unpaid: int = 2) -> list[dict]:
         return await self._repo.get_overdue(min_unpaid=min_unpaid)
 
-    async def admin_cancel(self, subscription_ids: list[int]) -> list[int]:
-        """Cancela suscripciones ACTIVE. Retorna turno_ids liberados."""
+    async def admin_cancel(self, subscription_ids: list[int]) -> int:
         return await self._repo.admin_cancel(subscription_ids=subscription_ids)
 
     async def generate_charges_for_period(self, period_month: int, period_year: int) -> int:

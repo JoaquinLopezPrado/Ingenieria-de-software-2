@@ -1,10 +1,7 @@
-import asyncio
-
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
-from app.core.tasks import promote_freed_turnos
 from app.domain.user import User
 from app.repositories.subscription_repository import SubscriptionRepository
 from app.repositories.waitlist_repository import WaitlistRepository
@@ -81,10 +78,8 @@ async def cancel_overdue_subscriptions(
     _=require_roles("admin"),
     service: SubscriptionService = Depends(get_subscription_service),
 ):
-    freed_turno_ids = await service.admin_cancel(subscription_ids=body.subscription_ids)
-    if freed_turno_ids:
-        asyncio.create_task(promote_freed_turnos(freed_turno_ids))
-    return {"cancelled": len(freed_turno_ids)}
+    cancelled = await service.admin_cancel(subscription_ids=body.subscription_ids)
+    return {"cancelled": cancelled}
 
 
 @router.post("/{subscription_id}/cancel", status_code=status.HTTP_200_OK)
@@ -104,9 +99,7 @@ async def cancel_subscription(
     current_user: User = Depends(get_current_user),
     service: SubscriptionService = Depends(get_subscription_service),
 ):
-    freed_turno_id = await service.cancel(subscription_id=subscription_id, user_id=current_user.id)
-    if freed_turno_id is not None:
-        asyncio.create_task(promote_freed_turnos([freed_turno_id]))
+    await service.cancel(subscription_id=subscription_id, user_id=current_user.id)
 
 
 @router.post("/waitlist", response_model=WaitlistEntryResponse, status_code=status.HTTP_201_CREATED)
