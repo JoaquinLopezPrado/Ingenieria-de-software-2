@@ -94,7 +94,8 @@ async def unsubscribe(
     service: SubscriptionService = Depends(get_subscription_service),
 ):
     """Baja voluntaria de un abonado activo: efectiva al fin del período pagado."""
-    ends_on = await service.unsubscribe(subscription_id=subscription_id, user_id=current_user.id)
+    ends_on, turno_id = await service.unsubscribe(subscription_id=subscription_id, user_id=current_user.id)
+    asyncio.create_task(promote_freed_turnos([turno_id]))
     return {"ends_on": ends_on.isoformat()}
 
 
