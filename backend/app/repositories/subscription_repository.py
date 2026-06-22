@@ -94,8 +94,7 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def cancel_expired(self) -> list[int]:
-        """Cancela suscripciones PENDING con cargo vencido. Retorna turno_ids liberados."""
+    async def cancel_expired(self) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -107,8 +106,7 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def effectivize_scheduled_cancellations(self) -> list[int]:
-        """Efectiviza bajas programadas vencidas. Retorna turno_ids liberados."""
+    async def effectivize_scheduled_cancellations(self) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -422,28 +420,24 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         )
         return True
 
-    async def cancel_expired(self) -> list[int]:
+    async def cancel_expired(self) -> int:
         now = datetime.now(timezone.utc)
-        # Cargos pendientes vencidos con sus turno_ids.
-        expired_rows = (await self._session.execute(
-            select(SubscriptionChargeORM.subscription_id, SubscriptionORM.turno_id)
-            .join(SubscriptionORM, SubscriptionORM.id == SubscriptionChargeORM.subscription_id)
+        # Cargos pendientes vencidos.
+        expired_charges = (await self._session.execute(
+            select(SubscriptionChargeORM.subscription_id)
             .where(
                 SubscriptionChargeORM.status == ChargeStatus.PENDING,
                 SubscriptionChargeORM.expires_at.isnot(None),
                 SubscriptionChargeORM.expires_at <= now,
-                SubscriptionORM.status == SubscriptionStatus.PENDING,
             )
-        )).all()
-        if not expired_rows:
-            return []
-        expired_sub_ids = [r[0] for r in expired_rows]
-        freed_turno_ids = [r[1] for r in expired_rows]
+        )).scalars().all()
+        if not expired_charges:
+            return 0
         # Solo se auto-cancela una suscripción que nunca se confirmó (sigue PENDING).
-        await self._session.execute(
+        result = await self._session.execute(
             update(SubscriptionORM)
             .where(
-                SubscriptionORM.id.in_(expired_sub_ids),
+                SubscriptionORM.id.in_(expired_charges),
                 SubscriptionORM.status == SubscriptionStatus.PENDING,
             )
             .values(status=SubscriptionStatus.CANCELLED, cancelled_at=now)
@@ -451,13 +445,13 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         await self._session.execute(
             update(SubscriptionChargeORM)
             .where(
-                SubscriptionChargeORM.subscription_id.in_(expired_sub_ids),
+                SubscriptionChargeORM.subscription_id.in_(expired_charges),
                 SubscriptionChargeORM.status == ChargeStatus.PENDING,
                 SubscriptionChargeORM.expires_at <= now,
             )
             .values(status=ChargeStatus.WAIVED)
         )
-        return freed_turno_ids
+        return result.rowcount
 
     async def cancel_pending(self, subscription_id: int, user_id: int) -> bool:
         result = await self._session.execute(
@@ -513,27 +507,18 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         await self._session.flush()
         return ends_on
 
-    async def effectivize_scheduled_cancellations(self) -> list[int]:
+    async def effectivize_scheduled_cancellations(self) -> int:
         today = date.today()
-        # Obtener turno_ids antes de cancelar para notificar la lista de espera.
-        to_cancel = (await self._session.execute(
-            select(SubscriptionORM.id, SubscriptionORM.turno_id)
+        result = await self._session.execute(
+            update(SubscriptionORM)
             .where(
                 SubscriptionORM.status == SubscriptionStatus.ACTIVE,
                 SubscriptionORM.ends_on.isnot(None),
                 SubscriptionORM.ends_on <= today,
             )
-        )).all()
-        if not to_cancel:
-            return []
-        sub_ids = [r[0] for r in to_cancel]
-        freed_turno_ids = [r[1] for r in to_cancel]
-        await self._session.execute(
-            update(SubscriptionORM)
-            .where(SubscriptionORM.id.in_(sub_ids))
             .values(status=SubscriptionStatus.CANCELLED, cancelled_at=datetime.now(timezone.utc))
         )
-        return freed_turno_ids
+        return result.rowcount
 
     # ------------------------------------------------------------------ #
     # Generación de cargos mensuales (renovación)                          #

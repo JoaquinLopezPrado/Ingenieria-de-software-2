@@ -144,7 +144,7 @@ class SubscriptionService:
             )
         return ends_on
 
-    async def effectivize_cancellations(self) -> list[int]:
+    async def effectivize_cancellations(self) -> int:
         return await self._repo.effectivize_scheduled_cancellations()
 
     async def get_paid_charges(self, user_id: int) -> list[dict]:
