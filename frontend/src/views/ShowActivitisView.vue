@@ -30,6 +30,11 @@
       </ActivitiesBar>
 
       <!-- Date strip -->
+      <div class="date-strip-header">
+        <span class="strip-month">{{ stripMonthLabel }}</span>
+        <button v-if="!todayInStrip" class="strip-hoy-btn" type="button" @click="goToToday">Hoy</button>
+      </div>
+
       <div class="date-strip-nav">
         <button
           class="strip-arrow"
@@ -48,7 +53,9 @@
             @click="selectedDate = date"
             type="button"
           >
-            <span class="dc-label">{{ dateDay(date) }} {{ dateNum(date) }}</span>
+            <span class="dc-day">{{ dateDay(date) }}</span>
+            <span class="dc-num">{{ dateDayNum(date) }}</span>
+            <span v-if="date === todayStr" class="dc-dot"></span>
           </button>
         </div>
 
@@ -317,18 +324,42 @@ const DAY_LABELS = {
 
 const SHORT_DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const dateDay = (str) => SHORT_DAYS[new Date(`${str}T00:00:00`).getDay()]
-const dateNum = (str) => { const d = new Date(`${str}T00:00:00`); return `${d.getDate()}/${d.getMonth() + 1}` }
+const dateDayNum = (str) => new Date(`${str}T00:00:00`).getDate()
 
 const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
+const todayStr = localDateStr()
+
 const selectedDate = ref(localDateStr())
 const classesByTurno = ref(new Map())
+
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 const stripPage = ref(0)
 const canScrollLeft = computed(() => stripPage.value > 0)
 const canScrollRight = computed(() => (stripPage.value + 1) * 7 < availableDates.value.length)
 const visibleDates = computed(() => availableDates.value.slice(stripPage.value * 7, stripPage.value * 7 + 7))
+
+const stripMonthLabel = computed(() => {
+  const dates = visibleDates.value
+  if (!dates.length) return ''
+  const first = new Date(`${dates[0]}T00:00:00`)
+  const last  = new Date(`${dates[dates.length - 1]}T00:00:00`)
+  if (first.getMonth() === last.getMonth())
+    return `${MONTH_NAMES[first.getMonth()]} ${first.getFullYear()}`
+  return `${MONTH_NAMES[first.getMonth()]} – ${MONTH_NAMES[last.getMonth()]} ${last.getFullYear()}`
+})
+
+const todayInStrip = computed(() => visibleDates.value.includes(todayStr))
+
+function goToToday() {
+  const idx = availableDates.value.indexOf(todayStr)
+  if (idx !== -1) {
+    stripPage.value = Math.floor(idx / 7)
+    selectedDate.value = todayStr
+  }
+}
 
 
 
@@ -1386,6 +1417,38 @@ h1 {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.date-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.strip-month {
+  font-size: 12px;
+  font-weight: 600;
+  color: #78909c;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.strip-hoy-btn {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00897b;
+  background: rgba(0, 137, 123, 0.08);
+  border: 1px solid rgba(0, 137, 123, 0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.strip-hoy-btn:hover {
+  background: rgba(0, 137, 123, 0.15);
+  border-color: rgba(0, 137, 123, 0.4);
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   .header { padding: 0 18px; }
@@ -1447,7 +1510,7 @@ h1 {
   justify-content: center;
   flex: 1;
   min-width: 0;
-  padding: 7px 4px;
+  padding: 10px 4px 8px;
   border-radius: 8px;
   border: 1.5px solid rgba(0, 137, 123, 0.13);
   background: rgba(255, 255, 255, 0.88);
@@ -1471,14 +1534,33 @@ h1 {
   transform: translateY(-3px);
 }
 
-.dc-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #546e7a;
-  white-space: nowrap;
+.dc-day {
+  font-size: 10px;
+  font-weight: 600;
+  color: #90a4ae;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
 }
 
-.date-card.active .dc-label { color: white; }
+.dc-num {
+  font-size: 19px;
+  font-weight: 700;
+  color: #37474f;
+  line-height: 1.15;
+}
+
+.dc-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #00897b;
+  margin-top: 3px;
+}
+
+.date-card.active .dc-day  { color: rgba(255, 255, 255, 0.75); }
+.date-card.active .dc-num  { color: white; }
+.date-card.active .dc-dot  { background: white; }
 
 .banner {
   border-radius: 12px;
