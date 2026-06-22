@@ -72,22 +72,6 @@
         Cargando turnos...
       </div>
 
-      <div v-else class="badges">
-        <div class="badge">
-          <span class="badge-num" style="color: #00897B">
-            {{ disponibles }}
-          </span>
-          <span class="badge-label">Turnos disponibles</span>
-        </div>
-
-        <div class="badge">
-          <span class="badge-num" style="color: #E53935">
-            {{ completos }}
-          </span>
-          <span class="badge-label">Turnos completos</span>
-        </div>
-      </div>
-
       <div class="grid">
         <div
           v-for="turno in currentTurnos"
@@ -591,8 +575,6 @@ const inscriptoEnFecha = (t) => {
   return (!sub.start_date || sub.start_date <= d) && (!sub.ends_on || d <= sub.ends_on)
 }
 
-const disponibles = computed(() => currentTurnos.value.filter((t) => !sinCupo(t)).length)
-const completos = computed(() => currentTurnos.value.filter((t) => sinCupo(t)).length)
 
 const pct = (t) => {
   const tot = cupoTotal(t)
@@ -921,37 +903,6 @@ h1 {
 }
 
 /* BADGES */
-.badges {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-}
-
-.badge {
-  min-width: 190px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(10px);
-  border-radius: 18px;
-  padding: 16px 18px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(0, 137, 123, 0.08);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
-}
-
-.badge-num {
-  font-size: 1.9rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.badge-label {
-  font-size: 0.92rem;
-  color: #78909c;
-  font-weight: 600;
-}
 
 .no-turnos-msg {
   text-align: center;
@@ -1443,7 +1394,6 @@ h1 {
   .main { padding: 20px 18px 50px; }
   h1 { font-size: 1.9rem; }
   .grid { grid-template-columns: 1fr; }
-  .badge { width: 100%; }
 }
 
 /* DATE STRIP */
