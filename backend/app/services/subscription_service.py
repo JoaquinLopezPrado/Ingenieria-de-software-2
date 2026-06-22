@@ -31,9 +31,18 @@ class SubscriptionService:
                 detail="El turno no tiene clases futuras disponibles.",
             )
 
+        # Obtener inscripciones sueltas activas del usuario en clases futuras antes de
+        # buscar el período: la propia inscripción del usuario no suma nueva ocupación
+        # al suscribirse (es la misma persona ocupando el mismo slot).
+        all_future_ids = [c.id for c in future_clases]
+        user_confirmed, user_deposit = await self._repo.get_single_covered_clase_ids(user_id, all_future_ids)
+        user_single_ids = user_confirmed | user_deposit
+
         # Elige el primer período (mes) con cupo disponible. Capacidad por período:
         # un abonado saliente ocupa su período pagado y libera el siguiente.
-        period_month, period_year, period_clases = await self._first_available_period(turno, future_clases)
+        period_month, period_year, period_clases = await self._first_available_period(
+            turno, future_clases, user_single_ids
+        )
         if period_clases is None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -42,13 +51,19 @@ class SubscriptionService:
 
         clase_ids = [c.id for c in period_clases]
         full_clase_ids = await self._repo.get_full_clase_ids(clase_ids, turno.capacity)
-        billable_clase_ids = [cid for cid in clase_ids if cid not in full_clase_ids]
+        # Una clase donde el usuario ya tiene inscripción suelta no es "llena para él":
+        # ocupa su propio slot, no agrega una persona nueva al suscribirse.
+        user_single_in_period = set(clase_ids) & user_single_ids
+        truly_full_clase_ids = full_clase_ids - user_single_in_period
 
-        confirmed_covered, deposit_covered = await self._repo.get_single_covered_clase_ids(user_id, billable_clase_ids)
+        billable_clase_ids = [cid for cid in clase_ids if cid not in truly_full_clase_ids]
+
+        confirmed_covered = user_confirmed & set(billable_clase_ids)
+        deposit_covered = user_deposit & set(billable_clase_ids)
 
         class_price = Decimal(turno.class_price)
         original_amount = class_price * len(clase_ids)
-        discount_full_classes = class_price * len(full_clase_ids)
+        discount_full_classes = class_price * len(truly_full_clase_ids)
         amount, _, discount_deposit_single = self._compute_amounts(
             class_price=class_price,
             period_clase_ids=billable_clase_ids,
@@ -78,17 +93,22 @@ class SubscriptionService:
         charge.discount_full_classes = discount_full_classes
         return charge
 
-    async def _first_available_period(self, turno, future_clases):
+    async def _first_available_period(self, turno, future_clases, user_single_ids: set[int]):
         """Primer (mes, año) con al menos una clase con cupo combinado disponible.
 
         Recorre clase a clase usando capacidad combinada (suscripciones + sueltas) para
         evitar que la suscripción arranque en una fecha ya llena. Devuelve el período y
         las clases a partir de la primera con cupo, o (_, _, None) si no hay ninguna.
+
+        ``user_single_ids``: clases donde el usuario ya tiene inscripción suelta activa.
+        Al chequear capacidad se resta 1 para esas clases: el usuario no agrega nueva
+        ocupación al suscribirse, simplemente convierte su slot suelto a abono.
         """
         for month, year, clases in self._periods(future_clases):
             for i, clase in enumerate(clases):
                 combined = await self._repo.count_combined_on(turno.id, clase.id, clase.date)
-                if combined < turno.capacity:
+                adjustment = 1 if clase.id in user_single_ids else 0
+                if combined - adjustment < turno.capacity:
                     return month, year, clases[i:]
         return 0, 0, None
 
