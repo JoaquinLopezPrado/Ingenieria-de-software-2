@@ -5,7 +5,6 @@ from typing import List
 from pydantic import BaseModel, field_serializer
 
 from app.domain.subscription import ChargeStatus, SubscriptionStatus
-from app.domain.waitlist import WaitlistStatus
 
 
 def _fmt_time(value: time) -> str:
@@ -96,29 +95,6 @@ class MySubscriptionResponse(BaseModel):
     activity_name: str
     days: List[str]
     pending_charge: PendingChargeResponse | None = None
-
-    model_config = {"from_attributes": True}
-
-    @field_serializer("start_time", "end_time")
-    def serialize_time(self, value: time) -> str:
-        return _fmt_time(value)
-
-
-class JoinWaitlistRequest(BaseModel):
-    turno_id: int
-
-
-class WaitlistEntryResponse(BaseModel):
-    entry_id: int
-    turno_id: int
-    turno_description: str
-    activity_name: str
-    instructor: str
-    start_time: time
-    end_time: time
-    days: List[str]
-    joined_at: datetime
-    status: WaitlistStatus
 
     model_config = {"from_attributes": True}
 
