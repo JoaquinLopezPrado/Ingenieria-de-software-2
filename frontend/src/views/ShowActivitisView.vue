@@ -183,6 +183,15 @@
               </button>
             </div>
 
+            <div v-else-if="activeSubsByTurno.get(turno.id)?.length && !inscriptoEnFecha(turno)" class="acciones-card">
+              <p class="espera-info">
+                Estás inscripto para el siguiente período
+                <template v-if="subFutura(turno)?.start_date">
+                  (a partir del {{ formatBaja(subFutura(turno).start_date) }})
+                </template>.
+              </p>
+            </div>
+
             <div v-else-if="!inscriptoEnFecha(turno)" class="acciones-card">
               <template v-if="enListaDeEspera(turno)">
                 <p class="espera-info">Estás en la lista de espera de este turno.</p>
@@ -603,6 +612,14 @@ const subForDate = (t) => {
   if (!subs?.length) return null
   const d = selectedDate.value
   return subs.find(s => (!s.start_date || s.start_date <= d) && (!s.ends_on || d <= s.ends_on)) ?? null
+}
+
+// Retorna la primera suscripción activa del turno que NO cubre la fecha seleccionada (período futuro).
+const subFutura = (t) => {
+  const subs = activeSubsByTurno.value.get(t.id)
+  if (!subs?.length) return null
+  const d = selectedDate.value
+  return subs.find(s => s.start_date > d) ?? null
 }
 
 // ¿El cliente está suscripto para la fecha seleccionada?
