@@ -189,9 +189,9 @@ class EmailService:
         activity_name: str,
         turno_description: str,
         amount: Decimal,
-        ttl_hours: int = 24,
+        ttl_minutes: int = 1440,
     ) -> None:
-        html = waitlist_promoted(first_name, activity_name, turno_description, float(amount), ttl_hours)
+        html = waitlist_promoted(first_name, activity_name, turno_description, float(amount), ttl_minutes)
         asyncio.create_task(
             self._send(to, f"¡Tenés un lugar en {activity_name}! — Centro de Actividades", html)
         )
