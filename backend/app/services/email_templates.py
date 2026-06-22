@@ -526,8 +526,13 @@ def waitlist_promoted(
     activity_name: str,
     turno_description: str,
     amount: float,
-    ttl_hours: int = 24,
+    ttl_minutes: int = 1440,
 ) -> str:
+    if ttl_minutes >= 60:
+        hours = ttl_minutes // 60
+        ttl_label = f"{hours} {'hora' if hours == 1 else 'horas'}"
+    else:
+        ttl_label = f"{ttl_minutes} {'minuto' if ttl_minutes == 1 else 'minutos'}"
     content = f"""
       <h2 style="color:#11a691;margin-top:0;">&#x1F389; Hay un lugar para vos, {first_name}!</h2>
       <p style="color:#444;line-height:1.6;">
@@ -549,7 +554,7 @@ def waitlist_promoted(
         </tr>
       </table>
       <p style="color:#e65100;font-size:13px;">
-        Tenés <strong>{ttl_hours} horas</strong> para completar el pago.
+        Tenés <strong>{ttl_label}</strong> para completar el pago.
         Si no pagás a tiempo, el lugar pasará al siguiente en la lista.
       </p>
       <p style="color:#444;line-height:1.6;">
