@@ -526,6 +526,7 @@ def waitlist_promoted(
     activity_name: str,
     turno_description: str,
     amount: float,
+    ticket_url: str,
     ttl_hours: int = 24,
 ) -> str:
     content = f"""
@@ -552,9 +553,12 @@ def waitlist_promoted(
         Tenés <strong>{ttl_hours} horas</strong> para completar el pago.
         Si no pagás a tiempo, el lugar pasará al siguiente en la lista.
       </p>
-      <p style="color:#444;line-height:1.6;">
-        Para completar el pago ingresá a tu cuenta y dirigite a la sección
-        <strong>Suscripciones</strong>, donde vas a encontrar el cargo pendiente.
+      <p style="margin-top:28px;">
+        <a href="{ticket_url}"
+           style="background:#11a691;color:#fff;padding:12px 24px;
+                  border-radius:8px;text-decoration:none;font-weight:bold;">
+          Ir a pagar
+        </a>
       </p>
     """
     return _wrap(content)
