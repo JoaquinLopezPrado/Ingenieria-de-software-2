@@ -86,7 +86,7 @@
           v-for="turno in currentTurnos"
           :key="turno.id"
           class="card"
-          :class="{ inscripto: inscriptoEnFecha(turno), 'sin-clases': !turno.hasRemainingClasses }"
+          :class="{ inscripto: inscriptoEnFecha(turno) }"
         >
 
           <div
@@ -966,11 +966,6 @@ h1 {
 
 .card.inscripto {
   border: 2px solid #00897b;
-}
-
-.card.sin-clases {
-  opacity: 0.6;
-  filter: grayscale(30%);
 }
 
 .sin-clases-aviso {
