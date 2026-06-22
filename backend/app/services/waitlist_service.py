@@ -43,7 +43,7 @@ class WaitlistService:
         if entry is None:
             return False
 
-        waitlist_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.waitlist_ttl_hours)
+        waitlist_expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.waitlist_ttl_minutes)
         try:
             charge = await self._sub_service.create(
                 turno_id=turno_id,
@@ -70,7 +70,7 @@ class WaitlistService:
                 activity_name=activity_name,
                 turno_description=turno_description,
                 amount=charge.amount,
-                ttl_hours=settings.waitlist_ttl_hours,
+                ttl_minutes=settings.waitlist_ttl_minutes,
             )
 
         logger.info(
