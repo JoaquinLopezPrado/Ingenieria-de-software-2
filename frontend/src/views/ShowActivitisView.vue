@@ -38,10 +38,10 @@
       <div class="date-strip-nav">
         <button
           class="strip-arrow"
-          :class="{ invisible: !canScrollLeft }"
+          :class="{ invisible: !canPrev }"
           type="button"
           aria-label="Anterior"
-          @click="stripPage--"
+          @click="prevDay"
         >&#8249;</button>
 
         <div class="date-strip">
@@ -61,10 +61,10 @@
 
         <button
           class="strip-arrow"
-          :class="{ invisible: !canScrollRight }"
+          :class="{ invisible: !canNext }"
           type="button"
           aria-label="Siguiente"
-          @click="stripPage++"
+          @click="nextDay"
         >&#8250;</button>
       </div>
 
@@ -314,10 +314,23 @@ const classesByTurno = ref(new Map())
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-const stripPage = ref(0)
-const canScrollLeft = computed(() => stripPage.value > 0)
-const canScrollRight = computed(() => (stripPage.value + 1) * 7 < availableDates.value.length)
-const visibleDates = computed(() => availableDates.value.slice(stripPage.value * 7, stripPage.value * 7 + 7))
+const selectedDateIdx = computed(() => availableDates.value.indexOf(selectedDate.value))
+const canPrev = computed(() => selectedDateIdx.value > 0)
+const canNext = computed(() => selectedDateIdx.value < availableDates.value.length - 1)
+
+const visibleDates = computed(() => {
+  const idx = selectedDateIdx.value
+  const total = availableDates.value.length
+  const start = Math.max(0, Math.min(idx - 3, total - 7))
+  return availableDates.value.slice(start, start + 7)
+})
+
+function prevDay() {
+  if (canPrev.value) selectedDate.value = availableDates.value[selectedDateIdx.value - 1]
+}
+function nextDay() {
+  if (canNext.value) selectedDate.value = availableDates.value[selectedDateIdx.value + 1]
+}
 
 const stripMonthLabel = computed(() => {
   const dates = visibleDates.value
@@ -332,11 +345,7 @@ const stripMonthLabel = computed(() => {
 const todayInStrip = computed(() => visibleDates.value.includes(todayStr))
 
 function goToToday() {
-  const idx = availableDates.value.indexOf(todayStr)
-  if (idx !== -1) {
-    stripPage.value = Math.floor(idx / 7)
-    selectedDate.value = todayStr
-  }
+  if (availableDates.value.includes(todayStr)) selectedDate.value = todayStr
 }
 
 
@@ -488,7 +497,6 @@ const loadAllTurnos = async () => {
 
 watch(currentTab, async (newTab) => {
   selectedDate.value = localDateStr()
-  stripPage.value = 0
   if (newTab === 'Todos') {
     await loadAllTurnos()
     loadEnrollments()
