@@ -1,15 +1,14 @@
 """feat: agregar tabla subscription_waitlist para lista de espera de abonos
 
-Revision ID: a1b2c3d4e5f6
-Revises: f9a1b2c3d4e5
+Revision ID: 1c2764022b98
+Revises: c3d4e5f6a7b8
 Create Date: 2026-06-22
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
-revision = "a1b2c3d4e5f6"
-down_revision = "f9a1b2c3d4e5"
+revision = "1c2764022b98"
+down_revision = "c3d4e5f6a7b8"
 branch_labels = None
 depends_on = None
 
