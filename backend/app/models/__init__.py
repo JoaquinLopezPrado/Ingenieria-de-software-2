@@ -10,4 +10,3 @@ from app.models.single_enrollment import SingleEnrollment, SingleEnrollmentSlot
 from app.models.subscription import Subscription, SubscriptionCharge
 from app.models.subscription_class_discount import SubscriptionClassDiscount
 from app.models.turno import Turno, TurnoDia
-from app.models.waitlist import SubscriptionWaitlist
