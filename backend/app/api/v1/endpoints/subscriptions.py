@@ -4,22 +4,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, get_db, require_roles
 from app.domain.user import User
 from app.repositories.subscription_repository import SubscriptionRepository
+from app.repositories.waitlist_repository import WaitlistRepository
 from app.schemas.subscription import (
     CancelSubscriptionsRequest,
     CreateSubscriptionRequest,
+    JoinWaitlistRequest,
     MySubscriptionResponse,
     OverdueSubscriptionResponse,
     PaidChargeResponse,
     PendingChargeResponse,
     SubscriptionChargeResponse,
+    WaitlistEntryResponse,
 )
+from app.services.email_service import EmailService
 from app.services.subscription_service import SubscriptionService
+from app.services.waitlist_service import WaitlistService
 
 router = APIRouter()
 
 
 def get_subscription_service(db: AsyncSession = Depends(get_db)) -> SubscriptionService:
     return SubscriptionService(subscription_repo=SubscriptionRepository(db))
+
+
+def get_waitlist_service(db: AsyncSession = Depends(get_db)) -> WaitlistService:
+    sub_service = SubscriptionService(subscription_repo=SubscriptionRepository(db))
+    return WaitlistService(
+        waitlist_repo=WaitlistRepository(db),
+        subscription_service=sub_service,
+        email_service=EmailService(),
+    )
 
 
 @router.post("", response_model=SubscriptionChargeResponse, status_code=status.HTTP_201_CREATED)
@@ -86,6 +100,62 @@ async def cancel_subscription(
     service: SubscriptionService = Depends(get_subscription_service),
 ):
     await service.cancel(subscription_id=subscription_id, user_id=current_user.id)
+
+
+@router.post("/waitlist", response_model=WaitlistEntryResponse, status_code=status.HTTP_201_CREATED)
+async def join_waitlist(
+    body: JoinWaitlistRequest,
+    current_user: User = Depends(get_current_user),
+    service: WaitlistService = Depends(get_waitlist_service),
+):
+    """Anotarse en la lista de espera para un turno."""
+    entry = await service.join(turno_id=body.turno_id, user_id=current_user.id)
+    return WaitlistEntryResponse(
+        entry_id=entry.id,
+        turno_id=entry.turno_id,
+        turno_description="",
+        activity_name="",
+        instructor="",
+        start_time=entry.joined_at.time(),
+        end_time=entry.joined_at.time(),
+        days=[],
+        joined_at=entry.joined_at,
+        status=entry.status,
+    )
+
+
+@router.get("/waitlist/me", response_model=list[WaitlistEntryResponse], status_code=status.HTTP_200_OK)
+async def list_my_waitlist(
+    current_user: User = Depends(get_current_user),
+    service: WaitlistService = Depends(get_waitlist_service),
+):
+    """Lista las entradas activas del usuario en listas de espera."""
+    items = await service.get_by_user(user_id=current_user.id)
+    return [
+        WaitlistEntryResponse(
+            entry_id=item.entry_id,
+            turno_id=item.turno_id,
+            turno_description=item.turno_description,
+            activity_name=item.activity_name,
+            instructor=item.instructor,
+            start_time=item.start_time,
+            end_time=item.end_time,
+            days=item.days,
+            joined_at=item.joined_at,
+            status=item.status,
+        )
+        for item in items
+    ]
+
+
+@router.delete("/waitlist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_waitlist(
+    entry_id: int,
+    current_user: User = Depends(get_current_user),
+    service: WaitlistService = Depends(get_waitlist_service),
+):
+    """Salir de la lista de espera."""
+    await service.leave(entry_id=entry_id, user_id=current_user.id)
 
 
 def _to_response(item) -> MySubscriptionResponse:
