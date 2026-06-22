@@ -1246,13 +1246,13 @@ h1 {
 }
 
 .accion-btn.espera {
-  background: #F57C00;
-  color: white;
-  box-shadow: 0 10px 18px rgba(245, 124, 0, 0.20);
+  background: #FFE0B2;
+  color: #E65100;
+  box-shadow: 0 10px 18px rgba(255, 152, 0, 0.12);
 }
 
 .accion-btn.espera:hover:not(:disabled) {
-  background: #E65100;
+  background: #FFCC80;
   transform: translateY(-1px);
 }
 
@@ -1360,12 +1360,12 @@ h1 {
 }
 
 .secondary-btn--espera {
-  border-color: #F57C00;
-  color: #F57C00;
+  border-color: #FFB74D;
+  color: #E65100;
 }
 
 .secondary-btn--espera:hover {
-  background: rgba(245, 124, 0, 0.08);
+  background: rgba(255, 224, 178, 0.5);
 }
 
 
