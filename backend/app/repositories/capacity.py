@@ -76,6 +76,7 @@ def occupied_subq(clase_turno_id_col, clase_id_col, clase_date_col):
             SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
             *subscription_covers(clase_date_col),
         )
+        .correlate_except(SubscriptionORM)
     )
     sub_singles = (
         select(SingleEnrollmentORM.user_id)
@@ -84,6 +85,7 @@ def occupied_subq(clase_turno_id_col, clase_id_col, clase_date_col):
             SingleSlotORM.clase_id == clase_id_col,
             SingleEnrollmentORM.status.in_(ACTIVE_SINGLE_STATUSES),
         )
+        .correlate_except(SingleEnrollmentORM, SingleSlotORM)
     )
-    combined = union(sub_subs, sub_singles).subquery()
+    combined = union(sub_subs, sub_singles).lateral()
     return select(func.count()).select_from(combined).scalar_subquery()
