@@ -135,16 +135,15 @@ class SubscriptionService:
         """Cancela suscripción PENDING. Retorna turno_id liberado o None si no existía."""
         return await self._repo.cancel_pending(subscription_id=subscription_id, user_id=user_id)
 
-    async def unsubscribe(self, subscription_id: int, user_id: int) -> "tuple[date, int]":
-        """Baja voluntaria de un abonado activo: efectiva al fin del período pagado.
-        Retorna (ends_on, turno_id)."""
-        result = await self._repo.schedule_cancellation(subscription_id=subscription_id, user_id=user_id)
-        if result is None:
+    async def unsubscribe(self, subscription_id: int, user_id: int) -> date:
+        """Baja voluntaria de un abonado activo: efectiva al fin del período pagado."""
+        ends_on = await self._repo.schedule_cancellation(subscription_id=subscription_id, user_id=user_id)
+        if ends_on is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No tenés una suscripción activa para dar de baja.",
             )
-        return result
+        return ends_on
 
     async def effectivize_cancellations(self) -> list[int]:
         return await self._repo.effectivize_scheduled_cancellations()
