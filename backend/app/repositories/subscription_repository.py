@@ -99,8 +99,7 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def cancel_pending(self, subscription_id: int, user_id: int) -> "int | None":
-        """Cancela suscripción PENDING del usuario. Retorna turno_id liberado o None si no existe."""
+    async def cancel_pending(self, subscription_id: int, user_id: int) -> bool:
         raise NotImplementedError
 
     @abstractmethod
@@ -129,8 +128,7 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def admin_cancel(self, subscription_ids: list[int]) -> list[int]:
-        """Cancela suscripciones ACTIVE. Retorna lista de turno_ids liberados."""
+    async def admin_cancel(self, subscription_ids: list[int]) -> int:
         raise NotImplementedError
 
 
@@ -461,23 +459,17 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         )
         return freed_turno_ids
 
-    async def cancel_pending(self, subscription_id: int, user_id: int) -> "int | None":
-        row = (await self._session.execute(
-            select(SubscriptionORM.turno_id)
+    async def cancel_pending(self, subscription_id: int, user_id: int) -> bool:
+        result = await self._session.execute(
+            update(SubscriptionORM)
             .where(
                 SubscriptionORM.id == subscription_id,
                 SubscriptionORM.user_id == user_id,
                 SubscriptionORM.status == SubscriptionStatus.PENDING,
             )
-        )).one_or_none()
-        if row is None:
-            return None
-        await self._session.execute(
-            update(SubscriptionORM)
-            .where(SubscriptionORM.id == subscription_id)
             .values(status=SubscriptionStatus.CANCELLED, cancelled_at=datetime.now(timezone.utc))
         )
-        return row[0]
+        return result.rowcount > 0
 
     async def schedule_cancellation(self, subscription_id: int, user_id: int) -> "date | None":
         """Baja voluntaria de un abonado activo: sigue ocupando el lugar hasta el fin del
@@ -652,26 +644,18 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             for row in result.all()
         ]
 
-    async def admin_cancel(self, subscription_ids: list[int]) -> list[int]:
+    async def admin_cancel(self, subscription_ids: list[int]) -> int:
         if not subscription_ids:
-            return []
-        rows = (await self._session.execute(
-            select(SubscriptionORM.id, SubscriptionORM.turno_id)
+            return 0
+        result = await self._session.execute(
+            update(SubscriptionORM)
             .where(
                 SubscriptionORM.id.in_(subscription_ids),
                 SubscriptionORM.status == SubscriptionStatus.ACTIVE,
             )
-        )).all()
-        if not rows:
-            return []
-        active_ids = [r[0] for r in rows]
-        freed_turno_ids = [r[1] for r in rows]
-        await self._session.execute(
-            update(SubscriptionORM)
-            .where(SubscriptionORM.id.in_(active_ids))
             .values(status=SubscriptionStatus.CANCELLED, cancelled_at=datetime.now(timezone.utc))
         )
-        return freed_turno_ids
+        return result.rowcount
 
     # ------------------------------------------------------------------ #
     # Helpers                                                             #

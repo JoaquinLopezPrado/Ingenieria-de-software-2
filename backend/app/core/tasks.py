@@ -29,12 +29,8 @@ async def _cancel_expired_enrollments() -> None:
                     len(freed_from_expired), len(freed_from_scheduled),
                 )
 
-    await promote_freed_turnos(freed_turno_ids)
-
-
-async def promote_freed_turnos(turno_ids: list[int]) -> None:
-    """Intenta promover la lista de espera para cada turno que liberó un cupo."""
-    for turno_id in set(turno_ids):
+    # Intentar promover lista de espera para cada turno que liberó un cupo.
+    for turno_id in set(freed_turno_ids):
         try:
             async with AsyncSessionLocal() as session:
                 async with session.begin():
