@@ -184,14 +184,29 @@
             </div>
 
             <div v-else-if="!inscriptoEnFecha(turno)" class="acciones-card">
+              <template v-if="enListaDeEspera(turno)">
+                <p class="espera-info">Estás en la lista de espera de este turno.</p>
+                <button
+                  class="baja-btn"
+                  type="button"
+                  :disabled="loadingTurno === turno.id"
+                  @click="handleLeaveWaitlist(turno)"
+                >
+                  {{ loadingTurno === turno.id ? 'Procesando...' : 'Salir de la lista' }}
+                </button>
+              </template>
+              <template v-else>
               <button
                 class="accion-btn"
                 :class="{ espera: sinCupoEnMes(turno) }"
                 @click="handleInscripcion(turno)"
+                :disabled="loadingTurno === turno.id"
               >
-                {{ sinCupoEnMes(turno)
-                  ? 'Lista de espera · Suscripción Mensual'
-                  : 'Suscripción Mensual' }}
+                {{ loadingTurno === turno.id
+                  ? 'Procesando...'
+                  : sinCupoEnMes(turno)
+                    ? 'Lista de espera · Suscripción Mensual'
+                    : 'Suscripción Mensual' }}
               </button>
 
               <button
@@ -215,6 +230,7 @@
                   ? 'Lista de espera · Suscripción a Clase'
                   : 'Suscripción a Clase' }}
               </button>
+              </template>
             </div>
 
             <div v-else class="acciones-card">
@@ -359,6 +375,7 @@ const inscriptos = ref(new Set())
 const activeSubsByTurno = ref(new Map()) // turno_id → { subscription_id, ends_on }
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
+const myWaitlistByTurno = ref(new Map()) // turno_id → { entry_id }
 const seniasRaw = ref([])
 const turnosConSeniaPagada = computed(() => new Map(
   seniasRaw.value
@@ -404,9 +421,10 @@ const loadTurnos = async (activityId) => {
 }
 
 const loadEnrollments = async () => {
-  const [mySubscriptionRes, mySingleRes] = await Promise.all([
+  const [mySubscriptionRes, mySingleRes, myWaitlistRes] = await Promise.all([
     enrollmentService.getMySubscription(),
     enrollmentService.getMySingle(),
+    enrollmentService.getMyWaitlist().catch(() => ({ data: [] })),
   ])
 
   const now = Date.now()
@@ -435,6 +453,9 @@ const loadEnrollments = async () => {
   seniasRaw.value = mySingleRes.data.filter(e => e.status === 'deposit_paid')
   confirmadasRaw.value = mySingleRes.data.filter(e => e.status === 'confirmed')
 
+  myWaitlistByTurno.value = new Map(
+    (myWaitlistRes.data || []).map(e => [e.turno_id, { entry_id: e.entry_id }])
+  )
 }
 
 const loadAllClases = async () => {
@@ -605,6 +626,10 @@ const barBgColor = (t) => {
 
 const handleInscripcion = async (turno) => {
   if (inscriptoEnFecha(turno)) return
+  if (sinCupoEnMes(turno)) {
+    await handleJoinWaitlist(turno)
+    return
+  }
 
   loadingTurno.value = turno.id
   errorMensaje.value = null
@@ -740,6 +765,47 @@ const handlePagarSaldo = async (turno) => {
     window.location.href = data.init_point
   } catch {
     errorMensaje.value = 'No se pudo iniciar el pago del saldo. Intentá de nuevo.'
+    avisoLleno.value = turno.id
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
+  } finally {
+    loadingTurno.value = null
+  }
+}
+
+const enListaDeEspera = (turno) => myWaitlistByTurno.value.has(turno.id)
+
+const handleJoinWaitlist = async (turno) => {
+  loadingTurno.value = turno.id
+  errorMensaje.value = null
+  try {
+    const { data } = await enrollmentService.joinWaitlist(turno.id)
+    const next = new Map(myWaitlistByTurno.value)
+    next.set(turno.id, { entry_id: data.entry_id })
+    myWaitlistByTurno.value = next
+  } catch (err) {
+    if (err.response?.status === 409) {
+      errorMensaje.value = err.response.data?.detail || 'Ya estás en la lista de espera o tenés una suscripción activa.'
+    } else {
+      errorMensaje.value = 'Ocurrió un error. Intentá de nuevo.'
+    }
+    avisoLleno.value = turno.id
+    setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
+  } finally {
+    loadingTurno.value = null
+  }
+}
+
+const handleLeaveWaitlist = async (turno) => {
+  const w = myWaitlistByTurno.value.get(turno.id)
+  if (!w) return
+  loadingTurno.value = turno.id
+  try {
+    await enrollmentService.leaveWaitlist(w.entry_id)
+    const next = new Map(myWaitlistByTurno.value)
+    next.delete(turno.id)
+    myWaitlistByTurno.value = next
+  } catch {
+    errorMensaje.value = 'No se pudo salir de la lista. Intentá de nuevo.'
     avisoLleno.value = turno.id
     setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
   } finally {
@@ -1231,6 +1297,18 @@ h1 {
 .accion-btn.espera:hover:not(:disabled) {
   background: #FFCC80;
   transform: translateY(-1px);
+}
+
+.espera-info {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e65100;
+  text-align: center;
+  padding: 6px 10px;
+  background: #FFF3E0;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
 }
 
 .pago-pendiente-info {
