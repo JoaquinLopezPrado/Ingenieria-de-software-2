@@ -149,12 +149,6 @@
 
           <div v-if="turno.hasRemainingClasses">
             <div class="cap-row">
-              <span class="cap-text" :style="{ color: barColor(turno) }">
-                {{ sinCupo(turno)
-                  ? 'Sin Cupos Disponibles'
-                  : `${cupoLibre(turno)} cupo${cupoLibre(turno) !== 1 ? 's' : ''} disponible${cupoLibre(turno) !== 1 ? 's' : ''}` }}
-              </span>
-
               <span
                 class="cap-num"
                 :style="{ color: barColor(turno) }"
@@ -1207,15 +1201,8 @@ h1 {
 /* CAPACIDAD */
 .cap-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: flex-end;
   margin-bottom: 8px;
-}
-
-.cap-text {
-  font-size: 13px;
-  color: #607d8b;
-  font-weight: 500;
 }
 
 .cap-num {
