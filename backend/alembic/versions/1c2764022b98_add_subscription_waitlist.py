@@ -14,6 +14,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Crear el enum explícitamente con checkfirst para evitar error si ya existe.
+    # En create_table usamos create_type=False para que SQLAlchemy no lo reintente.
     waitlist_status = sa.Enum("waiting", "promoted", "cancelled", name="waitlist_status_enum")
     waitlist_status.create(op.get_bind(), checkfirst=True)
 
@@ -22,7 +24,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("turno_id", sa.Integer(), sa.ForeignKey("turnos.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("status", sa.Enum("waiting", "promoted", "cancelled", name="waitlist_status_enum"), nullable=False),
+        sa.Column("status", sa.Enum("waiting", "promoted", "cancelled", name="waitlist_status_enum", create_type=False), nullable=False),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("promoted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("cancelled_at", sa.DateTime(timezone=True), nullable=True),
