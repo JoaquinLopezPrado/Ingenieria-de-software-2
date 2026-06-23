@@ -384,52 +384,6 @@ def clase_cancelada_suscripcion(
     activity_name: str,
     turno_description: str,
     clase_date: date,
-    descuento: Decimal,
-    reason: str,
-) -> str:
-    fecha = clase_date.strftime("%-d de %B de %Y")
-    content = f"""
-      <h2 style="color:#e05252;margin-top:0;">Clase cancelada, {first_name}</h2>
-      <p style="color:#444;line-height:1.6;">
-        El centro canceló una clase de tu abono mensual. El importe correspondiente
-        se descontará automáticamente de tu próximo período de cobro.
-      </p>
-      <table width="100%" cellpadding="8" cellspacing="0"
-             style="border-collapse:collapse;margin:20px 0;">
-        <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">Actividad</td>
-          <td style="color:#222;font-weight:bold;">{activity_name}</td>
-        </tr>
-        <tr>
-          <td style="color:#666;font-size:13px;">Turno</td>
-          <td style="color:#222;">{turno_description}</td>
-        </tr>
-        <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">Fecha de clase cancelada</td>
-          <td style="color:#222;">{fecha}</td>
-        </tr>
-        <tr>
-          <td style="color:#666;font-size:13px;">Descuento aplicado</td>
-          <td style="color:#11a691;font-weight:bold;">$ {descuento:,.2f}</td>
-        </tr>
-        <tr style="background:#f0faf8;">
-          <td style="color:#666;font-size:13px;">Motivo</td>
-          <td style="color:#444;">{reason}</td>
-        </tr>
-      </table>
-      <p style="color:#444;line-height:1.6;">
-        Lamentamos los inconvenientes. Si tenés alguna consulta, contactanos.
-      </p>
-    """
-    return _wrap(content)
-
-
-def clase_cancelada_individual_completo(
-    first_name: str,
-    activity_name: str,
-    turno_description: str,
-    clase_date: date,
-    credito: Decimal,
     expires_days: int,
     reason: str,
 ) -> str:
@@ -437,8 +391,9 @@ def clase_cancelada_individual_completo(
     content = f"""
       <h2 style="color:#e05252;margin-top:0;">Clase cancelada, {first_name}</h2>
       <p style="color:#444;line-height:1.6;">
-        El centro canceló una clase que tenías reservada. Se generó un crédito
-        a tu favor para usar en otra clase del mismo turno dentro de los próximos {expires_days} días.
+        El centro canceló una clase de tu abono mensual. Se generó un crédito
+        a tu favor para usar en cualquier actividad del centro dentro de los
+        próximos {expires_days} días.
       </p>
       <table width="100%" cellpadding="8" cellspacing="0"
              style="border-collapse:collapse;margin:20px 0;">
@@ -456,7 +411,7 @@ def clase_cancelada_individual_completo(
         </tr>
         <tr>
           <td style="color:#666;font-size:13px;">Crédito generado</td>
-          <td style="color:#11a691;font-weight:bold;">$ {credito:,.2f}</td>
+          <td style="color:#11a691;font-weight:bold;">1 clase</td>
         </tr>
         <tr style="background:#f0faf8;">
           <td style="color:#666;font-size:13px;">Válido por</td>
@@ -468,7 +423,57 @@ def clase_cancelada_individual_completo(
         </tr>
       </table>
       <p style="color:#444;line-height:1.6;">
-        Podés ver y usar tu crédito al inscribirte en otra clase del mismo turno.
+        Podés ver y usar tu crédito al inscribirte en cualquier actividad.
+        Lamentamos los inconvenientes.
+      </p>
+    """
+    return _wrap(content)
+
+
+def clase_cancelada_individual_completo(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    clase_date: date,
+    expires_days: int,
+    reason: str,
+) -> str:
+    fecha = clase_date.strftime("%-d de %B de %Y")
+    content = f"""
+      <h2 style="color:#e05252;margin-top:0;">Clase cancelada, {first_name}</h2>
+      <p style="color:#444;line-height:1.6;">
+        El centro canceló una clase que tenías reservada. Se generó un crédito
+        a tu favor para usar en cualquier actividad del centro dentro de los próximos {expires_days} días.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Fecha de clase cancelada</td>
+          <td style="color:#222;">{fecha}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Crédito generado</td>
+          <td style="color:#11a691;font-weight:bold;">1 clase</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Válido por</td>
+          <td style="color:#222;">{expires_days} días</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Motivo</td>
+          <td style="color:#444;">{reason}</td>
+        </tr>
+      </table>
+      <p style="color:#444;line-height:1.6;">
+        Podés ver y usar tu crédito al inscribirte en cualquier actividad.
         Lamentamos los inconvenientes.
       </p>
     """

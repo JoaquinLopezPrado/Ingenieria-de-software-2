@@ -139,10 +139,10 @@ class EmailService:
         activity_name: str,
         turno_description: str,
         clase_date: date,
-        descuento: Decimal,
+        expires_days: int,
         reason: str,
     ) -> None:
-        html = clase_cancelada_suscripcion(first_name, activity_name, turno_description, clase_date, descuento, reason)
+        html = clase_cancelada_suscripcion(first_name, activity_name, turno_description, clase_date, expires_days, reason)
         asyncio.create_task(
             self._send(to, f"Clase cancelada — {activity_name}", html)
         )
@@ -154,12 +154,11 @@ class EmailService:
         activity_name: str,
         turno_description: str,
         clase_date: date,
-        credito: Decimal,
         expires_days: int,
         reason: str,
     ) -> None:
         html = clase_cancelada_individual_completo(
-            first_name, activity_name, turno_description, clase_date, credito, expires_days, reason
+            first_name, activity_name, turno_description, clase_date, expires_days, reason
         )
         asyncio.create_task(
             self._send(to, f"Clase cancelada — {activity_name}", html)

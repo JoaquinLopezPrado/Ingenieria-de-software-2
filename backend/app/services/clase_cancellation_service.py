@@ -55,7 +55,7 @@ class ClaseCancellationService:
                     activity_name=activity.name,
                     turno_description=turno.description,
                     clase_date=clase.date,
-                    descuento=alumno.amount,
+                    expires_days=_CREDIT_DAYS,
                     reason=req.reason,
                 )
             elif alumno.tipo == "individual_completo":
@@ -65,7 +65,6 @@ class ClaseCancellationService:
                     activity_name=activity.name,
                     turno_description=turno.description,
                     clase_date=clase.date,
-                    credito=alumno.amount,
                     expires_days=_CREDIT_DAYS,
                     reason=req.reason,
                 )

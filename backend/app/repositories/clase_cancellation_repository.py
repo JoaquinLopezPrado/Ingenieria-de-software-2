@@ -55,9 +55,9 @@ class ClaseCancellationRepository:
         clase.is_active = False
 
         for alumno in afectados:
-            if alumno.tipo == "suscripcion":
-                await self._apply_subscription_discount(alumno.user_id, turno.id, clase_id, alumno.amount, now)
-            elif alumno.tipo == "individual_completo":
+            # Abonados y sueltas completas reciben el mismo crédito de clase
+            # (canjeable en cualquier actividad). Las señas solo reciben email.
+            if alumno.tipo in ("suscripcion", "individual_completo"):
                 await self._create_credit(alumno.user_id, turno.id, clase_id, alumno.amount, now)
 
         await self._session.flush()
