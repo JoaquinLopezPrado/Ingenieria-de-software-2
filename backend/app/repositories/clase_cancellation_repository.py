@@ -8,14 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.single_enrollment import SingleEnrollmentStatus
-from app.domain.subscription import ChargeStatus, SubscriptionStatus, OCCUPYING_SUBSCRIPTION_STATUSES
+from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.models.auth import User as UserORM
 from app.models.class_credit import ClassCredit as ClassCreditORM
 from app.models.clase import Clase as ClaseORM
 from app.models.profile import ClientProfile
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
-from app.models.subscription import Subscription as SubscriptionORM, SubscriptionCharge as SubscriptionChargeORM
-from app.models.subscription_class_discount import SubscriptionClassDiscount as DiscountORM
+from app.models.subscription import Subscription as SubscriptionORM
 from app.models.turno import Turno as TurnoORM
 from app.schemas.clases import CancelPreviewAlumno, CancelPreviewResponse
 
@@ -148,52 +147,6 @@ class ClaseCancellationRepository:
             ))
 
         return afectados
-
-    async def _apply_subscription_discount(
-        self, user_id: int, turno_id: int, clase_id: int, amount: Decimal, now: datetime
-    ) -> None:
-        # Buscar suscripción activa del usuario para este turno
-        sub_result = await self._session.execute(
-            select(SubscriptionORM).where(
-                SubscriptionORM.user_id == user_id,
-                SubscriptionORM.turno_id == turno_id,
-                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
-            )
-        )
-        sub = sub_result.scalar_one_or_none()
-        if sub is None:
-            return
-
-        # Intentar aplicar al próximo cargo pendiente
-        charge_result = await self._session.execute(
-            select(SubscriptionChargeORM).where(
-                SubscriptionChargeORM.subscription_id == sub.id,
-                SubscriptionChargeORM.status.in_([ChargeStatus.PENDING, ChargeStatus.OVERDUE]),
-            ).order_by(
-                SubscriptionChargeORM.period_year,
-                SubscriptionChargeORM.period_month,
-            ).limit(1)
-        )
-        charge = charge_result.scalar_one_or_none()
-
-        if charge is not None:
-            if charge.original_amount is None:
-                charge.original_amount = charge.amount
-            charge.amount = max(Decimal("0.00"), Decimal(charge.amount) - amount)
-            self._session.add(DiscountORM(
-                subscription_id=sub.id,
-                source_clase_id=clase_id,
-                amount=amount,
-                applied_to_charge_id=charge.id,
-            ))
-        else:
-            # Sin cargo pendiente → guardar para aplicar al próximo que se genere
-            self._session.add(DiscountORM(
-                subscription_id=sub.id,
-                source_clase_id=clase_id,
-                amount=amount,
-                applied_to_charge_id=None,
-            ))
 
     async def _create_credit(
         self, user_id: int, turno_id: int, clase_id: int, amount: Decimal, now: datetime
