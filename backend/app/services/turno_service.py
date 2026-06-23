@@ -116,7 +116,7 @@ class TurnoService:
         end_date = _end_date_months_ahead(start_date, _MONTHS_AHEAD)
         dates = _generate_dates_in_range(start_date, end_date, days)
         if dates:
-            await self._clase_repo.create_many(turno.id, dates, capacity)
+            await self._clase_repo.create_many(turno.id, dates, capacity, start_time, end_time)
 
         return turno
 
@@ -144,7 +144,9 @@ class TurnoService:
 
         # Los abonados no materializan slots: su asiento se cuenta al vuelo sobre
         # la suscripción activa. El cron solo genera las filas Clase.
-        clase_ids = await self._clase_repo.create_many(turno.id, dates, turno.capacity)
+        clase_ids = await self._clase_repo.create_many(
+            turno.id, dates, turno.capacity, turno.start_time, turno.end_time
+        )
         return len(clase_ids)
 
     async def list_clases_by_activity(self, activity_id: int) -> List[Clase]:

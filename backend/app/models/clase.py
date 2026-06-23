@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -10,6 +10,8 @@ class Clase(IDMixin, TimestampMixin, Base):
 
     turno_id = Column(Integer, ForeignKey("turnos.id"), nullable=False)
     date = Column(Date, nullable=False)
+    start_time = Column(Time(timezone=False), nullable=False)
+    end_time = Column(Time(timezone=False), nullable=False)
     capacity = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 

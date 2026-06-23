@@ -1,6 +1,6 @@
 import calendar
 from abc import ABC, abstractmethod
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy import and_, case, func, or_, select, union
@@ -20,7 +20,9 @@ from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 class AbstractClaseRepository(ABC):
 
     @abstractmethod
-    async def create_many(self, turno_id: int, dates: List[date], capacity: int) -> List[int]:
+    async def create_many(
+        self, turno_id: int, dates: List[date], capacity: int, start_time: time, end_time: time
+    ) -> List[int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -41,9 +43,18 @@ class ClaseRepository(AbstractClaseRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create_many(self, turno_id: int, dates: List[date], capacity: int) -> List[int]:
+    async def create_many(
+        self, turno_id: int, dates: List[date], capacity: int, start_time: time, end_time: time
+    ) -> List[int]:
         clases = [
-            ClaseORM(turno_id=turno_id, date=d, capacity=capacity, is_active=True)
+            ClaseORM(
+                turno_id=turno_id,
+                date=d,
+                start_time=start_time,
+                end_time=end_time,
+                capacity=capacity,
+                is_active=True,
+            )
             for d in dates
         ]
         self._session.add_all(clases)
@@ -127,17 +138,16 @@ class ClaseRepository(AbstractClaseRepository):
             date_filters.append(
                 or_(
                     ClaseORM.date > today,
-                    and_(ClaseORM.date == today, TurnoORM.start_time > now_art.time()),
+                    and_(ClaseORM.date == today, ClaseORM.start_time > now_art.time()),
                 )
             )
 
         result = await self._session.execute(
             select(
-                ClaseORM, TurnoORM.start_time, TurnoORM.end_time,
+                ClaseORM,
                 func.coalesce(enrolled_per_clase.c.cnt, 0).label("enrolled"),
                 func.coalesce(attendance_per_clase.c.presentes, 0).label("presentes_count"),
             )
-            .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)
             .outerjoin(enrolled_per_clase, enrolled_per_clase.c.clase_id == ClaseORM.id)
             .outerjoin(attendance_per_clase, attendance_per_clase.c.clase_id == ClaseORM.id)
             .where(
@@ -153,8 +163,8 @@ class ClaseRepository(AbstractClaseRepository):
                 id=row.Clase.id,
                 turno_id=row.Clase.turno_id,
                 date=row.Clase.date,
-                start_time=row.start_time,
-                end_time=row.end_time,
+                start_time=row.Clase.start_time,
+                end_time=row.Clase.end_time,
                 capacity=row.Clase.capacity,
                 enrolled=row.enrolled,
                 presentes_count=row.presentes_count,
