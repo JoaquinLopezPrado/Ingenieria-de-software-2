@@ -16,6 +16,7 @@ from app.repositories.turno_repository import AbstractTurnoRepository
 from app.schemas.clases import CancelClaseRequest
 from app.schemas.turno import UpdateTurnoPreviewResponse
 from app.services.clase_cancellation_service import ClaseCancellationService
+from app.services.email_service import EmailService
 
 _ART = timezone(timedelta(hours=-3))
 
@@ -189,6 +190,11 @@ class TurnoService:
         if horario_cambia:
             await self._clase_repo.update_future_time(turno_id, req.start_time, req.end_time, today)
 
+        # 6. Avisar por email a inscriptos que conservan su lugar (los que perdieron
+        #    clases ya recibieron el email de cancelación al generarse sus créditos).
+        if horario_cambia or quitados or agregados:
+            await self._notify_schedule_change(turno, req, today)
+
         return await self._turno_repo.get_by_id(turno_id)
 
     async def update_preview(self, turno_id: int, req) -> UpdateTurnoPreviewResponse:
@@ -265,6 +271,30 @@ class TurnoService:
         for clase_id, clase_date in await self._clase_repo.list_future_active(turno_id, today):
             if clase_date.weekday() in weekdays:
                 await cancellation_service.cancel(clase_id, req, admin_id)
+
+    async def _notify_schedule_change(self, turno: Turno, req, today: date) -> None:
+        recipients = await ClaseCancellationRepository(self._session).get_schedule_change_recipients(turno.id, today)
+        if not recipients:
+            return
+        activity = await self._activity_repo.get_active_by_id(turno.activity_id)
+        activity_name = activity.name if activity else ""
+        dias_str = ", ".join(
+            d.value.capitalize() for d in sorted(req.days, key=lambda x: _DIA_A_WEEKDAY[x])
+        )
+        horario_str = (
+            f"{req.start_time.hour}:{req.start_time.minute:02d} a "
+            f"{req.end_time.hour}:{req.end_time.minute:02d}"
+        )
+        email = EmailService()
+        for _uid, to_email, first_name in recipients:
+            email.send_cambio_horario_turno(
+                to=to_email,
+                first_name=first_name or "cliente",
+                activity_name=activity_name,
+                turno_description=req.description,
+                dias_str=dias_str,
+                horario_str=horario_str,
+            )
 
     async def _generate_clases_on_days(
         self, turno_id: int, dias: set, req, today: date

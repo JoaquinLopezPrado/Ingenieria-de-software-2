@@ -11,6 +11,7 @@ import httpx
 from app.core.config import settings
 from app.services.email_templates import (
     balance_confirmed,
+    cambio_horario_turno,
     clase_cancelada_individual_completo,
     clase_cancelada_individual_senia,
     clase_cancelada_suscripcion,
@@ -179,6 +180,20 @@ class EmailService:
         )
         asyncio.create_task(
             self._send(to, f"Clase cancelada — {activity_name}", html)
+        )
+
+    def send_cambio_horario_turno(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        dias_str: str,
+        horario_str: str,
+    ) -> None:
+        html = cambio_horario_turno(first_name, activity_name, turno_description, dias_str, horario_str)
+        asyncio.create_task(
+            self._send(to, f"Tu turno cambió — {activity_name}", html)
         )
 
     def send_waitlist_promoted(

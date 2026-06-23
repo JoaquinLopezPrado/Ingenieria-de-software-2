@@ -525,6 +525,45 @@ def clase_cancelada_individual_senia(
     return _wrap(content)
 
 
+def cambio_horario_turno(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    dias_str: str,
+    horario_str: str,
+) -> str:
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">Tu turno cambió, {first_name}</h2>
+      <p style="color:#444;line-height:1.6;">
+        El centro actualizó los días u horario de un turno en el que estás
+        inscripto. Tu lugar sigue reservado; solo cambió cuándo se dicta.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Nuevos días</td>
+          <td style="color:#222;">{dias_str}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Nuevo horario</td>
+          <td style="color:#222;">{horario_str}</td>
+        </tr>
+      </table>
+      <p style="color:#444;line-height:1.6;">
+        Si el nuevo horario no te sirve, podés gestionar tu baja desde tu cuenta.
+        Cualquier duda, contactanos.
+      </p>
+    """
+    return _wrap(content)
+
 
 def waitlist_promoted(
     first_name: str,
