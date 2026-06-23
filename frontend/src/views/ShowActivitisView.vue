@@ -849,7 +849,7 @@ const handleInscripcionSingle = async (turno) => {
     // Verificar créditos disponibles antes de crear el enrollment
     let creditToOffer = null
     try {
-      const { data: credits } = await enrollmentService.getCreditsForTurno(turno.id)
+      const { data: credits } = await enrollmentService.getCredits()
       if (credits.length > 0) creditToOffer = credits[0]
     } catch {}
 

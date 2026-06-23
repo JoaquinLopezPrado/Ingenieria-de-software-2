@@ -51,8 +51,9 @@ export const enrollmentService = {
   createSingle: (clase_ids: number[], credit_id?: number) =>
     apiClient.post('/single-enrollments', { clase_ids, ...(credit_id !== undefined ? { credit_id } : {}) }),
 
-  getCreditsForTurno: (turno_id: number) =>
-    apiClient.get<CreditInfo[]>('/clases/credits', { params: { turno_id } }),
+  // Los créditos son cross-actividad: se listan todos los del usuario.
+  getCredits: () =>
+    apiClient.get<CreditInfo[]>('/clases/credits'),
 
   getMySingle: () =>
     apiClient.get('/single-enrollments/me'),

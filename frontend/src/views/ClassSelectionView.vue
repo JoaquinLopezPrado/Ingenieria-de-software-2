@@ -289,7 +289,7 @@ const fetchClases = async () => {
       enrollmentService.getMySingle(),
     ])
 
-    enrollmentService.getCreditsForTurno(Number(turnoId.value))
+    enrollmentService.getCredits()
       .then(r => { credits.value = r.data })
       .catch(() => {})
 
