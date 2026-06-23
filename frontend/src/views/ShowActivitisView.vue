@@ -183,7 +183,7 @@
               </button>
             </div>
 
-            <div v-else-if="activeSubsByTurno.get(turno.id)?.length && !inscriptoEnFecha(turno)" class="acciones-card">
+            <div v-else-if="subFutura(turno)" class="acciones-card">
               <p class="espera-info">
                 Estás inscripto para el siguiente período
                 <template v-if="subFutura(turno)?.start_date">

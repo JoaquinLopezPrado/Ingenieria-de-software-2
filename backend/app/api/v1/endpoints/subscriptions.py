@@ -80,9 +80,11 @@ async def cancel_overdue_subscriptions(
     body: CancelSubscriptionsRequest,
     _=require_roles("admin"),
     service: SubscriptionService = Depends(get_subscription_service),
+    db: AsyncSession = Depends(get_db),
 ):
     freed_turno_ids = await service.admin_cancel(subscription_ids=body.subscription_ids)
     if freed_turno_ids:
+        await db.commit()
         asyncio.create_task(promote_freed_turnos(freed_turno_ids))
     return {"cancelled": len(freed_turno_ids)}
 
@@ -92,9 +94,11 @@ async def unsubscribe(
     subscription_id: int,
     current_user: User = Depends(get_current_user),
     service: SubscriptionService = Depends(get_subscription_service),
+    db: AsyncSession = Depends(get_db),
 ):
     """Baja voluntaria de un abonado activo: efectiva al fin del período pagado."""
     ends_on, turno_id = await service.unsubscribe(subscription_id=subscription_id, user_id=current_user.id)
+    await db.commit()
     asyncio.create_task(promote_freed_turnos([turno_id]))
     return {"ends_on": ends_on.isoformat()}
 
@@ -104,9 +108,11 @@ async def cancel_subscription(
     subscription_id: int,
     current_user: User = Depends(get_current_user),
     service: SubscriptionService = Depends(get_subscription_service),
+    db: AsyncSession = Depends(get_db),
 ):
     freed_turno_id = await service.cancel(subscription_id=subscription_id, user_id=current_user.id)
     if freed_turno_id is not None:
+        await db.commit()
         asyncio.create_task(promote_freed_turnos([freed_turno_id]))
 
 

@@ -85,4 +85,7 @@ export const enrollmentService = {
   // --- Común ---
   getMpStatusDetail: (payment_id: string) =>
     apiClient.get<{ status_detail: string | null }>(`/payments/mp-status`, { params: { payment_id } }),
+
+  notifyPayment: (payment_id: string) =>
+    apiClient.post('/payments/webhook', { type: 'payment', data: { id: payment_id } }),
 }

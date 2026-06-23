@@ -23,11 +23,15 @@
         </div>
       </div>
 
+      <div v-if="procesando" class="procesando-msg">
+        Confirmando tu pago…
+      </div>
+
       <div class="botones">
-        <button class="btn-primary" @click="router.push({ name: 'list' })">
+        <button class="btn-primary" :disabled="procesando" @click="router.push({ name: 'list' })">
           Ver actividades
         </button>
-        <button class="btn-secondary" @click="router.push({ name: 'home' })">
+        <button class="btn-secondary" :disabled="procesando" @click="router.push({ name: 'home' })">
           Ir al inicio
         </button>
       </div>
@@ -36,17 +40,33 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { enrollmentService } from '@/services/enrollmentService'
 
 const route  = useRoute()
 const router = useRouter()
+
+const procesando = ref(false)
 
 // ref: "single:{id}" | "sub:{charge_id}". Fallback al payment_id de MP.
 const referencia = computed(() => {
   const ref = String(route.query.ref || route.query.external_reference || '')
   const [, idStr] = ref.split(':')
   return idStr || route.query.payment_id || ''
+})
+
+onMounted(async () => {
+  const paymentId = String(route.query.payment_id || route.query.collection_id || '')
+  if (!paymentId) return
+  procesando.value = true
+  try {
+    await enrollmentService.notifyPayment(paymentId)
+  } catch {
+    // El webhook de MP lo procesará cuando llegue
+  } finally {
+    procesando.value = false
+  }
 })
 </script>
 
@@ -70,4 +90,6 @@ h1 { font-size: 26px; font-weight: 800; color: #00695C; margin: 0 0 8px; text-al
 .btn-primary:hover { background: #00695C; }
 .btn-secondary { width: 100%; padding: 14px; border-radius: 99px; border: 2px solid #00897B; background: #fff; color: #00897B; font-weight: 700; font-size: 14px; cursor: pointer; transition: background 0.2s; }
 .btn-secondary:hover { background: #E0F2F1; }
+.btn-primary:disabled, .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.procesando-msg { font-size: 14px; color: #00695C; margin-bottom: 12px; font-weight: 500; }
 </style>

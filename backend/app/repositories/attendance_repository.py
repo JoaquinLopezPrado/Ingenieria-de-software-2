@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus
 from app.domain.single_enrollment import SingleEnrollmentStatus
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
+from app.repositories.capacity import subscription_covers
 from app.models.activity import Activity as ActivityORM
 from app.models.attendance import Attendance as AttendanceORM
 from app.models.clase import Clase as ClaseORM
@@ -123,13 +124,14 @@ class AttendanceRepository(AbstractAttendanceRepository):
             )).all()
         }
 
-        # Abonados activos del turno.
+        # Abonados cuya suscripción cubre la fecha de esta clase.
         sub_rows = (await self._session.execute(
             select(SubscriptionORM.user_id, ClientProfileORM.first_name, ClientProfileORM.last_name)
             .join(ClientProfileORM, ClientProfileORM.user_id == SubscriptionORM.user_id)
             .where(
                 SubscriptionORM.turno_id == clase.turno_id,
                 SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+                *subscription_covers(clase.date),
             )
         )).all()
 
