@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List
 
@@ -16,6 +16,7 @@ from app.models.profile import ClientProfile
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
 from app.models.subscription import Subscription as SubscriptionORM
 from app.models.turno import Turno as TurnoORM
+from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 from app.schemas.clases import CancelPreviewAlumno, CancelPreviewResponse
 
 _CREDIT_DAYS = 30
@@ -194,3 +195,35 @@ class ClaseCancellationRepository:
             .where(ClassCreditORM.id == credit_id)
             .values(used_at=now, used_for_clase_id=used_for_clase_id)
         )
+
+    async def get_schedule_change_recipients(self, turno_id: int, from_date: date) -> list[tuple]:
+        """Usuarios a notificar ante un cambio de horario/días: abonados que ocupan
+        asiento futuro + sueltas con clase futura en el turno. Devuelve (user_id,
+        email, first_name) sin repetir usuarios."""
+        subs = await self._session.execute(
+            select(UserORM.id, UserORM.email, ClientProfile.first_name)
+            .join(SubscriptionORM, SubscriptionORM.user_id == UserORM.id)
+            .outerjoin(ClientProfile, ClientProfile.user_id == UserORM.id)
+            .where(
+                SubscriptionORM.turno_id == turno_id,
+                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+                (SubscriptionORM.ends_on.is_(None)) | (SubscriptionORM.ends_on > from_date),
+            )
+        )
+        singles = await self._session.execute(
+            select(UserORM.id, UserORM.email, ClientProfile.first_name)
+            .join(SingleEnrollmentORM, SingleEnrollmentORM.user_id == UserORM.id)
+            .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
+            .join(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)
+            .outerjoin(ClientProfile, ClientProfile.user_id == UserORM.id)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+                ClaseORM.date > from_date,
+                SingleEnrollmentORM.status.in_(list(ACTIVE_SINGLE_STATUSES)),
+            )
+        )
+        recipients: dict[int, tuple] = {}
+        for uid, email, first_name in list(subs) + list(singles):
+            recipients[uid] = (uid, email, first_name)
+        return list(recipients.values())

@@ -1,16 +1,23 @@
 import calendar
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
 from app.domain.turno import DiaSemana, Turno
 from app.repositories.activity_repository import AbstractActivityRepository
+from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
 from app.repositories.clase_repository import AbstractClaseRepository
 from app.repositories.config_repository import AbstractConfigRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
+from app.schemas.clases import CancelClaseRequest
+from app.schemas.turno import UpdateTurnoPreviewResponse
+from app.services.clase_cancellation_service import ClaseCancellationService
+
+_ART = timezone(timedelta(hours=-3))
 
 _DEFAULT_PAGE_SIZE = 20
 _MONTHS_AHEAD = 3
@@ -54,11 +61,13 @@ class TurnoService:
         clase_repo: AbstractClaseRepository,
         activity_repo: AbstractActivityRepository,
         config_repo: AbstractConfigRepository,
+        session: Optional[AsyncSession] = None,
     ):
         self._turno_repo = turno_repo
         self._clase_repo = clase_repo
         self._activity_repo = activity_repo
         self._config_repo = config_repo
+        self._session = session
 
     async def list(
         self,
@@ -148,6 +157,125 @@ class TurnoService:
             turno.id, dates, turno.capacity, turno.start_time, turno.end_time
         )
         return len(clase_ids)
+
+    async def update(self, turno_id: int, req, admin_id: int) -> Turno:
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+
+        await self._check_no_conflict(turno, req)
+
+        today = datetime.now(_ART).date()
+        horario_cambia = req.start_time != turno.start_time or req.end_time != turno.end_time
+        quitados = set(turno.days) - set(req.days)
+        agregados = set(req.days) - set(turno.days)
+
+        # 1. Campos del turno (nuevo horario, capacidad, precio, etc.)
+        await self._turno_repo.update_fields(
+            turno_id, req.description, req.instructor, req.start_time,
+            req.end_time, req.capacity, req.class_price,
+        )
+        # 2. Días del turno
+        if quitados or agregados:
+            await self._turno_repo.set_days(turno_id, req.days)
+        # 3. Cancelar clases futuras de días quitados (genera créditos + emails)
+        if quitados:
+            await self._cancel_clases_on_days(turno_id, quitados, today, admin_id)
+        # 4. Generar clases futuras de días agregados (hasta el horizonte actual)
+        if agregados:
+            await self._generate_clases_on_days(turno_id, agregados, req, today)
+        # 5. Propagar el nuevo horario a las clases futuras de días conservados.
+        #    La capacidad NO se propaga: cada clase conserva su snapshot.
+        if horario_cambia:
+            await self._clase_repo.update_future_time(turno_id, req.start_time, req.end_time, today)
+
+        return await self._turno_repo.get_by_id(turno_id)
+
+    async def update_preview(self, turno_id: int, req) -> UpdateTurnoPreviewResponse:
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+
+        today = datetime.now(_ART).date()
+        horario_cambia = req.start_time != turno.start_time or req.end_time != turno.end_time
+        quitados = set(turno.days) - set(req.days)
+        agregados = set(req.days) - set(turno.days)
+
+        clases_a_cancelar = 0
+        creditos = 0
+        clientes: set[int] = set()
+        if quitados:
+            weekdays = {_DIA_A_WEEKDAY[d] for d in quitados}
+            cancellation_repo = ClaseCancellationRepository(self._session)
+            for clase_id, clase_date in await self._clase_repo.list_future_active(turno_id, today):
+                if clase_date.weekday() not in weekdays:
+                    continue
+                clases_a_cancelar += 1
+                preview = await cancellation_repo.get_cancel_preview(clase_id)
+                for a in preview.afectados:
+                    if a.tipo in ("suscripcion", "individual_completo"):
+                        creditos += 1
+                        clientes.add(a.user_id)
+
+        clases_a_generar = 0
+        if agregados:
+            last_date = await self._clase_repo.get_last_date(turno_id)
+            start = today + timedelta(days=1)
+            if last_date and last_date >= start:
+                clases_a_generar = len(_generate_dates_in_range(start, last_date, list(agregados)))
+
+        usuarios_a_notificar = 0
+        if horario_cambia or quitados or agregados:
+            recipients = await ClaseCancellationRepository(self._session).get_schedule_change_recipients(turno_id, today)
+            usuarios_a_notificar = len(recipients)
+
+        return UpdateTurnoPreviewResponse(
+            horario_cambia=horario_cambia,
+            dias_agregados=sorted(agregados, key=lambda d: _DIA_A_WEEKDAY[d]),
+            dias_quitados=sorted(quitados, key=lambda d: _DIA_A_WEEKDAY[d]),
+            clases_a_cancelar=clases_a_cancelar,
+            clientes_afectados=len(clientes),
+            creditos_a_generar=creditos,
+            clases_a_generar=clases_a_generar,
+            usuarios_a_notificar=usuarios_a_notificar,
+        )
+
+    async def _check_no_conflict(self, turno: Turno, req) -> None:
+        if (
+            req.description == turno.description
+            and req.start_time == turno.start_time
+            and req.end_time == turno.end_time
+        ):
+            return
+        existing = await self._turno_repo.get_by_activity_description_time(
+            turno.activity_id, req.description, req.start_time, req.end_time
+        )
+        if existing and existing.id != turno.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe un turno activo con esa actividad, descripción y horario.",
+            )
+
+    async def _cancel_clases_on_days(
+        self, turno_id: int, dias: set, today: date, admin_id: int
+    ) -> None:
+        weekdays = {_DIA_A_WEEKDAY[d] for d in dias}
+        cancellation_service = ClaseCancellationService(self._session)
+        req = CancelClaseRequest(reason="El turno modificó sus días y esta clase ya no se dicta.")
+        for clase_id, clase_date in await self._clase_repo.list_future_active(turno_id, today):
+            if clase_date.weekday() in weekdays:
+                await cancellation_service.cancel(clase_id, req, admin_id)
+
+    async def _generate_clases_on_days(
+        self, turno_id: int, dias: set, req, today: date
+    ) -> None:
+        last_date = await self._clase_repo.get_last_date(turno_id)
+        start = today + timedelta(days=1)
+        if not last_date or last_date < start:
+            return
+        dates = _generate_dates_in_range(start, last_date, list(dias))
+        if dates:
+            await self._clase_repo.create_many(turno_id, dates, req.capacity, req.start_time, req.end_time)
 
     async def list_clases_by_activity(self, activity_id: int) -> List[Clase]:
         activity = await self._activity_repo.get_active_by_id(activity_id)

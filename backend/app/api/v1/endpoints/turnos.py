@@ -6,11 +6,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.docs.turno_responses import CREATE_TURNO_RESPONSES, LIST_TURNOS_RESPONSES
 from app.core.dependencies import get_db, require_roles
+from app.domain.user import User
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
 from app.repositories.turno_repository import TurnoRepository
-from app.schemas.turno import ClaseDetalleResponse, CreateTurnoRequest, GenerateClassesResponse, TurnoPageResponse, TurnoResponse
+from app.schemas.turno import (
+    ClaseDetalleResponse,
+    CreateTurnoRequest,
+    GenerateClassesResponse,
+    TurnoPageResponse,
+    TurnoResponse,
+    UpdateTurnoPreviewResponse,
+    UpdateTurnoRequest,
+)
 from app.services.turno_service import TurnoService
 
 router = APIRouter()
@@ -22,6 +31,7 @@ def get_turno_service(db: AsyncSession = Depends(get_db)) -> TurnoService:
         clase_repo=ClaseRepository(db),
         activity_repo=ActivityRepository(db),
         config_repo=ConfigRepository(db),
+        session=db,
     )
 
 
@@ -107,6 +117,34 @@ async def create_turno(
         days=body.days,
         is_active=body.is_active,
     )
+
+
+@router.post(
+    "/{turno_id}/update-preview",
+    response_model=UpdateTurnoPreviewResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_turno_preview(
+    turno_id: int,
+    body: UpdateTurnoRequest,
+    _=require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    return await service.update_preview(turno_id, body)
+
+
+@router.put(
+    "/{turno_id}",
+    response_model=TurnoResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_turno(
+    turno_id: int,
+    body: UpdateTurnoRequest,
+    current_user: User = require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    return await service.update(turno_id, body, current_user.id)
 
 
 @router.post(
