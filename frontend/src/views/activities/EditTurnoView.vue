@@ -25,10 +25,12 @@ import {
   updateTurno,
   editTurno,
   previewTurnoUpdate,
+  getTurnoDeactivationImpact,
   extractBackendError,
   type Turno,
   type EditTurnoPayload,
   type UpdateTurnoPreview,
+  type TurnoDeactivationImpact,
 } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -94,6 +96,11 @@ const inscriptos   = ref(0)
 // Confirmación con impacto antes de aplicar
 const showConfirm = ref(false)
 const preview     = ref<UpdateTurnoPreview | null>(null)
+
+// Baja total del turno (caso 7)
+const showDeactivate    = ref(false)
+const deactivateImpact  = ref<TurnoDeactivationImpact | null>(null)
+const isDeactivating    = ref(false)
 
 // Formulario: mismos campos que SessionForm, sin start_date (no aplica al editar)
 const form = ref({
@@ -284,6 +291,37 @@ async function activateTurno() {
     serverError.value = extractBackendError(e)
   } finally {
     isActivating.value = false
+  }
+}
+
+// Baja total: pedir impacto y mostrar confirmación.
+async function openDeactivate() {
+  serverError.value = ''
+  isDeactivating.value = true
+  try {
+    deactivateImpact.value = await getTurnoDeactivationImpact(turnoId)
+    showDeactivate.value = true
+  } catch (e: unknown) {
+    handleApiError(e)
+  } finally {
+    isDeactivating.value = false
+  }
+}
+
+async function confirmDeactivate() {
+  if (!turno.value) return
+  isDeactivating.value = true
+  serverError.value = ''
+  try {
+    await updateTurno(turnoId, { is_active: false })
+    showDeactivate.value = false
+    successMsg.value = 'Turno dado de baja con éxito.'
+    setTimeout(() => router.push({ name: 'turnos-grilla' }), 1500)
+  } catch (e: unknown) {
+    showDeactivate.value = false
+    handleApiError(e)
+  } finally {
+    isDeactivating.value = false
   }
 }
 </script>
@@ -495,7 +533,16 @@ async function activateTurno() {
               >
                 {{ isActivating ? 'Activando...' : '✓ Activar turno' }}
               </button>
-              <button type="submit" class="btn-submit" :disabled="isSaving || isActivating || isPreviewing">
+              <button
+                v-if="turno && turno.is_active"
+                type="button"
+                class="btn-danger"
+                :disabled="isDeactivating || isSaving || isPreviewing"
+                @click="openDeactivate"
+              >
+                {{ isDeactivating ? 'Calculando...' : 'Dar de baja' }}
+              </button>
+              <button type="submit" class="btn-submit" :disabled="isSaving || isActivating || isPreviewing || isDeactivating">
                 {{ isPreviewing ? 'Calculando...' : 'Guardar cambios' }}
               </button>
             </div>
@@ -550,6 +597,47 @@ async function activateTurno() {
             </button>
             <button class="btn-submit" :disabled="isSaving" @click="confirmSave">
               {{ isSaving ? 'Aplicando...' : 'Confirmar y aplicar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ── Modal de baja total del turno (caso 7) ── -->
+    <Transition name="fade">
+      <div v-if="showDeactivate && deactivateImpact" class="modal-overlay" @click.self="showDeactivate = false">
+        <div class="modal-card" role="dialog" aria-modal="true">
+          <h2 class="modal-title">Dar de baja el turno</h2>
+          <p class="modal-desc">
+            El turno dejará de dictarse. Se cancelan todas las clases futuras y
+            las suscripciones, generando créditos canjeables en cualquier actividad.
+          </p>
+
+          <ul class="impact-list">
+            <li>
+              <span class="impact-num impact-warn">{{ deactivateImpact.clases_a_cancelar }}</span>
+              clase(s) futura(s) se cancelarán.
+            </li>
+            <li v-if="deactivateImpact.suscripciones_a_baja">
+              <span class="impact-num impact-warn">{{ deactivateImpact.suscripciones_a_baja }}</span>
+              suscripción(es) se darán de baja.
+            </li>
+            <li v-if="deactivateImpact.creditos_a_generar">
+              <span class="impact-num impact-warn">{{ deactivateImpact.creditos_a_generar }}</span>
+              crédito(s) de clase para {{ deactivateImpact.clientes_afectados }} cliente(s).
+            </li>
+            <li v-if="deactivateImpact.usuarios_a_notificar">
+              <span class="impact-num impact-ok">{{ deactivateImpact.usuarios_a_notificar }}</span>
+              usuario(s) recibirán un email de aviso.
+            </li>
+          </ul>
+
+          <div class="modal-actions">
+            <button class="btn-cancel" :disabled="isDeactivating" @click="showDeactivate = false">
+              Volver
+            </button>
+            <button class="btn-danger" :disabled="isDeactivating" @click="confirmDeactivate">
+              {{ isDeactivating ? 'Aplicando...' : 'Confirmar baja' }}
             </button>
           </div>
         </div>
@@ -823,6 +911,14 @@ select:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 .btn-activate:hover:not(:disabled) { background: #15803d; }
 .btn-activate:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-danger {
+  background: #fff; color: #dc2626; font-weight: 600; font-size: 0.95rem;
+  padding: 0.7rem 1.5rem; border-radius: 8px; border: 1px solid #fecaca; cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+.btn-danger:hover:not(:disabled) { background: #dc2626; color: white; }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-primary {
   background: #11998e; color: white; font-size: 0.9rem; font-weight: 600;

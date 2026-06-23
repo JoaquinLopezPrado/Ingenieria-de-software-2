@@ -374,6 +374,22 @@ export const editTurno = async (
   await api.put(`/turnos/${turnoId}`, payload)
 }
 
+/** Impacto de dar de baja un turno entero (GET /api/v1/turnos/{id}/deactivation-impact). */
+export interface TurnoDeactivationImpact {
+  clases_a_cancelar:    number
+  creditos_a_generar:   number
+  clientes_afectados:   number
+  suscripciones_a_baja: number
+  usuarios_a_notificar: number
+}
+
+export const getTurnoDeactivationImpact = async (
+  turnoId: number
+): Promise<TurnoDeactivationImpact> => {
+  const res = await api.get(`/turnos/${turnoId}/deactivation-impact`)
+  return res.data
+}
+
 /**
  * Extrae el mensaje de error legible del formato de error del backend.
  * El backend siempre retorna: { errors: { general: "..." } } o { errors: { field: "..." } }
