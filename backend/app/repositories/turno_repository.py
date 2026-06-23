@@ -68,6 +68,10 @@ class AbstractTurnoRepository(ABC):
     async def set_days(self, turno_id: int, days: List[DiaSemana]) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def set_active(self, turno_id: int, is_active: bool) -> None:
+        raise NotImplementedError
+
 
 class TurnoRepository(AbstractTurnoRepository):
 
@@ -242,6 +246,14 @@ class TurnoRepository(AbstractTurnoRepository):
         )
         for dia in days:
             self._session.add(TurnoDiaORM(turno_id=turno_id, dia=dia))
+        await self._session.flush()
+
+    async def set_active(self, turno_id: int, is_active: bool) -> None:
+        result = await self._session.execute(
+            select(TurnoORM).where(TurnoORM.id == turno_id)
+        )
+        orm = result.scalar_one()
+        orm.is_active = is_active
         await self._session.flush()
 
     def _to_domain(

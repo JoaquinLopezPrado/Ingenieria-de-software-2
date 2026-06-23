@@ -93,6 +93,18 @@ class UpdateTurnoPreviewResponse(BaseModel):
     usuarios_a_notificar: int
 
 
+class SetTurnoActiveRequest(BaseModel):
+    is_active: bool
+
+
+class DeactivationImpactResponse(BaseModel):
+    clases_a_cancelar: int
+    creditos_a_generar: int
+    clientes_afectados: int
+    suscripciones_a_baja: int
+    usuarios_a_notificar: int
+
+
 class ClaseDetalleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -14,7 +14,9 @@ from app.repositories.turno_repository import TurnoRepository
 from app.schemas.turno import (
     ClaseDetalleResponse,
     CreateTurnoRequest,
+    DeactivationImpactResponse,
     GenerateClassesResponse,
+    SetTurnoActiveRequest,
     TurnoPageResponse,
     TurnoResponse,
     UpdateTurnoPreviewResponse,
@@ -145,6 +147,33 @@ async def update_turno(
     service: TurnoService = Depends(get_turno_service),
 ):
     return await service.update(turno_id, body, current_user.id)
+
+
+@router.get(
+    "/{turno_id}/deactivation-impact",
+    response_model=DeactivationImpactResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def deactivation_impact(
+    turno_id: int,
+    _=require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    return await service.deactivation_impact(turno_id)
+
+
+@router.patch(
+    "/{turno_id}",
+    response_model=TurnoResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def set_turno_active(
+    turno_id: int,
+    body: SetTurnoActiveRequest,
+    current_user: User = require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    return await service.set_active(turno_id, body.is_active, current_user.id)
 
 
 @router.post(

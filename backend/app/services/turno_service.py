@@ -12,9 +12,10 @@ from app.repositories.activity_repository import AbstractActivityRepository
 from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
 from app.repositories.clase_repository import AbstractClaseRepository
 from app.repositories.config_repository import AbstractConfigRepository
+from app.repositories.subscription_repository import SubscriptionRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
 from app.schemas.clases import CancelClaseRequest
-from app.schemas.turno import UpdateTurnoPreviewResponse
+from app.schemas.turno import DeactivationImpactResponse, UpdateTurnoPreviewResponse
 from app.services.clase_cancellation_service import ClaseCancellationService
 from app.services.email_service import EmailService
 
@@ -244,6 +245,47 @@ class TurnoService:
             creditos_a_generar=creditos,
             clases_a_generar=clases_a_generar,
             usuarios_a_notificar=usuarios_a_notificar,
+        )
+
+    async def set_active(self, turno_id: int, is_active: bool, admin_id: int) -> Turno:
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+        if not is_active:
+            # Baja total: cancelar clases futuras (créditos + emails) y dar de baja
+            # las suscripciones que ocupan el turno (condonando sus cargos impagos).
+            today = datetime.now(_ART).date()
+            cancellation_service = ClaseCancellationService(self._session)
+            req = CancelClaseRequest(reason="El turno fue dado de baja y ya no se dictará.")
+            for clase_id, _clase_date in await self._clase_repo.list_future_active(turno_id, today):
+                await cancellation_service.cancel(clase_id, req, admin_id)
+            await SubscriptionRepository(self._session).cancel_all_for_turno(turno_id)
+        await self._turno_repo.set_active(turno_id, is_active)
+        return await self._turno_repo.get_by_id(turno_id)
+
+    async def deactivation_impact(self, turno_id: int) -> DeactivationImpactResponse:
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+        today = datetime.now(_ART).date()
+        cancellation_repo = ClaseCancellationRepository(self._session)
+        clases = await self._clase_repo.list_future_active(turno_id, today)
+        creditos = 0
+        clientes: set[int] = set()
+        for clase_id, _clase_date in clases:
+            preview = await cancellation_repo.get_cancel_preview(clase_id)
+            for a in preview.afectados:
+                if a.tipo in ("suscripcion", "individual_completo"):
+                    creditos += 1
+                    clientes.add(a.user_id)
+        subs = await SubscriptionRepository(self._session).count_occupying_for_turno(turno_id)
+        recipients = await cancellation_repo.get_schedule_change_recipients(turno_id, today)
+        return DeactivationImpactResponse(
+            clases_a_cancelar=len(clases),
+            creditos_a_generar=creditos,
+            clientes_afectados=len(clientes),
+            suscripciones_a_baja=subs,
+            usuarios_a_notificar=len(recipients),
         )
 
     async def _check_no_conflict(self, turno: Turno, req) -> None:

@@ -133,6 +133,14 @@ class AbstractSubscriptionRepository(ABC):
         """Cancela suscripciones ACTIVE. Retorna lista de turno_ids liberados."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def cancel_all_for_turno(self, turno_id: int) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_occupying_for_turno(self, turno_id: int) -> int:
+        raise NotImplementedError
+
 
 class SubscriptionRepository(AbstractSubscriptionRepository):
 
@@ -658,6 +666,43 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             .values(status=SubscriptionStatus.CANCELLED, cancelled_at=datetime.now(timezone.utc))
         )
         return freed_turno_ids
+
+    async def cancel_all_for_turno(self, turno_id: int) -> int:
+        """Da de baja todas las suscripciones que ocupan el turno (active/pending) y
+        condona sus cargos impagos. Para la baja total del turno (caso eliminación)."""
+        now = datetime.now(timezone.utc)
+        rows = (await self._session.execute(
+            select(SubscriptionORM.id).where(
+                SubscriptionORM.turno_id == turno_id,
+                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+            )
+        )).all()
+        sub_ids = [r[0] for r in rows]
+        if not sub_ids:
+            return 0
+        await self._session.execute(
+            update(SubscriptionORM)
+            .where(SubscriptionORM.id.in_(sub_ids))
+            .values(status=SubscriptionStatus.CANCELLED, cancelled_at=now)
+        )
+        await self._session.execute(
+            update(SubscriptionChargeORM)
+            .where(
+                SubscriptionChargeORM.subscription_id.in_(sub_ids),
+                SubscriptionChargeORM.status.in_([ChargeStatus.PENDING, ChargeStatus.OVERDUE]),
+            )
+            .values(status=ChargeStatus.WAIVED)
+        )
+        return len(sub_ids)
+
+    async def count_occupying_for_turno(self, turno_id: int) -> int:
+        result = await self._session.execute(
+            select(func.count(SubscriptionORM.id)).where(
+                SubscriptionORM.turno_id == turno_id,
+                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+            )
+        )
+        return result.scalar_one()
 
     # ------------------------------------------------------------------ #
     # Helpers                                                             #
