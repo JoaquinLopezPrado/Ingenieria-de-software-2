@@ -327,6 +327,53 @@ export const updateTurno = async (
   return { message: 'Turno modificado con éxito' }
 }
 
+/** Payload completo para editar un turno (PUT /api/v1/turnos/{id}). */
+export interface EditTurnoPayload {
+  description: string
+  instructor:  string
+  start_time:  string
+  end_time:    string
+  capacity:    number
+  class_price: number
+  days:        string[]
+}
+
+/** Impacto previo a aplicar la edición (POST /api/v1/turnos/{id}/update-preview). */
+export interface UpdateTurnoPreview {
+  horario_cambia:       boolean
+  dias_agregados:       string[]
+  dias_quitados:        string[]
+  clases_a_cancelar:    number
+  clientes_afectados:   number
+  creditos_a_generar:   number
+  clases_a_generar:     number
+  usuarios_a_notificar: number
+}
+
+/**
+ * Calcula el impacto de editar un turno sin aplicar cambios.
+ * Informa clases a cancelar, créditos a generar y usuarios a notificar.
+ */
+export const previewTurnoUpdate = async (
+  turnoId: number,
+  payload: EditTurnoPayload
+): Promise<UpdateTurnoPreview> => {
+  const res = await api.post(`/turnos/${turnoId}/update-preview`, payload)
+  return res.data
+}
+
+/**
+ * Aplica la edición de un turno con PUT /api/v1/turnos/{id}.
+ * El backend propaga el nuevo horario a clases futuras, cancela las de días
+ * quitados (generando créditos) y genera las de días agregados.
+ */
+export const editTurno = async (
+  turnoId: number,
+  payload: EditTurnoPayload
+): Promise<void> => {
+  await api.put(`/turnos/${turnoId}`, payload)
+}
+
 /**
  * Extrae el mensaje de error legible del formato de error del backend.
  * El backend siempre retorna: { errors: { general: "..." } } o { errors: { field: "..." } }

@@ -9,12 +9,12 @@
  *   4. Precio por clase inválido (≤ 0) → error inline
  *   5. Sin días seleccionados → error inline
  *   6. Campo obligatorio vacío → error inline
- *   7. Turno con inscripciones activas → bloqueo al intentar guardar (v2 NUEVO)
+ *   7. Turno con inscriptos → se permite editar; antes de aplicar se muestra el
+ *      impacto (clases a cancelar, créditos a generar, usuarios a notificar) y
+ *      se confirma. El backend genera créditos y notifica por email.
  *
  * Guard: solo admin. Turno inactivo → banner informativo + edición permitida.
- * Regla v2: si el turno tiene inscripciones activas no es editable (Esc. 7).
  * El campo "actividad" nunca puede modificarse.
- * Los mismos campos que "Programar nuevo turno" (SessionForm).
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -23,9 +23,12 @@ import {
   getTurnosAll,
   getFormOptions,
   updateTurno,
+  editTurno,
+  previewTurnoUpdate,
   extractBackendError,
   type Turno,
-  type UpdateTurnoPayload,
+  type EditTurnoPayload,
+  type UpdateTurnoPreview,
 } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -68,8 +71,6 @@ const TIME_SLOTS: string[] = (() => {
   return slots
 })()
 
-const todayISO = new Date().toISOString().slice(0, 10)
-
 /** Normaliza "9:00" → "09:00" para que coincida con los valores de TIME_SLOTS */
 function normalizeTime(t: string): string {
   const [h, m] = t.split(':')
@@ -82,6 +83,7 @@ const turno        = ref<Turno | null>(null)
 const activityName = ref('')
 const isLoading    = ref(true)
 const isSaving     = ref(false)
+const isPreviewing = ref(false)
 const isActivating = ref(false)
 const loadError    = ref('')
 const successMsg   = ref('')
@@ -89,7 +91,11 @@ const serverError  = ref('')
 const authError    = ref<null | 'session' | 'forbidden'>(null)
 const inscriptos   = ref(0)
 
-// Formulario: mismos campos que SessionForm (Programar nuevo turno)
+// Confirmación con impacto antes de aplicar
+const showConfirm = ref(false)
+const preview     = ref<UpdateTurnoPreview | null>(null)
+
+// Formulario: mismos campos que SessionForm, sin start_date (no aplica al editar)
 const form = ref({
   description: '',
   instructor:  '',
@@ -98,7 +104,6 @@ const form = ref({
   endTime:     '',
   maxCapacity: null as number | null,
   class_price: null as number | null,
-  start_date:  todayISO,   // "YYYY-MM-DD" — reemplaza month/year
 })
 
 const errors = ref<Record<string, string>>({})
@@ -143,7 +148,6 @@ onMounted(async () => {
       ?? `Actividad #${found.activity_id}`
 
     // Pre-cargar el formulario con los valores actuales del turno
-    // start_date no está en TurnoResponse → se deja el default (hoy)
     form.value = {
       description: found.description,
       instructor:  found.instructor,
@@ -152,7 +156,6 @@ onMounted(async () => {
       endTime:     normalizeTime(found.end_time),
       maxCapacity: found.capacity,
       class_price: Number(found.class_price) || null,
-      start_date:  todayISO,
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number }; request?: unknown }
@@ -185,9 +188,6 @@ function validate(): boolean {
   if (form.value.days.length === 0)
     errors.value.days = 'Seleccioná al menos un día de la semana.'
 
-  if (!form.value.start_date)
-    errors.value.start_date = 'Seleccioná la fecha de inicio del turno.'
-
   if (!form.value.startTime)
     errors.value.startTime = 'Seleccioná la hora de inicio.'
 
@@ -197,13 +197,11 @@ function validate(): boolean {
   if (form.value.startTime && form.value.endTime && form.value.startTime >= form.value.endTime)
     errors.value.timeRange = 'La hora de inicio debe ser anterior a la hora de fin.'
 
+  // La capacidad solo afecta a clases futuras nuevas; las existentes conservan su
+  // cupo, así que no se valida contra los inscriptos actuales.
   const cap = Number(form.value.maxCapacity)
-  if (!form.value.maxCapacity || !Number.isInteger(cap) || cap <= 0) {
+  if (!form.value.maxCapacity || !Number.isInteger(cap) || cap <= 0)
     errors.value.maxCapacity = 'El cupo máximo debe ser un número entero mayor a 0.'
-  } else if (cap < inscriptos.value) {
-    errors.value.maxCapacity =
-      `El cupo máximo no puede ser menor a la cantidad de inscriptos actuales (${inscriptos.value}).`
-  }
 
   const price = Number(form.value.class_price)
   if (!form.value.class_price || isNaN(price) || price <= 0)
@@ -214,17 +212,63 @@ function validate(): boolean {
 
 // ─── Submit y flujo de guardado ───────────────────────────────────────────────
 
-function handleSubmit() {
+function buildPayload(): EditTurnoPayload {
+  return {
+    description: form.value.description.trim(),
+    instructor:  form.value.instructor.trim(),
+    days:        form.value.days.map(d => DISPLAY_TO_BACKEND[d] ?? d.toLowerCase()),
+    start_time:  form.value.startTime,
+    end_time:    form.value.endTime,
+    capacity:    Number(form.value.maxCapacity),
+    class_price: Number(form.value.class_price),
+  }
+}
+
+function handleApiError(e: unknown) {
+  const err = e as { response?: { status?: number } }
+  const status = err?.response?.status
+  if (status === 401) {
+    authError.value = 'session'
+  } else if (status === 403) {
+    authError.value = 'forbidden'
+  } else if (status === 409) {
+    serverError.value = 'Ya existe un turno con esa actividad, descripción y horario.'
+  } else {
+    serverError.value = extractBackendError(e)
+  }
+}
+
+// Paso 1: validar y pedir el impacto al backend antes de aplicar.
+async function handleSubmit() {
   serverError.value = ''
   if (!validate()) return
 
-  // Escenario 7 (v2): turno con inscripciones activas → bloqueo directo, sin modal
-  if (inscriptos.value > 0) {
-    serverError.value = 'No es posible modificar el turno porque tiene inscripciones activas.'
-    return
+  isPreviewing.value = true
+  try {
+    preview.value = await previewTurnoUpdate(turnoId, buildPayload())
+    showConfirm.value = true
+  } catch (e: unknown) {
+    handleApiError(e)
+  } finally {
+    isPreviewing.value = false
   }
+}
 
-  saveChanges()  // Escenario 1
+// Paso 2: confirmar y aplicar la edición.
+async function confirmSave() {
+  isSaving.value = true
+  serverError.value = ''
+  try {
+    await editTurno(turnoId, buildPayload())
+    showConfirm.value = false
+    successMsg.value = 'Turno modificado con éxito.'
+    setTimeout(() => router.push({ name: 'turnos-grilla' }), 1500)
+  } catch (e: unknown) {
+    showConfirm.value = false
+    handleApiError(e)
+  } finally {
+    isSaving.value = false
+  }
 }
 
 async function activateTurno() {
@@ -240,42 +284,6 @@ async function activateTurno() {
     serverError.value = extractBackendError(e)
   } finally {
     isActivating.value = false
-  }
-}
-
-async function saveChanges() {
-  if (!turno.value) return
-  isSaving.value = true
-  serverError.value = ''
-
-  const payload: UpdateTurnoPayload = {
-    description: form.value.description.trim(),
-    days:        form.value.days.map(d => DISPLAY_TO_BACKEND[d] ?? d.toLowerCase()),
-    start_time:  form.value.startTime,
-    end_time:    form.value.endTime,
-    capacity:    Number(form.value.maxCapacity),
-    class_price: Number(form.value.class_price),
-    start_date:  form.value.start_date,
-  }
-
-  try {
-    const result = await updateTurno(turnoId, payload)
-    successMsg.value = result.message
-    setTimeout(() => router.push({ name: 'turnos-grilla' }), 1500)
-  } catch (e: unknown) {
-    const err = e as { response?: { status?: number } }
-    const status = err?.response?.status
-    if (status === 401) {
-      authError.value = 'session'
-    } else if (status === 403) {
-      authError.value = 'forbidden'
-    } else if (status === 409) {
-      serverError.value = 'Ya existe un turno con esa actividad, descripción, fecha de inicio y horario.'
-    } else {
-      serverError.value = extractBackendError(e)
-    }
-  } finally {
-    isSaving.value = false
   }
 }
 </script>
@@ -393,17 +401,6 @@ async function saveChanges() {
               <span v-if="errors.description" class="field-error">{{ errors.description }}</span>
             </div>
 
-            <!-- ── Fecha de inicio ── -->
-            <div class="input-group">
-              <label>Fecha de inicio</label>
-              <input
-                type="date"
-                v-model="form.start_date"
-                :class="{ 'input-error': errors.start_date }"
-              />
-              <span v-if="errors.start_date" class="field-error">{{ errors.start_date }}</span>
-            </div>
-
             <!-- ── Días de la semana ── -->
             <div class="input-group">
               <label>Días</label>
@@ -479,12 +476,6 @@ async function saveChanges() {
               <span v-if="errors.class_price" class="field-error">{{ errors.class_price }}</span>
             </div>
 
-            <!-- ── Badge resumen ── -->
-            <div class="period-badge">
-              <span>📅</span>
-              <span>Fecha de inicio: <strong>{{ form.start_date || '—' }}</strong></span>
-            </div>
-
             <!-- ── Acciones ── -->
             <div class="form-actions">
               <button
@@ -504,8 +495,8 @@ async function saveChanges() {
               >
                 {{ isActivating ? 'Activando...' : '✓ Activar turno' }}
               </button>
-              <button type="submit" class="btn-submit" :disabled="isSaving || isActivating">
-                {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+              <button type="submit" class="btn-submit" :disabled="isSaving || isActivating || isPreviewing">
+                {{ isPreviewing ? 'Calculando...' : 'Guardar cambios' }}
               </button>
             </div>
 
@@ -514,6 +505,56 @@ async function saveChanges() {
 
       </template>
     </div>
+
+    <!-- ── Modal de confirmación con impacto ── -->
+    <Transition name="fade">
+      <div v-if="showConfirm && preview" class="modal-overlay" @click.self="showConfirm = false">
+        <div class="modal-card" role="dialog" aria-modal="true">
+          <h2 class="modal-title">Confirmar cambios</h2>
+          <p class="modal-desc">
+            Revisá el impacto antes de aplicar. Esta acción genera créditos y
+            envía notificaciones por email.
+          </p>
+
+          <ul class="impact-list">
+            <li v-if="preview.dias_quitados.length">
+              <span class="impact-num impact-warn">{{ preview.clases_a_cancelar }}</span>
+              clase(s) futura(s) se cancelarán (días quitados:
+              {{ preview.dias_quitados.join(', ') }}).
+            </li>
+            <li v-if="preview.creditos_a_generar">
+              <span class="impact-num impact-warn">{{ preview.creditos_a_generar }}</span>
+              crédito(s) de clase para {{ preview.clientes_afectados }} cliente(s).
+            </li>
+            <li v-if="preview.dias_agregados.length">
+              <span class="impact-num impact-ok">{{ preview.clases_a_generar }}</span>
+              clase(s) nueva(s) se generarán (días agregados:
+              {{ preview.dias_agregados.join(', ') }}).
+            </li>
+            <li v-if="preview.horario_cambia">
+              <span class="impact-num impact-ok">⏱</span>
+              El nuevo horario se aplicará a las clases futuras.
+            </li>
+            <li v-if="preview.usuarios_a_notificar">
+              <span class="impact-num impact-ok">{{ preview.usuarios_a_notificar }}</span>
+              usuario(s) recibirán un email de aviso.
+            </li>
+            <li v-if="!preview.clases_a_cancelar && !preview.clases_a_generar && !preview.horario_cambia && !preview.usuarios_a_notificar">
+              Sin impacto sobre clases ni inscriptos.
+            </li>
+          </ul>
+
+          <div class="modal-actions">
+            <button class="btn-cancel" :disabled="isSaving" @click="showConfirm = false">
+              Volver
+            </button>
+            <button class="btn-submit" :disabled="isSaving" @click="confirmSave">
+              {{ isSaving ? 'Aplicando...' : 'Confirmar y aplicar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
   </AdminLayout>
 </template>
@@ -797,6 +838,43 @@ select:disabled { opacity: 0.55; cursor: not-allowed; }
   transition: background-color 0.15s;
 }
 .btn-secondary:hover { background: #e5e7eb; }
+
+/* ── Modal de confirmación ── */
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(17, 24, 39, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+
+.modal-card {
+  background: #fff; border-radius: 14px;
+  padding: 1.75rem 2rem; max-width: 460px; width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+
+.modal-title { font-size: 1.2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem; }
+.modal-desc { font-size: 0.88rem; color: #6b7280; margin: 0 0 1.25rem; line-height: 1.5; }
+
+.impact-list {
+  list-style: none; padding: 0; margin: 0 0 1.5rem;
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+.impact-list li {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.9rem; color: #374151; line-height: 1.4;
+}
+
+.impact-num {
+  flex-shrink: 0; min-width: 1.9rem; height: 1.9rem; padding: 0 0.4rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+}
+.impact-warn { background: #fef3c7; color: #92400e; }
+.impact-ok   { background: #d1fae5; color: #065f46; }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
 
 /* ── Transiciones ── */
 
