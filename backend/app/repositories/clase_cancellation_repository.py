@@ -207,14 +207,15 @@ class ClaseCancellationRepository:
             expires_at=expires_at,
         ))
 
-    async def get_credits_for_user_turno(self, user_id: int, turno_id: int) -> list[ClassCreditORM]:
+    async def get_credits_for_user(self, user_id: int) -> list[ClassCreditORM]:
+        # Los créditos son cross-actividad: el usuario los canjea en cualquier turno,
+        # por eso no se filtran por turno de origen.
         now = datetime.now(timezone.utc)
         result = await self._session.execute(
             select(ClassCreditORM)
             .options(selectinload(ClassCreditORM.source_clase))
             .where(
                 ClassCreditORM.user_id == user_id,
-                ClassCreditORM.turno_id == turno_id,
                 ClassCreditORM.used_at.is_(None),
                 ClassCreditORM.expires_at > now,
             )

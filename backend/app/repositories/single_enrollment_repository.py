@@ -114,12 +114,9 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="El crédito no es válido o ya fue utilizado.",
                 )
-            if credit.turno_id != turno.id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="El crédito no corresponde a este turno.",
-                )
-            amount = max(Decimal("0.00"), amount - Decimal(str(credit.amount)))
+            # Un crédito = una clase: cubre una clase completa sin importar el precio
+            # de origen ni la actividad. Se canjea en cualquier turno.
+            amount = max(Decimal("0.00"), amount - Decimal(turno.class_price))
 
         if amount == Decimal("0.00"):
             enrollment_orm = SingleEnrollmentORM(

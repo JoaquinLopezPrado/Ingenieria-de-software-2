@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status as http_status
+from fastapi import APIRouter, Depends, status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, require_roles
@@ -16,12 +16,11 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> ClaseCancellationService
 
 @router.get("/credits", response_model=list[CreditInfo])
 async def get_my_credits(
-    turno_id: int = Query(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CreditInfo]:
     repo = ClaseCancellationRepository(db)
-    credits = await repo.get_credits_for_user_turno(current_user.id, turno_id)
+    credits = await repo.get_credits_for_user(current_user.id)
     return [
         CreditInfo(
             id=c.id,
