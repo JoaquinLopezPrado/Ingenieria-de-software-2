@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy import and_, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -49,6 +49,23 @@ class AbstractTurnoRepository(ABC):
         days: List[DiaSemana],
         is_active: bool = False,
     ) -> Turno:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_fields(
+        self,
+        turno_id: int,
+        description: str,
+        instructor: str,
+        start_time: time,
+        end_time: time,
+        capacity: int,
+        class_price: Decimal,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def set_days(self, turno_id: int, days: List[DiaSemana]) -> None:
         raise NotImplementedError
 
 
@@ -196,6 +213,36 @@ class TurnoRepository(AbstractTurnoRepository):
         await self._session.flush()
         await self._session.refresh(orm, ["days"])
         return self._to_domain(orm)
+
+    async def update_fields(
+        self,
+        turno_id: int,
+        description: str,
+        instructor: str,
+        start_time: time,
+        end_time: time,
+        capacity: int,
+        class_price: Decimal,
+    ) -> None:
+        result = await self._session.execute(
+            select(TurnoORM).where(TurnoORM.id == turno_id)
+        )
+        orm = result.scalar_one()
+        orm.description = description
+        orm.instructor = instructor
+        orm.start_time = start_time
+        orm.end_time = end_time
+        orm.capacity = capacity
+        orm.class_price = class_price
+        await self._session.flush()
+
+    async def set_days(self, turno_id: int, days: List[DiaSemana]) -> None:
+        await self._session.execute(
+            delete(TurnoDiaORM).where(TurnoDiaORM.turno_id == turno_id)
+        )
+        for dia in days:
+            self._session.add(TurnoDiaORM(turno_id=turno_id, dia=dia))
+        await self._session.flush()
 
     def _to_domain(
         self,

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime, time, timedelta, timezone
 from typing import List, Optional
 
-from sqlalchemy import and_, case, func, or_, select, union
+from sqlalchemy import and_, case, func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import Clase, ClaseDetalle
@@ -27,6 +27,16 @@ class AbstractClaseRepository(ABC):
 
     @abstractmethod
     async def get_last_date(self, turno_id: int) -> Optional[date]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_future_time(
+        self, turno_id: int, start_time: time, end_time: time, from_date: date
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_future_active(self, turno_id: int, from_date: date) -> List[tuple]:
         raise NotImplementedError
 
     @abstractmethod
@@ -66,6 +76,32 @@ class ClaseRepository(AbstractClaseRepository):
             select(func.max(ClaseORM.date)).where(ClaseORM.turno_id == turno_id)
         )
         return result.scalar_one_or_none()
+
+    async def update_future_time(
+        self, turno_id: int, start_time: time, end_time: time, from_date: date
+    ) -> int:
+        result = await self._session.execute(
+            update(ClaseORM)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+                ClaseORM.date > from_date,
+            )
+            .values(start_time=start_time, end_time=end_time)
+        )
+        return result.rowcount
+
+    async def list_future_active(self, turno_id: int, from_date: date) -> List[tuple]:
+        result = await self._session.execute(
+            select(ClaseORM.id, ClaseORM.date)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+                ClaseORM.date > from_date,
+            )
+            .order_by(ClaseORM.date)
+        )
+        return [(row.id, row.date) for row in result]
 
     async def list_by_activity(self, activity_id: int) -> List[Clase]:
         today = date.today()
