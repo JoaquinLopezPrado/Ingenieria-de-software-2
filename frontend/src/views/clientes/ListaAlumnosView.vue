@@ -55,7 +55,7 @@ async function cargarClientes() {
     total.value       = result.total
     totalPages.value  = result.total_pages
   } catch (err) {
-    errorMessage.value = extractBackendError(err) ?? 'No se pudo cargar el listado de alumnos.'
+    errorMessage.value = extractBackendError(err) ?? 'No se pudo cargar el listado de clientes.'
     clientes.value = []
     total.value    = 0
   } finally {
@@ -118,7 +118,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
       <!-- ── Encabezado ── -->
       <div class="page-header">
         <div>
-          <h1 class="page-title">Alumnos</h1>
+          <h1 class="page-title">Clientes</h1>
           <p class="page-subtitle">Listado de clientes registrados en el sistema</p>
         </div>
       </div>
@@ -133,7 +133,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
             class="search-input"
             placeholder="Buscar por nombre, apellido o documento..."
             autocomplete="off"
-            aria-label="Buscar alumnos"
+            aria-label="Buscar clientes"
           />
           <button
             v-if="searchQuery"
@@ -148,44 +148,44 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
       </div>
 
       <!-- ── Estado: cargando ── -->
-      <div v-if="isLoading" class="skeleton-wrapper" aria-label="Cargando alumnos...">
+      <div v-if="isLoading" class="skeleton-wrapper" aria-label="Cargando clientes...">
         <div v-for="n in PAGE_SIZE" :key="n" class="skeleton-row" />
       </div>
 
       <!-- ── Estado: error ── -->
       <div v-else-if="errorMessage" class="state-card state-error">
         <div class="state-icon">⚠</div>
-        <h2 class="state-title">Error al cargar los alumnos</h2>
+        <h2 class="state-title">Error al cargar los clientes</h2>
         <p class="state-desc">{{ errorMessage }}</p>
         <button class="btn-secondary" type="button" @click="cargarClientes">
           Reintentar
         </button>
       </div>
 
-      <!-- ── Estado: sin alumnos en el sistema ── -->
+      <!-- ── Estado: sin clientes en el sistema ── -->
       <div v-else-if="isEmpty" class="state-card state-empty">
         <div class="state-icon">◎</div>
-        <h2 class="state-title">Sin alumnos registrados</h2>
-        <p class="state-desc">No hay alumnos registrados en el sistema.</p>
+        <h2 class="state-title">Sin clientes registrados</h2>
+        <p class="state-desc">No hay clientes registrados en el sistema.</p>
       </div>
 
       <!-- ── Estado: búsqueda sin resultados ── -->
       <div v-else-if="noResults" class="state-card state-empty">
         <div class="state-icon">⌕</div>
         <h2 class="state-title">Sin resultados</h2>
-        <p class="state-desc">No se encontraron alumnos que coincidan con la búsqueda.</p>
+        <p class="state-desc">No se encontraron clientes que coincidan con la búsqueda.</p>
         <button class="btn-secondary" type="button" @click="searchQuery = ''">
           Limpiar búsqueda
         </button>
       </div>
 
-      <!-- ── Tabla de alumnos ── -->
+      <!-- ── Tabla de clientes ── -->
       <div v-else-if="hasData" class="table-container">
         <div class="table-scroll">
-          <table class="alumnos-table">
+          <table class="clientes-table">
             <thead>
               <tr>
-                <th>Alumno</th>
+                <th>Cliente</th>
                 <th>Documento</th>
                 <th>Email</th>
                 <th>Teléfono</th>
@@ -231,7 +231,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
         <div class="table-footer">
           <span class="table-count">
             Mostrando {{ showingFrom }}–{{ showingTo }} de
-            {{ total }} alumno{{ total !== 1 ? 's' : '' }}
+            {{ total }} cliente{{ total !== 1 ? 's' : '' }}
           </span>
 
           <div v-if="totalPages > 1" class="pagination">
@@ -461,19 +461,19 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
   -webkit-overflow-scrolling: touch;
 }
 
-.alumnos-table {
+.clientes-table {
   width: 100%;
   min-width: 820px;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
 
-.alumnos-table thead {
+.clientes-table thead {
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.alumnos-table th {
+.clientes-table th {
   padding: 0.85rem 1rem;
   text-align: left;
   font-size: 0.72rem;
@@ -484,14 +484,14 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
   white-space: nowrap;
 }
 
-.alumnos-table td {
+.clientes-table td {
   padding: 0.9rem 1rem;
   color: #374151;
   border-bottom: 1px solid #f3f4f6;
   vertical-align: middle;
 }
 
-.alumnos-table tbody tr:last-child td {
+.clientes-table tbody tr:last-child td {
   border-bottom: none;
 }
 
@@ -681,8 +681,8 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
     right: 0.5rem;
   }
 
-  .alumnos-table th,
-  .alumnos-table td {
+  .clientes-table th,
+  .clientes-table td {
     padding: 0.7rem 0.6rem;
   }
 
