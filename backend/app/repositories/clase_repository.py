@@ -40,6 +40,12 @@ class AbstractClaseRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def reactivate_turno_baja_clases(
+        self, turno_id: int, from_date: date, reason: str
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def list_by_activity(self, activity_id: int) -> List[Clase]:
         raise NotImplementedError
 
@@ -102,6 +108,28 @@ class ClaseRepository(AbstractClaseRepository):
             .order_by(ClaseORM.date)
         )
         return [(row.id, row.date) for row in result]
+
+    async def reactivate_turno_baja_clases(
+        self, turno_id: int, from_date: date, reason: str
+    ) -> int:
+        """Reabre las clases futuras que canceló la baja del turno (match por razón),
+        dejando intactas las cancelaciones individuales y las clases ya pasadas."""
+        result = await self._session.execute(
+            update(ClaseORM)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.cancelled_at.isnot(None),
+                ClaseORM.cancelled_reason == reason,
+                ClaseORM.date > from_date,
+            )
+            .values(
+                is_active=True,
+                cancelled_at=None,
+                cancelled_reason=None,
+                cancelled_by_id=None,
+            )
+        )
+        return result.rowcount
 
     async def list_by_activity(self, activity_id: int) -> List[Clase]:
         today = date.today()

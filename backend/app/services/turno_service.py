@@ -24,6 +24,10 @@ _ART = timezone(timedelta(hours=-3))
 _DEFAULT_PAGE_SIZE = 20
 _MONTHS_AHEAD = 3
 
+# Razón con la que la baja del turno cancela sus clases. Se usa también al reactivar
+# para reabrir solo esas clases y respetar las canceladas a mano por otro motivo.
+_TURNO_BAJA_REASON = "El turno fue dado de baja y ya no se dictará."
+
 _DIA_A_WEEKDAY = {
     DiaSemana.LUNES: 0,
     DiaSemana.MARTES: 1,
@@ -251,16 +255,21 @@ class TurnoService:
         turno = await self._turno_repo.get_by_id(turno_id)
         if not turno:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+        today = datetime.now(_ART).date()
         if not is_active:
             # Baja total: cancelar clases futuras (créditos + emails) y dar de baja
             # las suscripciones que ocupan el turno (condonando sus cargos impagos).
-            today = datetime.now(_ART).date()
             cancellation_service = ClaseCancellationService(self._session)
-            reason = "El turno fue dado de baja y ya no se dictará."
             clase_ids = [cid for cid, _ in await self._clase_repo.list_future_active(turno_id, today)]
             # Un solo mail-resumen por afectado (no uno por clase). Crédito solo por lo pagado.
-            await cancellation_service.cancel_turno_baja(turno_id, clase_ids, reason, admin_id)
+            await cancellation_service.cancel_turno_baja(turno_id, clase_ids, _TURNO_BAJA_REASON, admin_id)
             await SubscriptionRepository(self._session).cancel_all_for_turno(turno_id)
+        elif not turno.is_active:
+            # Reactivación: reabrir hacia adelante. Se descancelan solo las clases futuras
+            # que canceló la baja (las pasadas quedan como histórico, y las canceladas a
+            # mano por otra razón se respetan). No se tocan créditos ni suscripciones: los
+            # afectados ya recibieron su crédito y no se re-inscriben automáticamente.
+            await self._clase_repo.reactivate_turno_baja_clases(turno_id, today, _TURNO_BAJA_REASON)
         await self._turno_repo.set_active(turno_id, is_active)
         return await self._turno_repo.get_by_id(turno_id)
 
