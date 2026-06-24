@@ -69,6 +69,18 @@
               <div class="dato-valor">{{ route.query.instructor }}</div>
             </div>
           </div>
+
+          <div v-if="kind === 'subscription' && route.query.periodo" class="dato">
+            <div class="dato-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <div class="dato-label">Primer período</div>
+              <div class="dato-valor">{{ route.query.periodo }}</div>
+            </div>
+          </div>
  
           <div class="dato">
             <div class="dato-icon">

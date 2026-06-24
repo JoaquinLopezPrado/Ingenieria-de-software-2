@@ -205,6 +205,8 @@
                 </button>
               </template>
               <template v-else>
+              <!-- Mensual: siempre disponible. Si se pisa con otra inscripción, el backend
+                   arranca el abono después del solape (no se bloquea acá). -->
               <button
                 class="accion-btn"
                 :class="{ espera: sinCupoEnMes(turno) }"
@@ -227,6 +229,13 @@
               >
                 Completar pago de seña
               </button>
+              <!-- Clase suelta: el solape SÍ la bloquea (es puntual a esta fecha). -->
+              <p
+                v-else-if="solapesPorTurno.get(turno.id)"
+                class="espera-info"
+              >
+                La clase de este día se solapa con «{{ solapesPorTurno.get(turno.id).activity_name }} – {{ solapesPorTurno.get(turno.id).turno_description }}» ({{ fmtHora(solapesPorTurno.get(turno.id).start_time) }}–{{ fmtHora(solapesPorTurno.get(turno.id).end_time) }}). No podés anotarte suelta a esta clase.
+              </p>
               <button
                 v-else-if="!turnosConClaseConfirmadaEnFecha.has(turno.id) && !sinCupo(turno)"
                 class="secondary-btn"
@@ -326,6 +335,14 @@ const SHORT_DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const dateDay = (str) => SHORT_DAYS[new Date(`${str}T00:00:00`).getDay()]
 const dateDayNum = (str) => new Date(`${str}T00:00:00`).getDate()
 
+// Día de la semana (clave del backend) de una fecha YYYY-MM-DD. getDay(): 0=domingo.
+const WEEKDAY_KEY = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+// "H:MM"/"HH:MM" → minutos del día (el backend serializa sin cero a la izquierda).
+const toMin = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0) }
+// Solape estricto de rangos: clases adyacentes (10–11 y 11–12) NO se pisan.
+const rangosSolapan = (aS, aE, bS, bE) => aS < bE && bS < aE
+const fmtHora = (t) => String(t).padStart(5, '0')
+
 const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -379,6 +396,8 @@ const tabs = computed(() => ['Todos', ...activities.value.map(a => a.name)])
 const currentTab = ref('')
 const inscriptos = ref(new Set())
 const activeSubsByTurno = ref(new Map()) // turno_id → [{ subscription_id, start_date, ends_on }]
+// Ocupación firme del cliente (abonos + sueltas) para detectar solape de horario.
+const misOcupaciones = ref([])
 const turnosPendienteMensual = ref(new Map())
 const turnosPendienteSingle = ref(new Map())
 const myWaitlistByTurno = ref(new Map()) // turno_id → { entry_id }
@@ -466,6 +485,26 @@ const loadEnrollments = async () => {
   myWaitlistByTurno.value = new Map(
     (myWaitlistRes.data || []).map(e => [e.turno_id, { entry_id: e.entry_id }])
   )
+
+  // Ocupación firme para el chequeo de solape: mismos estados que ocupan asiento en
+  // el backend (abono active/pending no vencido; suelta confirmed/deposit_paid/pending
+  // no vencida). La lista de espera no ocupa, no entra acá.
+  const ocupaSub = (s) => s.status === 'active' || (s.status === 'pending' && s.pending_charge && chargeNotExpired(s))
+  const ocupaSingle = (e) =>
+    e.status === 'confirmed' || e.status === 'deposit_paid' || (e.status === 'pending' && notExpired(e))
+  misOcupaciones.value = [
+    ...mySubscriptionRes.data.filter(ocupaSub).map((s) => ({
+      kind: 'sub', turno_id: s.turno_id, startMin: toMin(s.start_time), endMin: toMin(s.end_time),
+      start_time: s.start_time, end_time: s.end_time, days: s.days,
+      start_date: s.start_date, ends_on: s.ends_on,
+      activity_name: s.activity_name, turno_description: s.turno_description,
+    })),
+    ...mySingleRes.data.filter(ocupaSingle).map((e) => ({
+      kind: 'single', turno_id: e.turno_id, startMin: toMin(e.start_time), endMin: toMin(e.end_time),
+      start_time: e.start_time, end_time: e.end_time, clase_date: e.clase_date,
+      activity_name: e.activity_name, turno_description: e.turno_description,
+    })),
+  ]
 }
 
 const loadAllClases = async () => {
@@ -625,6 +664,34 @@ const subFutura = (t) => {
 // ¿El cliente está suscripto para la fecha seleccionada?
 const inscriptoEnFecha = (t) => subForDate(t) !== null
 
+// ¿La ocupación cubre la fecha? Suelta: misma fecha de clase. Abono: la fecha cae en
+// un día del turno y dentro de [start_date, ends_on].
+const ocupacionCubreFecha = (o, fecha, wd) => {
+  if (o.kind === 'single') return o.clase_date === fecha
+  return (o.days?.includes(wd))
+    && (!o.start_date || o.start_date <= fecha)
+    && (!o.ends_on || fecha <= o.ends_on)
+}
+
+// turno_id → ocupación del cliente que se solapa en la fecha seleccionada (o nada).
+// Excluye el propio turno (auto-coincidencia: convertir tu suelta en abono no es solape).
+const solapesPorTurno = computed(() => {
+  const m = new Map()
+  const fecha = selectedDate.value
+  const wd = WEEKDAY_KEY[new Date(`${fecha}T00:00:00`).getDay()]
+  for (const turno of turnos.value) {
+    const tS = toMin(turno.hora)
+    const tE = toMin(turno.horaFin)
+    const conflicto = misOcupaciones.value.find(o =>
+      o.turno_id !== turno.id
+      && ocupacionCubreFecha(o, fecha, wd)
+      && rangosSolapan(tS, tE, o.startMin, o.endMin)
+    )
+    if (conflicto) m.set(turno.id, conflicto)
+  }
+  return m
+})
+
 
 const pct = (t) => {
   const tot = cupoTotal(t)
@@ -677,6 +744,7 @@ const handleInscripcion = async (turno) => {
         instructor:      turno.inst,
         nivel:           turno.nivel,
         numero:          data.subscription_id,
+        periodo:         data.period_month ? `${MONTH_NAMES[data.period_month - 1]} ${data.period_year}` : '',
         amount:                  data.amount,
         original_amount:         data.original_amount,
         discount_deposit_single: data.discount_deposit_single,
@@ -685,7 +753,11 @@ const handleInscripcion = async (turno) => {
       },
     })
   } catch (err) {
-    if (err.response?.status === 409) {
+    const detalle = err.response?.data?.errors?.general
+    if (err.response?.status === 409 && /solap/i.test(detalle ?? '')) {
+      // Solape (no es falta de cupo): mostrar el mensaje real y NO marcar el turno lleno.
+      errorMensaje.value = detalle
+    } else if (err.response?.status === 409) {
       turno.ocup = turno.total
       errorMensaje.value = 'Otro usuario tomó el último lugar disponible. El cupo se liberará automáticamente si no completa el pago.'
     } else if (err.response?.status === 404) {
