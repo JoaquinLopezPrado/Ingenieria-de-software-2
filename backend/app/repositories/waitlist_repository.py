@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -8,11 +8,13 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.waitlist import MyWaitlistEntry, WaitlistEntry, WaitlistStatus
 from app.models.auth import User as UserORM
+from app.models.clase import Clase as ClaseORM
 from app.models.profile import ClientProfile as ClientProfileORM
 from app.models.turno import Turno as TurnoORM
 from app.models.waitlist import SubscriptionWaitlist as WaitlistORM
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.models.subscription import Subscription as SubscriptionORM
+from app.repositories.schedule_conflict import assert_no_schedule_conflict
 
 
 class AbstractWaitlistRepository(ABC):
@@ -82,6 +84,17 @@ class WaitlistRepository(AbstractWaitlistRepository):
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Ya estás en la lista de espera para este turno.",
             )
+
+        # Solape horario: no se puede entrar a la lista de espera de un turno que se pise
+        # con otra inscripción firme del cliente (abono o suelta, cross-actividad).
+        future_clase_ids = (await self._session.execute(
+            select(ClaseORM.id).where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active.is_(True),
+                ClaseORM.date >= date.today(),
+            )
+        )).scalars().all()
+        await assert_no_schedule_conflict(self._session, user_id, list(future_clase_ids))
 
         now = datetime.now(timezone.utc)
         entry = WaitlistORM(

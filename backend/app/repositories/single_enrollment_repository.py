@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -17,6 +17,7 @@ from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM
 from app.models.turno import Turno as TurnoORM
 from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
+from app.repositories.schedule_conflict import assert_no_schedule_conflict
 
 _ART = timezone(timedelta(hours=-3))
 _DEPOSIT_RATIO = Decimal("0.30")
@@ -92,6 +93,11 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
     # ------------------------------------------------------------------ #
 
     async def create_single(self, clase_ids: list[int], user_id: int, credit_id: int | None = None) -> SingleEnrollment:
+        # Solape horario: las clases elegidas no deben pisarse entre sí ni con lo que el
+        # cliente ya ocupa (abonos o sueltas, en cualquier actividad). Si alguna choca se
+        # rechaza el pedido entero.
+        await assert_no_schedule_conflict(self._session, user_id, sorted(set(clase_ids)))
+
         clases: list[ClaseORM] = []
         turno: TurnoORM | None = None
         for clase_id in sorted(clase_ids):
@@ -99,7 +105,6 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
             await self._check_capacity(clase)
             if turno is None:
                 turno = await self._get_turno(clase.turno_id)
-            await self._check_schedule_conflict(user_id, clase.date, turno.start_time, turno.end_time)
             await self._check_duplicate(clase_id, user_id)
             clases.append(clase)
 
@@ -420,31 +425,6 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
                 status_code=status.HTTP_409_CONFLICT,
                 detail="No hay lugares disponibles en esta clase.",
             )
-
-    async def _check_schedule_conflict(self, user_id: int, clase_date: date, start_time: time, end_time: time) -> None:
-        result = await self._session.execute(
-            select(SingleEnrollmentORM)
-            .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
-            .join(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)
-            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
-            .where(
-                SingleEnrollmentORM.user_id == user_id,
-                SingleEnrollmentORM.status.in_(_ACTIVE),
-                ClaseORM.date == clase_date,
-                TurnoORM.start_time < end_time,
-                TurnoORM.end_time > start_time,
-            )
-        )
-        existing = result.scalar_one_or_none()
-        if existing is None:
-            return
-        if self._is_stale_pending(existing):
-            existing.status = SingleEnrollmentStatus.CANCELLED
-            return
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya tenés otra clase suelta en ese día y horario.",
-        )
 
     async def _check_duplicate(self, clase_id: int, user_id: int) -> None:
         result = await self._session.execute(

@@ -35,6 +35,12 @@ class SubscriptionService:
         # buscar el período: la propia inscripción del usuario no suma nueva ocupación
         # al suscribirse (es la misma persona ocupando el mismo slot).
         all_future_ids = [c.id for c in future_clases]
+
+        # Solape horario: el cliente no puede abonarse a un turno que se pise con otra
+        # inscripción suya (abono o suelta, cross-actividad). Su propia suelta sobre estas
+        # mismas clases no cuenta (es el mismo asiento al convertirla en abono).
+        await self._repo.check_schedule_conflict(user_id, all_future_ids)
+
         user_confirmed, user_deposit = await self._repo.get_single_covered_clase_ids(user_id, all_future_ids)
         user_single_ids = user_confirmed | user_deposit
 
