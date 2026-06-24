@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
 import { getTurnosParaInscripcion } from '@/services/inscripcionService'
 import { getFormOptions, extractBackendError, type Turno, type ActivityOption } from '@/services/sessionService'
+import { getClienteById } from '@/services/clientesService'
+import type { Cliente as ClienteService } from '@/services/clientesService'
 
 const router = useRouter()
+const route = useRoute()
 const inscripcionStore = useInscripcionStore()
 
-// Garantizado no-null por el guard de flujo del router
-const cliente = computed(() => inscripcionStore.clienteSeleccionado!)
+// Flujo cliente-first (/clientes/:clienteId/inscripciones/...) vs flujo viejo (/inscripciones/...)
+const isClienteFlow = computed(() => !!route.params.clienteId)
+const clienteId = computed(() => isClienteFlow.value ? Number(route.params.clienteId) : null)
+
+const clienteFromRoute = ref<ClienteService | null>(null)
+const cliente = computed(() =>
+  isClienteFlow.value ? clienteFromRoute.value : inscripcionStore.clienteSeleccionado
+)
 
 // ─── Estado principal ──────────────────────────────────────────────────────────
 
@@ -175,19 +184,26 @@ function goToPage(page: number | '...') {
 
 function handleInscribir(turno: Turno) {
   inscripcionStore.setTurno(turno)
-  router.push({ name: 'inscripciones-inscribir', params: { turnoId: turno.id } })
+  if (isClienteFlow.value) {
+    router.push({ name: 'clientes-inscripciones-inscribir', params: { clienteId: clienteId.value!, turnoId: turno.id } })
+  } else {
+    router.push({ name: 'inscripciones-inscribir', params: { turnoId: turno.id } })
+  }
 }
 
 function handleListaEspera(turno: Turno) {
   inscripcionStore.setTurno(turno)
-  router.push({ name: 'inscripciones-lista-espera', params: { turnoId: turno.id } })
+  if (isClienteFlow.value) {
+    router.push({ name: 'clientes-inscripciones-lista-espera', params: { clienteId: clienteId.value!, turnoId: turno.id } })
+  } else {
+    router.push({ name: 'inscripciones-lista-espera', params: { turnoId: turno.id } })
+  }
 }
 
 // ─── Carga inicial ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
   try {
-    // GET /turnos (✅ implementado) + GET /activities (✅ implementado) — en paralelo
     const [turnosRes, formOpts] = await Promise.all([
       getTurnosParaInscripcion(),
       getFormOptions(),
@@ -199,6 +215,13 @@ onMounted(async () => {
     errorMessage.value = extractBackendError(err)
   } finally {
     isLoading.value = false
+  }
+
+  // Carga del banner del cliente (no bloquea la tabla de turnos)
+  if (isClienteFlow.value && clienteId.value !== null) {
+    getClienteById(clienteId.value)
+      .then(c => { clienteFromRoute.value = c })
+      .catch(() => {})
   }
 })
 </script>
@@ -213,7 +236,18 @@ onMounted(async () => {
           <h1 class="page-title">Inscripciones</h1>
           <p class="page-subtitle">Seleccioná el turno para inscribir al cliente o agregar a la lista de espera</p>
         </div>
-        <button class="btn-secondary" @click="router.push({ name: 'inscripciones-buscar-cliente' })">
+        <button
+          v-if="isClienteFlow"
+          class="btn-secondary"
+          @click="router.push({ name: 'ficha-cliente', params: { clienteId: clienteId } })"
+        >
+          ← Volver a la ficha
+        </button>
+        <button
+          v-else
+          class="btn-secondary"
+          @click="router.push({ name: 'inscripciones-buscar-cliente' })"
+        >
           ← Cambiar cliente
         </button>
       </div>

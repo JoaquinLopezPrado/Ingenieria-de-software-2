@@ -1,18 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
 import { getPreviewInscripcion, inscribirCliente } from '@/services/inscripcionService'
 import { getFormOptions, extractBackendError } from '@/services/sessionService'
+import { getClienteById } from '@/services/clientesService'
 import type { PreviewInscripcionResponse } from '@/services/inscripcionService'
 import type { ActivityOption } from '@/services/sessionService'
+import type { Cliente as ClienteService } from '@/services/clientesService'
 
 const router = useRouter()
+const route = useRoute()
 const store = useInscripcionStore()
 
-// Garantizados no-null por el guard de flujo del router
-const cliente = computed(() => store.clienteSeleccionado!)
+const isClienteFlow = computed(() => !!route.params.clienteId)
+const clienteId = computed(() => isClienteFlow.value ? Number(route.params.clienteId) : null)
+
+// Flujo nuevo: cliente cargado por API. Flujo viejo: desde el store.
+const clienteFromRoute = ref<ClienteService | null>(null)
+const cliente = computed(() =>
+  isClienteFlow.value ? clienteFromRoute.value! : store.clienteSeleccionado!
+)
 const turno = computed(() => store.turnoSeleccionado!)
 
 const DAY_LABELS: Record<string, string> = {
@@ -57,9 +66,10 @@ function formatMoney(amount: number): string {
 
 onMounted(async () => {
   try {
+    const userId = isClienteFlow.value ? Number(route.params.clienteId) : store.clienteSeleccionado!.id
     const [formOptions, previewData] = await Promise.all([
       getFormOptions(),
-      getPreviewInscripcion(turno.value.id, cliente.value.id, turno.value.class_price),
+      getPreviewInscripcion(turno.value.id, userId, turno.value.class_price),
     ])
     allActivities.value = formOptions.activities
     preview.value = previewData
@@ -67,6 +77,13 @@ onMounted(async () => {
     previewError.value = extractBackendError(err) || 'No se pudo calcular el monto de la inscripción'
   } finally {
     isLoadingPreview.value = false
+  }
+
+  // Carga del banner del cliente (no bloquea el preview)
+  if (isClienteFlow.value) {
+    getClienteById(Number(route.params.clienteId))
+      .then(c => { clienteFromRoute.value = c })
+      .catch(() => {})
   }
 })
 
@@ -77,7 +94,8 @@ async function handleConfirmar() {
   confirmError.value = null
   isConfirming.value = true
   try {
-    await inscribirCliente(turno.value.id, cliente.value.id)
+    const userId = isClienteFlow.value ? clienteId.value! : store.clienteSeleccionado!.id
+    await inscribirCliente(turno.value.id, userId)
     store.setTurno(null)
     isSuccess.value = true
   } catch (err) {
@@ -88,12 +106,20 @@ async function handleConfirmar() {
 }
 
 function handleVolver() {
-  router.push({ name: 'inscripciones-turnos' })
+  if (isClienteFlow.value) {
+    router.push({ name: 'clientes-inscripciones-turnos', params: { clienteId: clienteId.value! } })
+  } else {
+    router.push({ name: 'inscripciones-turnos' })
+  }
 }
 
 function handleCambiarCliente() {
-  store.reset()
-  router.push({ name: 'inscripciones-buscar-cliente' })
+  if (isClienteFlow.value) {
+    router.push({ name: 'ficha-cliente', params: { clienteId: clienteId.value! } })
+  } else {
+    store.reset()
+    router.push({ name: 'inscripciones-buscar-cliente' })
+  }
 }
 </script>
 
@@ -117,7 +143,7 @@ function handleCambiarCliente() {
         <div class="success-icon" aria-hidden="true">✓</div>
         <h2 class="success-title">Inscripción realizada con éxito</h2>
         <p class="success-desc">
-          {{ cliente.first_name }} {{ cliente.last_name }} quedó inscripto/a en el turno correctamente.
+          {{ cliente?.first_name }} {{ cliente?.last_name }} quedó inscripto/a en el turno correctamente.
         </p>
         <button type="button" class="btn-primary" @click="handleVolver">
           Volver al listado de turnos
@@ -128,7 +154,7 @@ function handleCambiarCliente() {
       <template v-else>
 
         <!-- Banner del cliente -->
-        <div class="cliente-banner">
+        <div v-if="cliente" class="cliente-banner">
           <div class="banner-avatar" aria-hidden="true">
             {{ getInitials(cliente.first_name, cliente.last_name) }}
           </div>
@@ -137,7 +163,7 @@ function handleCambiarCliente() {
             <span class="banner-doc">{{ cliente.doc_type_name }} {{ cliente.doc_number }}</span>
           </div>
           <button type="button" class="btn-cambiar" @click="handleCambiarCliente">
-            ← Cambiar cliente
+            {{ isClienteFlow ? '← Volver a la ficha' : '← Cambiar cliente' }}
           </button>
         </div>
 

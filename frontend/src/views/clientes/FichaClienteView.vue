@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getClienteById, type Cliente } from '@/services/clientesService'
 import { extractBackendError } from '@/services/sessionService'
+import { useAuthStore } from '@/stores/authStore'
+import { isAdminUser } from '@/utils/role'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
 const clienteId = Number(route.params.clienteId)
+const isAdmin = computed(() => isAdminUser(authStore.user))
 
 const cliente = ref<Cliente | null>(null)
 const loading = ref(true)
@@ -40,6 +46,7 @@ onMounted(async () => {
       </div>
 
       <template v-else-if="cliente">
+        <!-- ── Datos ── -->
         <div class="ficha-card">
           <div class="avatar">
             {{ cliente.first_name.charAt(0) }}{{ cliente.last_name.charAt(0) }}
@@ -65,19 +72,49 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="actions">
-          <RouterLink
-            :to="`/clientes/${clienteId}/asistencias`"
-            class="action-btn"
-          >
-            Ver historial de asistencias
-          </RouterLink>
+
           <RouterLink
             :to="`/clientes/${clienteId}/inscripciones`"
             class="action-btn"
           >
             Ver inscripciones activas
           </RouterLink>
+        <!-- ── Acciones ── -->
+        <div class="actions-card">
+          <div class="actions-grid">
+            <RouterLink
+              :to="{ name: 'clientes-inscripciones-turnos', params: { clienteId } }"
+              class="action-btn action-primary"
+            >
+              Inscribir a Turno
+            </RouterLink>
+
+            <button type="button" class="action-btn action-secondary" disabled>
+              Inscribir a Clase
+            </button>
+
+            <RouterLink
+              :to="`/clientes/${clienteId}/asistencias`"
+              class="action-btn action-secondary"
+            >
+              Ver historial de asistencias
+            </RouterLink>
+
+            <button type="button" class="action-btn action-secondary" disabled>
+              Ver pagos / saldos
+            </button>
+
+            <button type="button" class="action-btn action-secondary" disabled>
+              Editar datos
+            </button>
+          </div>
+
+          <!-- Solo administrador -->
+          <div v-if="isAdmin" class="danger-zone">
+            <button type="button" class="action-btn action-danger" disabled>
+              Dar de Baja
+            </button>
+          </div>
         </div>
       </template>
     </div>
@@ -89,6 +126,8 @@ onMounted(async () => {
   max-width: 680px;
   margin: 0 auto;
 }
+
+/* ── Header ── */
 
 .page-header {
   margin-bottom: 2rem;
@@ -114,6 +153,8 @@ onMounted(async () => {
   color: #111827;
 }
 
+/* ── Estados ── */
+
 .state-box {
   background: white;
   border-radius: 16px;
@@ -137,6 +178,8 @@ onMounted(async () => {
   color: #dc2626;
 }
 
+/* ── Ficha ── */
+
 .ficha-card {
   background: white;
   border-radius: 16px;
@@ -146,6 +189,7 @@ onMounted(async () => {
   gap: 1.5rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   border: 1px solid #f3f4f6;
+  margin-bottom: 1.25rem;
 }
 
 .avatar {
@@ -205,28 +249,94 @@ onMounted(async () => {
   margin: 0;
 }
 
-.actions {
-  margin-top: 1.5rem;
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
+/* ── Acciones ── */
+
+.actions-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
 }
 
 .action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #0d9b8a;
-  color: white;
-  text-decoration: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
   font-weight: 600;
-  transition: background-color 0.15s;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
 }
 
-.action-btn:hover {
-  background: #0a8070;
+.action-primary {
+  background-color: #0d9b8a;
+  color: white;
+  border-color: #0d9b8a;
+}
+
+.action-primary:hover {
+  background-color: #0a8070;
+  border-color: #0a8070;
+}
+
+.action-secondary {
+  background-color: #f9fafb;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+.action-secondary:not([disabled]):hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.action-secondary[disabled],
+.action-primary[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Zona de peligro ── */
+
+.danger-zone {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #fee2e2;
+}
+
+.action-danger {
+  background-color: #fff5f5;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.action-danger:not([disabled]):hover {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.action-danger[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

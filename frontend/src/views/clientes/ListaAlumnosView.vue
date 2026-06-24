@@ -7,6 +7,10 @@ import { extractBackendError } from '@/services/sessionService'
 
 const router = useRouter()
 
+function inscribirATurno(cliente: Cliente) {
+  router.push({ name: 'clientes-inscripciones-turnos', params: { clienteId: cliente.id } })
+}
+
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10
@@ -170,7 +174,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
                 <th>Documento</th>
                 <th>Email</th>
                 <th>Teléfono</th>
-                <th></th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -190,9 +194,15 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
                 <td class="cell-email">{{ cliente.email }}</td>
                 <td class="cell-phone">{{ cliente.phone }}</td>
                 <td class="cell-actions" @click.stop>
+                  <button type="button" class="btn-accion btn-inscribir-turno" @click.stop="inscribirATurno(cliente)">
+                    Inscribir a Turno
+                  </button>
+                  <button type="button" class="btn-accion btn-inscribir-clase" disabled>
+                    Inscribir a clase
+                  </button>
                   <RouterLink
                     :to="{ name: 'ficha-cliente', params: { clienteId: cliente.id } }"
-                    class="btn-ver-ficha"
+                    class="btn-accion btn-ver-ficha"
                   >
                     Ver ficha
                   </RouterLink>
@@ -438,7 +448,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
 
 .alumnos-table {
   width: 100%;
-  min-width: 600px;
+  min-width: 820px;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
@@ -524,19 +534,55 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
   text-align: right;
 }
 
-.btn-ver-ficha {
+.btn-accion {
   display: inline-flex;
   align-items: center;
-  background-color: #f0fdf9;
-  color: #0d9b8a;
-  border: 1px solid #a7f3d0;
   border-radius: 6px;
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.3rem 0.75rem;
-  text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
   transition: background-color 0.12s, border-color 0.12s;
+  margin-left: 0.35rem;
+}
+
+.btn-accion:first-child {
+  margin-left: 0;
+}
+
+.btn-accion:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-inscribir-turno {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.btn-inscribir-turno:hover:not(:disabled) {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.btn-inscribir-clase {
+  background-color: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
+.btn-inscribir-clase:hover:not(:disabled) {
+  background-color: #ede9fe;
+  border-color: #c4b5fd;
+}
+
+.btn-ver-ficha {
+  background-color: #f0fdf9;
+  color: #0d9b8a;
+  border: 1px solid #a7f3d0;
 }
 
 .btn-ver-ficha:hover {

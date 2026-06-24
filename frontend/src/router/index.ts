@@ -232,6 +232,24 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresStaff: true }
     },
     {
+      path: '/clientes/:clienteId/inscripciones/turnos',
+      name: 'clientes-inscripciones-turnos',
+      component: () => import('../views/inscripciones/ListaTurnosView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true, clienteInscripcionFlow: true },
+    },
+    {
+      path: '/clientes/:clienteId/inscripciones/turnos/:turnoId/inscribir',
+      name: 'clientes-inscripciones-inscribir',
+      component: () => import('../views/inscripciones/InscribirView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true, clienteInscripcionFlow: true },
+    },
+    {
+      path: '/clientes/:clienteId/inscripciones/turnos/:turnoId/lista-espera',
+      name: 'clientes-inscripciones-lista-espera',
+      component: () => import('../views/inscripciones/ListaEsperaView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true, clienteInscripcionFlow: true },
+    },
+    {
       path: '/inscripciones',
       component: () => import('../views/inscripciones/InscripcionesLayout.vue'),
       meta: { requiresAuth: true, requiresStaff: true, inscripcionesFlow: true },
@@ -266,6 +284,11 @@ const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'reset
 router.beforeEach(async (to: RouteLocationNormalized, from: RouteLocationNormalized) => {
   // Limpiar el flujo de inscripciones al salir del módulo
   if (from.meta.inscripcionesFlow && !to.meta.inscripcionesFlow) {
+    useInscripcionStore().reset()
+  }
+
+  // Limpiar el flujo cliente-first al salir del módulo
+  if (from.meta.clienteInscripcionFlow && !to.meta.clienteInscripcionFlow) {
     useInscripcionStore().reset()
   }
 
@@ -313,6 +336,17 @@ router.beforeEach(async (to: RouteLocationNormalized, from: RouteLocationNormali
       !inscripcionStore.turnoSeleccionado
     ) {
       return { name: 'inscripciones-turnos' }
+    }
+  }
+
+  // Guard flujo cliente-first: requiere turnoSeleccionado para confirmar o lista de espera
+  if (to.meta.clienteInscripcionFlow) {
+    const inscripcionStore = useInscripcionStore()
+    if (
+      (to.name === 'clientes-inscripciones-inscribir' || to.name === 'clientes-inscripciones-lista-espera') &&
+      !inscripcionStore.turnoSeleccionado
+    ) {
+      return { name: 'clientes-inscripciones-turnos', params: { clienteId: to.params.clienteId } }
     }
   }
 
