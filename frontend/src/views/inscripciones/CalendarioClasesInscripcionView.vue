@@ -33,6 +33,12 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Convierte "H:MM" o "HH:MM" a minutos para ordenar correctamente
+function toMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number)
+  return (h ?? 0) * 60 + (m ?? 0)
+}
+
 function getMonday(d: Date): Date {
   const date = new Date(d)
   const day = date.getDay()
@@ -182,7 +188,7 @@ onMounted(async () => {
 
     todasLasClases.value = clasesChunks
       .flat()
-      .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
+      .sort((a, b) => a.date.localeCompare(b.date) || toMinutes(a.start_time) - toMinutes(b.start_time))
   } catch (err) {
     errorMessage.value = extractBackendError(err)
   } finally {
