@@ -417,6 +417,7 @@ onMounted(async () => {
                   Ver clases
                 </RouterLink>
                 <button
+                  v-if="turno.is_active"
                   class="btn-generate"
                   :disabled="generatingTurnoId === turno.id"
                   @click="handleGenerateClasses(turno.id)"
