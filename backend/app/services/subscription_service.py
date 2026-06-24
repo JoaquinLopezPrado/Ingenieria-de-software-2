@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.domain.subscription import MySubscription, SubscriptionCharge
+from app.repositories.schedule_conflict import conflict_message
 from app.repositories.subscription_repository import AbstractSubscriptionRepository
 
 _DEPOSIT_RATIO = Decimal("0.30")
@@ -36,10 +37,20 @@ class SubscriptionService:
         # al suscribirse (es la misma persona ocupando el mismo slot).
         all_future_ids = [c.id for c in future_clases]
 
-        # Solape horario: el cliente no puede abonarse a un turno que se pise con otra
-        # inscripción suya (abono o suelta, cross-actividad). Su propia suelta sobre estas
-        # mismas clases no cuenta (es el mismo asiento al convertirla en abono).
-        await self._repo.check_schedule_conflict(user_id, all_future_ids)
+        # Solape horario: un abono es recurrente (ocupa todas sus clases desde el arranque),
+        # así que no puede arrancar mientras se pise con otra inscripción del cliente. En vez
+        # de bloquear de una, arranca DESPUÉS de la última clase en conflicto (ej. cuando
+        # vence la baja programada del otro turno). Si no queda ninguna clase libre → 409.
+        conflicts = await self._repo.find_schedule_conflicts(user_id, all_future_ids)
+        if conflicts:
+            last_conflict = max(slot.date for slot in conflicts.values())
+            future_clases = [c for c in future_clases if c.date > last_conflict]
+            if not future_clases:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=conflict_message(next(iter(conflicts.values()))),
+                )
+            all_future_ids = [c.id for c in future_clases]
 
         user_confirmed, user_deposit = await self._repo.get_single_covered_clase_ids(user_id, all_future_ids)
         user_single_ids = user_confirmed | user_deposit

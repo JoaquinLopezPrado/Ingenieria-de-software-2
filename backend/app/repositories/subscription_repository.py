@@ -23,7 +23,7 @@ from app.models.clase import Clase as ClaseORM
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
 from app.models.subscription import Subscription as SubscriptionORM, SubscriptionCharge as SubscriptionChargeORM
 from app.models.turno import Turno as TurnoORM
-from app.repositories.schedule_conflict import assert_no_schedule_conflict
+from app.repositories.schedule_conflict import Slot, find_conflicts
 
 _ACTIVE_SINGLE_STATUSES = [
     SingleEnrollmentStatus.PENDING,
@@ -51,7 +51,7 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def check_schedule_conflict(self, user_id: int, clase_ids: list[int]) -> None:
+    async def find_schedule_conflicts(self, user_id: int, clase_ids: list[int]) -> dict[int, Slot]:
         raise NotImplementedError
 
     @abstractmethod
@@ -201,8 +201,8 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             detail="Ya tenés una suscripción activa para este turno.",
         )
 
-    async def check_schedule_conflict(self, user_id: int, clase_ids: list[int]) -> None:
-        await assert_no_schedule_conflict(self._session, user_id, clase_ids)
+    async def find_schedule_conflicts(self, user_id: int, clase_ids: list[int]) -> dict[int, Slot]:
+        return await find_conflicts(self._session, user_id, clase_ids)
 
     async def get_future_clases(self, turno_id: int) -> list[ClaseORM]:
         today = date.today()

@@ -144,7 +144,7 @@ def _find_internal_overlap(targets: list[Slot]) -> tuple[Slot, Slot] | None:
     return None
 
 
-def _conflict_message(occupied: Slot) -> str:
+def conflict_message(occupied: Slot) -> str:
     return (
         f"Se solapa con tu inscripción a «{occupied.activity_name} – "
         f"{occupied.turno_description}» del {occupied.date.strftime('%d/%m')} de "
@@ -152,15 +152,36 @@ def _conflict_message(occupied: Slot) -> str:
     )
 
 
+async def _load_conflicts(session: AsyncSession, user_id: int, targets: list[Slot]) -> dict[int, Slot]:
+    """{clase_id destino → ocupación firme del cliente con la que se pisa}.
+
+    Una clase que el cliente ya ocupa y que ES una de las destino no cuenta como conflicto
+    (misma clase, mismo asiento: ej. convertir una suelta en abono).
+    """
+    target_ids = {t.clase_id for t in targets}
+    from_date = min(t.date for t in targets)
+    occupied_by_date: dict[date, list[Slot]] = defaultdict(list)
+    for o in await _load_occupied_slots(session, user_id, from_date):
+        if o.clase_id not in target_ids:
+            occupied_by_date[o.date].append(o)
+
+    conflicts: dict[int, Slot] = {}
+    for t in targets:
+        for o in occupied_by_date.get(t.date, ()):
+            if _overlaps(t, o):
+                conflicts[t.clase_id] = o
+                break
+    return conflicts
+
+
 async def assert_no_schedule_conflict(
     session: AsyncSession, user_id: int, target_clase_ids: list[int]
 ) -> None:
     """Lanza 409 si las clases destino se pisan entre sí o con la ocupación del cliente.
 
-    ``target_clase_ids`` son las clases que el cliente pasaría a ocupar (suscripción →
-    clases futuras del turno; suelta → clases elegidas; waitlist → clases futuras del
-    turno). Una clase que el cliente ya ocupa y que ES una de las destino no cuenta como
-    conflicto (misma clase, mismo asiento: ej. convertir una suelta en abono).
+    Para inscripciones puntuales (clase suelta, lista de espera): si CUALQUIER clase
+    destino choca, se rechaza. ``target_clase_ids`` son las clases que el cliente pasaría
+    a ocupar.
     """
     if not target_clase_ids:
         return
@@ -176,18 +197,23 @@ async def assert_no_schedule_conflict(
             detail="Elegiste dos clases que se solapan en horario; revisá tu selección.",
         )
 
-    target_ids = {t.clase_id for t in targets}
-    from_date = min(t.date for t in targets)
-    occupied_by_date: dict[date, list[Slot]] = defaultdict(list)
-    for o in await _load_occupied_slots(session, user_id, from_date):
-        if o.clase_id in target_ids:
-            continue  # misma clase: auto-coincidencia, no es conflicto
-        occupied_by_date[o.date].append(o)
+    conflicts = await _load_conflicts(session, user_id, targets)
+    if conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=conflict_message(next(iter(conflicts.values()))),
+        )
 
-    for t in targets:
-        for o in occupied_by_date.get(t.date, ()):
-            if _overlaps(t, o):
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=_conflict_message(o),
-                )
+
+async def find_conflicts(session: AsyncSession, user_id: int, target_clase_ids: list[int]) -> dict[int, Slot]:
+    """Como ``assert_no_schedule_conflict`` pero sin lanzar: devuelve {clase_id → solape}.
+
+    Lo usa la suscripción (abono recurrente) para arrancar DESPUÉS de la última clase en
+    conflicto en vez de bloquear de una.
+    """
+    if not target_clase_ids:
+        return {}
+    targets = await _load_target_slots(session, target_clase_ids)
+    if not targets:
+        return {}
+    return await _load_conflicts(session, user_id, targets)
