@@ -400,6 +400,9 @@ export const getTurnoDeactivationImpact = async (
   turnoId: number
 ): Promise<TurnoDeactivationImpact> => {
   const res = await api.get(`/turnos/${turnoId}/deactivation-impact`)
+  return res.data
+}
+
 // ─── Inscripción a clase individual (INS-09.01) ───────────────────────────────
 
 export interface SingleEnrollmentResponse {
