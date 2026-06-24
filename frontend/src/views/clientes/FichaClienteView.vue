@@ -5,11 +5,13 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { getClienteById, type Cliente } from '@/services/clientesService'
 import { extractBackendError } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
+import { useInscripcionStore } from '@/stores/inscripcionStore'
 import { isAdminUser } from '@/utils/role'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const inscripcionStore = useInscripcionStore()
 
 const clienteId = Number(route.params.clienteId)
 const isAdmin = computed(() => isAdminUser(authStore.user))
@@ -27,6 +29,21 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+function inscribirAClase() {
+  if (!cliente.value) return
+  const c = cliente.value
+  inscripcionStore.setCliente({
+    id: c.id,
+    first_name: c.first_name,
+    last_name: c.last_name,
+    email: c.email,
+    phone: c.phone,
+    doc_number: c.doc_number,
+    doc_type_name: c.doc_type_name as 'DNI' | 'PASAPORTE',
+  })
+  router.push({ name: 'inscripciones-clases' })
+}
 </script>
 
 <template>
@@ -84,12 +101,16 @@ onMounted(async () => {
           <div class="actions-grid">
             <RouterLink
               :to="{ name: 'clientes-inscripciones-turnos', params: { clienteId } }"
-              class="action-btn action-primary"
+              class="action-btn action-inscribir-turno"
             >
               Inscribir a Turno
             </RouterLink>
 
-            <button type="button" class="action-btn action-secondary" disabled>
+            <button
+              type="button"
+              class="action-btn action-inscribir-clase"
+              @click="inscribirAClase"
+            >
               Inscribir a Clase
             </button>
 
@@ -282,15 +303,26 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.action-primary {
-  background-color: #0d9b8a;
-  color: white;
-  border-color: #0d9b8a;
+.action-inscribir-turno {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
 }
 
-.action-primary:hover {
-  background-color: #0a8070;
-  border-color: #0a8070;
+.action-inscribir-turno:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.action-inscribir-clase {
+  background-color: #faf5ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+.action-inscribir-clase:hover {
+  background-color: #ede9fe;
+  border-color: #c4b5fd;
 }
 
 .action-secondary {
@@ -304,8 +336,7 @@ onMounted(async () => {
   border-color: #d1d5db;
 }
 
-.action-secondary[disabled],
-.action-primary[disabled] {
+.action-secondary[disabled] {
   opacity: 0.45;
   cursor: not-allowed;
 }

@@ -400,6 +400,28 @@ export const getTurnoDeactivationImpact = async (
   turnoId: number
 ): Promise<TurnoDeactivationImpact> => {
   const res = await api.get(`/turnos/${turnoId}/deactivation-impact`)
+// ─── Inscripción a clase individual (INS-09.01) ───────────────────────────────
+
+export interface SingleEnrollmentResponse {
+  id: number
+  turno_id: number
+  amount: string
+  status: 'pending'
+  expires_at: string
+}
+
+/**
+ * Inscribe al usuario autenticado en una o más clases individuales.
+ * ⚠ El endpoint actual usa el usuario del JWT — para inscribir on-behalf-of
+ *   un cliente, el backend debe agregar soporte a `user_id` y `payment_type`.
+ *   Ver docs/pendientes-backend.md § 13.
+ */
+export const createSingleEnrollment = async (
+  claseIds: number[],
+): Promise<SingleEnrollmentResponse> => {
+  const res = await api.post<SingleEnrollmentResponse>('/single-enrollments', {
+    clase_ids: claseIds,
+  })
   return res.data
 }
 

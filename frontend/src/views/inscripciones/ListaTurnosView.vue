@@ -236,20 +236,29 @@ onMounted(async () => {
           <h1 class="page-title">Inscripciones</h1>
           <p class="page-subtitle">Seleccioná el turno para inscribir al cliente o agregar a la lista de espera</p>
         </div>
-        <button
-          v-if="isClienteFlow"
-          class="btn-secondary"
-          @click="router.push({ name: 'ficha-cliente', params: { clienteId: clienteId } })"
-        >
-          ← Volver a la ficha
-        </button>
-        <button
-          v-else
-          class="btn-secondary"
-          @click="router.push({ name: 'inscripciones-buscar-cliente' })"
-        >
-          ← Cambiar cliente
-        </button>
+        <div class="header-actions">
+          <button
+            v-if="!isClienteFlow"
+            class="btn-secondary btn-accent"
+            @click="router.push({ name: 'inscripciones-clases' })"
+          >
+            Inscribir a clase individual
+          </button>
+          <button
+            v-if="isClienteFlow"
+            class="btn-secondary"
+            @click="router.push({ name: 'ficha-cliente', params: { clienteId: clienteId } })"
+          >
+            ← Volver a la ficha
+          </button>
+          <button
+            v-else
+            class="btn-secondary"
+            @click="router.push({ name: 'inscripciones-buscar-cliente' })"
+          >
+            ← Cambiar cliente
+          </button>
+        </div>
       </div>
 
       <!-- ── Banner cliente seleccionado ── -->
@@ -506,6 +515,23 @@ onMounted(async () => {
 
 .btn-secondary:hover {
   background-color: #e5e7eb;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-accent {
+  background-color: #f0fdf9;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.btn-accent:hover {
+  background-color: #dcfce7;
 }
 
 /* ── Banner cliente ── */

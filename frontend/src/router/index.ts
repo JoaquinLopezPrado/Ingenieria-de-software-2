@@ -276,6 +276,20 @@ const router = createRouter({
         },
       ],
     },
+    // Flujo de clase individual — rutas independientes (NO hijas del parent inscripcionesFlow)
+    // para que el guard de clienteSeleccionado del flujo de turnos no interfiera.
+    {
+      path: '/inscripciones/clases',
+      name: 'inscripciones-clases',
+      component: () => import('../views/inscripciones/CalendarioClasesInscripcionView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/inscripciones/clases/:claseId/inscribir',
+      name: 'inscripciones-inscribir-clase',
+      component: () => import('../views/inscripciones/InscribirClaseView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ]
 })
 

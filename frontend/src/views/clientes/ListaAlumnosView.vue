@@ -4,11 +4,26 @@ import { useRouter, RouterLink } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { listClientes, type Cliente } from '@/services/clientesService'
 import { extractBackendError } from '@/services/sessionService'
+import { useInscripcionStore } from '@/stores/inscripcionStore'
 
 const router = useRouter()
+const inscripcionStore = useInscripcionStore()
 
 function inscribirATurno(cliente: Cliente) {
   router.push({ name: 'clientes-inscripciones-turnos', params: { clienteId: cliente.id } })
+}
+
+function inscribirAClase(cliente: Cliente) {
+  inscripcionStore.setCliente({
+    id: cliente.id,
+    first_name: cliente.first_name,
+    last_name: cliente.last_name,
+    email: cliente.email,
+    phone: cliente.phone,
+    doc_number: cliente.doc_number,
+    doc_type_name: cliente.doc_type_name as 'DNI' | 'PASAPORTE',
+  })
+  router.push({ name: 'inscripciones-clases' })
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -197,7 +212,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
                   <button type="button" class="btn-accion btn-inscribir-turno" @click.stop="inscribirATurno(cliente)">
                     Inscribir a Turno
                   </button>
-                  <button type="button" class="btn-accion btn-inscribir-clase" disabled>
+                  <button type="button" class="btn-accion btn-inscribir-clase" @click.stop="inscribirAClase(cliente)">
                     Inscribir a clase
                   </button>
                   <RouterLink
