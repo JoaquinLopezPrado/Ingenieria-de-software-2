@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.single_enrollment import SingleEnrollmentStatus
-from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
+from app.domain.subscription import ChargeStatus, OCCUPYING_SUBSCRIPTION_STATUSES
 from app.models.auth import User as UserORM
 from app.models.class_credit import ClassCredit as ClassCreditORM
 from app.models.clase import Clase as ClaseORM
 from app.models.profile import ClientProfile
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
-from app.models.subscription import Subscription as SubscriptionORM
+from app.models.subscription import Subscription as SubscriptionORM, SubscriptionCharge as SubscriptionChargeORM
 from app.models.turno import Turno as TurnoORM
 from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 from app.schemas.clases import CancelPreviewAlumno, CancelPreviewResponse
@@ -106,11 +106,13 @@ class ClaseCancellationRepository:
                 continue
             seen.add(user.id)
             name = f"{profile.first_name} {profile.last_name}" if profile else user.email
+            # Solo se devuelve crédito por clases de períodos efectivamente abonados.
+            pagado = await self._period_paid(sub.id, clase_date)
             afectados.append(CancelPreviewAlumno(
                 user_id=user.id,
                 full_name=name,
                 email=user.email,
-                tipo="suscripcion",
+                tipo="suscripcion" if pagado else "suscripcion_impago",
                 amount=Decimal(turno.class_price),
             ))
 
@@ -148,6 +150,18 @@ class ClaseCancellationRepository:
             ))
 
         return afectados
+
+    async def _period_paid(self, subscription_id: int, clase_date: date) -> bool:
+        """¿El período (mes/año) de la clase tiene un cargo PAID en esa suscripción?"""
+        result = await self._session.execute(
+            select(SubscriptionChargeORM.id).where(
+                SubscriptionChargeORM.subscription_id == subscription_id,
+                SubscriptionChargeORM.period_month == clase_date.month,
+                SubscriptionChargeORM.period_year == clase_date.year,
+                SubscriptionChargeORM.status == ChargeStatus.PAID,
+            ).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def _create_credit(
         self, user_id: int, turno_id: int, clase_id: int, amount: Decimal, now: datetime

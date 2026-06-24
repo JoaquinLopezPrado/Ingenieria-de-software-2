@@ -13,7 +13,9 @@ class CancelPreviewAlumno(BaseModel):
     user_id: int
     full_name: str
     email: str
-    tipo: Literal["suscripcion", "individual_completo", "individual_senia"]
+    # suscripcion = abono con el período pagado (recibe crédito);
+    # suscripcion_impago = abono cuyo período no está pagado (se avisa, sin crédito).
+    tipo: Literal["suscripcion", "suscripcion_impago", "individual_completo", "individual_senia"]
     amount: Decimal
 
 
