@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
-import { getTurnosAll, getClasesByTurnoAdmin, getFormOptions } from '@/services/sessionService'
+import { getTurnosAll, getClasesByTurnoAdmin, getFormOptions, extractBackendError, getClasesByTurno } from '@/services/sessionService'
 import type { Turno } from '@/services/sessionService'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ onMounted(async () => {
 
     const clasesChunks = await Promise.all(
       turnosActivos.map(turno =>
-        getClasesByTurnoAdmin(turno.id)
+        getClasesByTurno(turno.id)
           .then(clases =>
             clases
               .filter(c =>
