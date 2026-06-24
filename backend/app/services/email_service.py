@@ -20,6 +20,7 @@ from app.services.email_templates import (
     password_reset,
     single_payment_confirmed,
     subscription_payment_confirmed,
+    turno_baja,
     waitlist_promoted,
     welcome,
 )
@@ -194,6 +195,26 @@ class EmailService:
         html = cambio_horario_turno(first_name, activity_name, turno_description, dias_str, horario_str)
         asyncio.create_task(
             self._send(to, f"Tu turno cambió — {activity_name}", html)
+        )
+
+    def send_turno_baja(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        clases_canceladas: int,
+        creditos: int,
+        senia: Decimal,
+        expires_days: int,
+        reason: str,
+    ) -> None:
+        html = turno_baja(
+            first_name, activity_name, turno_description,
+            clases_canceladas, creditos, senia, expires_days, reason,
+        )
+        asyncio.create_task(
+            self._send(to, f"Se dio de baja un turno — {activity_name}", html)
         )
 
     def send_waitlist_promoted(

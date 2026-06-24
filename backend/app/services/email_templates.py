@@ -525,6 +525,77 @@ def clase_cancelada_individual_senia(
     return _wrap(content)
 
 
+def turno_baja(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    clases_canceladas: int,
+    creditos: int,
+    senia: Decimal,
+    expires_days: int,
+    reason: str,
+) -> str:
+    """Mail-resumen único para un afectado cuando se da de baja un turno entero."""
+    if creditos > 0:
+        credito_html = f"""
+        <tr>
+          <td style="color:#666;font-size:13px;">Créditos generados</td>
+          <td style="color:#11a691;font-weight:bold;">{creditos} clase{'s' if creditos != 1 else ''}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Válidos por</td>
+          <td style="color:#222;">{expires_days} días</td>
+        </tr>"""
+        cierre = (
+            "Podés ver y usar tus créditos al inscribirte en cualquier actividad. "
+            "Lamentamos los inconvenientes."
+        )
+    elif senia and senia > 0:
+        credito_html = f"""
+        <tr>
+          <td style="color:#666;font-size:13px;">Seña a reembolsar</td>
+          <td style="color:#11a691;font-weight:bold;">$ {senia:,.2f}</td>
+        </tr>"""
+        cierre = (
+            "Sobre tu seña, contactanos para gestionar la devolución. "
+            "Lamentamos los inconvenientes."
+        )
+    else:
+        credito_html = ""
+        cierre = (
+            "No se generaron créditos porque no había clases abonadas pendientes de dictarse. "
+            "Lamentamos los inconvenientes."
+        )
+
+    content = f"""
+      <h2 style="color:#e05252;margin-top:0;">Se dio de baja un turno, {first_name}</h2>
+      <p style="color:#444;line-height:1.6;">
+        El centro dio de baja un turno en el que estabas inscripto/a y ya no se dictará.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Clases canceladas</td>
+          <td style="color:#222;">{clases_canceladas}</td>
+        </tr>{credito_html}
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Motivo</td>
+          <td style="color:#444;">{reason}</td>
+        </tr>
+      </table>
+      <p style="color:#444;line-height:1.6;">{cierre}</p>
+    """
+    return _wrap(content)
+
+
 def cambio_horario_turno(
     first_name: str,
     activity_name: str,

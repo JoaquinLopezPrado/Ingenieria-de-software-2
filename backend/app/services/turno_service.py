@@ -256,9 +256,10 @@ class TurnoService:
             # las suscripciones que ocupan el turno (condonando sus cargos impagos).
             today = datetime.now(_ART).date()
             cancellation_service = ClaseCancellationService(self._session)
-            req = CancelClaseRequest(reason="El turno fue dado de baja y ya no se dictará.")
-            for clase_id, _clase_date in await self._clase_repo.list_future_active(turno_id, today):
-                await cancellation_service.cancel(clase_id, req, admin_id)
+            reason = "El turno fue dado de baja y ya no se dictará."
+            clase_ids = [cid for cid, _ in await self._clase_repo.list_future_active(turno_id, today)]
+            # Un solo mail-resumen por afectado (no uno por clase). Crédito solo por lo pagado.
+            await cancellation_service.cancel_turno_baja(turno_id, clase_ids, reason, admin_id)
             await SubscriptionRepository(self._session).cancel_all_for_turno(turno_id)
         await self._turno_repo.set_active(turno_id, is_active)
         return await self._turno_repo.get_by_id(turno_id)
