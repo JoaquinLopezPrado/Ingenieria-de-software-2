@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { authService } from '@/services/authService'
 import { storeToRefs } from 'pinia'
-import { isAdminUser } from '@/utils/role'
+import { isAdminUser, isStaffUser } from '@/utils/role'
 
 const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
@@ -46,6 +46,7 @@ const navigateTo = (path: string) => {
 
 const hasGoogleLinked = computed(() => authStore.user?.has_google_linked ?? true)
 const isAdmin = computed(() => isAdminUser(authStore.user))
+const isStaff = computed(() => isStaffUser(authStore.user))
 
 const handleLinkGoogle = async () => {
   closeMenu()
@@ -146,6 +147,9 @@ const confirmLogout = async () => {
         </li>
         <li>
           <button type="button" @click="navigateTo('/pagos')">Mis pagos</button>
+        </li>
+        <li v-if="!isStaff">
+          <button type="button" @click="navigateTo('/mi-cuenta')">Cambiar contraseña</button>
         </li>
         <li class="logout-item">
           <button type="button" @click="handleLogout" class="btn-logout">
