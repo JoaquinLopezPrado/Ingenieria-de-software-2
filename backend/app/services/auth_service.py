@@ -352,7 +352,7 @@ class AuthService:
         await self._reset_repo.delete_by_hash(token_hash)
         await self._user_repo.update_password(record.user_id, hash_password(data.new_password))
 
-    async def change_password(self, user_id: int, data: ChangePasswordRequest) -> None:
+    async def change_password(self, user_id: int, data: ChangePasswordRequest) -> str:
         user = await self._user_repo.get_by_id(user_id)
         if user is None or user.hashed_password is None:
             raise HTTPException(
@@ -366,6 +366,8 @@ class AuthService:
             )
         await self._user_repo.update_password(user_id, hash_password(data.new_password))
         await self._user_repo.increment_token_version(user_id)
+        updated_user = await self._user_repo.get_by_id(user_id)
+        return create_access_token(updated_user.id, updated_user.token_version)
 
     async def _ensure_email_is_unique(self, email: str) -> None:
         if await self._user_repo.get_by_email(email):

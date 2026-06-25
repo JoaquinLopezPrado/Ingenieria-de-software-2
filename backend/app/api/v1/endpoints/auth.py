@@ -71,8 +71,8 @@ async def change_password(
     user_id: int = Depends(get_current_user_id),
     service: AuthService = Depends(get_auth_service),
 ):
-    await service.change_password(user_id, data)
-    return {"message": "Contraseña actualizada exitosamente."}
+    new_token = await service.change_password(user_id, data)
+    return {"access_token": new_token, "token_type": "bearer"}
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK, responses=FORGOT_PASSWORD_RESPONSES)
