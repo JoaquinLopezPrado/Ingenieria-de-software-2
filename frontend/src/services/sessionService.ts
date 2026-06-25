@@ -215,6 +215,19 @@ export const getCancelPreview = (claseId: number): Promise<CancelPreviewResponse
 export const cancelClase = (claseId: number, reason: string): Promise<{ message: string }> =>
   api.post(`/clases/${claseId}/cancel`, { reason }).then(r => r.data)
 
+export interface UpdateClaseHorarioPayload {
+  date: string        // "YYYY-MM-DD"
+  start_time: string  // "HH:MM"
+  end_time: string    // "HH:MM"
+  capacity: number
+}
+
+export const updateClaseHorario = (
+  claseId: number,
+  payload: UpdateClaseHorarioPayload,
+): Promise<{ message: string }> =>
+  api.patch(`/clases/${claseId}/horario`, payload).then(r => r.data)
+
 export const getClasesByTurno = async (turnoId: number): Promise<ClaseDetalle[]> => {
   const res = await api.get<ClaseDetalle[]>(`/turnos/${turnoId}/clases`)
   return res.data

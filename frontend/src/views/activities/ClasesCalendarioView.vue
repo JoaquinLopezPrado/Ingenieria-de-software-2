@@ -6,6 +6,7 @@ import {
   getClasesByTurnoAdmin,
   getCancelPreview,
   cancelClase,
+  updateClaseHorario,
   extractBackendError,
   type ClaseDetalle,
   type CancelPreviewAlumno,
@@ -183,6 +184,66 @@ async function confirmarCancelacion() {
   }
 }
 
+// ─── Modal editar horario ──────────────────────────────────────────────────────
+
+const claseAEditar  = ref<ClaseDetalle | null>(null)
+const editFecha     = ref('')
+const editInicio    = ref('')
+const editFin       = ref('')
+const editCupo      = ref(0)
+const guardando     = ref(false)
+const editError     = ref('')
+
+// El input time exige "HH:MM"; el backend devuelve "H:MM" (ej "9:30").
+function toInputTime(t: string): string {
+  const [h, m] = t.split(':')
+  return `${(h ?? '0').padStart(2, '0')}:${m ?? '00'}`
+}
+
+function abrirModalEditar(c: ClaseDetalle) {
+  claseAEditar.value = c
+  editFecha.value    = c.date
+  editInicio.value   = toInputTime(c.start_time)
+  editFin.value      = toInputTime(c.end_time)
+  editCupo.value     = c.capacity
+  editError.value    = ''
+}
+
+function cerrarModalEditar() {
+  claseAEditar.value = null
+}
+
+const edicionValida = computed(() =>
+  !!editFecha.value &&
+  !!editInicio.value &&
+  !!editFin.value &&
+  editFin.value > editInicio.value &&
+  editCupo.value > 0 &&
+  editFecha.value >= today
+)
+
+async function confirmarEdicion() {
+  if (!claseAEditar.value || !edicionValida.value) return
+  guardando.value = true
+  editError.value = ''
+  try {
+    await updateClaseHorario(claseAEditar.value.id, {
+      date:       editFecha.value,
+      start_time: editInicio.value,
+      end_time:   editFin.value,
+      capacity:   editCupo.value,
+    })
+    clases.value = await getClasesByTurnoAdmin(turnoId)
+    toastMsg.value = 'Horario actualizado. Los alumnos fueron notificados por email.'
+    setTimeout(() => { toastMsg.value = '' }, 5000)
+    cerrarModalEditar()
+  } catch (e) {
+    editError.value = extractBackendError(e)
+  } finally {
+    guardando.value = false
+  }
+}
+
 // ─── Carga ────────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
@@ -329,6 +390,14 @@ onMounted(async () => {
                 <button
                   v-if="claseStatus(clase) === 'programada' || claseStatus(clase) === 'hoy'"
                   type="button"
+                  class="btn-action btn-editar"
+                  @click="abrirModalEditar(clase)"
+                >
+                  Editar horario
+                </button>
+                <button
+                  v-if="claseStatus(clase) === 'programada' || claseStatus(clase) === 'hoy'"
+                  type="button"
                   class="btn-action btn-cancelar"
                   @click="abrirModalCancelar(clase)"
                 >
@@ -407,6 +476,59 @@ onMounted(async () => {
               </button>
             </div>
           </template>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal editar horario -->
+    <Teleport to="body">
+      <div v-if="claseAEditar" class="modal-overlay" @click.self="cerrarModalEditar">
+        <div class="modal-box" role="dialog" aria-modal="true">
+          <h2 class="modal-title">Editar horario de la clase</h2>
+          <p class="modal-subtitle">
+            Solo se modifica esta clase. El resto del turno no cambia.
+          </p>
+
+          <div class="edit-field">
+            <label class="motivo-label">Fecha <span class="required">*</span></label>
+            <input v-model="editFecha" type="date" :min="today" class="edit-input" />
+          </div>
+
+          <div class="edit-row">
+            <div class="edit-field">
+              <label class="motivo-label">Inicio <span class="required">*</span></label>
+              <input v-model="editInicio" type="time" class="edit-input" />
+            </div>
+            <div class="edit-field">
+              <label class="motivo-label">Fin <span class="required">*</span></label>
+              <input v-model="editFin" type="time" class="edit-input" />
+            </div>
+          </div>
+
+          <div class="edit-field">
+            <label class="motivo-label">Cupo <span class="required">*</span></label>
+            <input v-model.number="editCupo" type="number" min="1" class="edit-input" />
+          </div>
+
+          <p
+            v-if="editFin && editInicio && editFin <= editInicio"
+            class="modal-error"
+          >La hora de fin debe ser posterior a la de inicio.</p>
+          <p v-if="editError" class="modal-error">{{ editError }}</p>
+
+          <div class="modal-actions">
+            <button type="button" class="modal-btn-cancel" :disabled="guardando" @click="cerrarModalEditar">
+              Volver
+            </button>
+            <button
+              type="button"
+              class="modal-btn-save"
+              :disabled="!edicionValida || guardando"
+              @click="confirmarEdicion"
+            >
+              {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -764,6 +886,13 @@ onMounted(async () => {
 }
 .btn-ver:hover { background: #dbeafe; }
 
+.btn-editar {
+  background: #f0fdf9;
+  color: #0f766e;
+  border-color: #99f6e4;
+}
+.btn-editar:hover { background: #ccfbf1; }
+
 .btn-cancelar {
   background: #fff1f2;
   color: #be123c;
@@ -935,6 +1064,48 @@ onMounted(async () => {
 }
 .modal-btn-confirm:hover:not(:disabled) { background: #fecaca; }
 .modal-btn-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.modal-btn-save {
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  background: #11998e;
+  color: white;
+}
+.modal-btn-save:hover:not(:disabled) { background: #0e857c; }
+.modal-btn-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Campos de edición ── */
+
+.edit-field {
+  text-align: left;
+  margin-bottom: 14px;
+  flex: 1;
+}
+
+.edit-row {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.7rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  color: #1f2937;
+}
+.edit-input:focus {
+  outline: none;
+  border-color: #11998e;
+  box-shadow: 0 0 0 3px rgba(17,153,142,0.12);
+}
 
 /* ── Toast ── */
 
