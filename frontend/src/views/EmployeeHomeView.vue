@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { RouterLink } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
+
+const passwordChanged = computed(() => route.query.password_changed === 'true')
 
 const showLogoutConfirm = ref(false)
 const isLoggingOut = ref(false)
@@ -62,6 +65,9 @@ const confirmLogout = async () => {
     </aside>
 
     <main class="main-content">
+      <div v-if="passwordChanged" class="banner banner-success">
+        Tu contraseña fue actualizada correctamente.
+      </div>
       <div class="construction-card">
         <div class="construction-icon">🚧</div>
         <h1 class="construction-title">Portal del empleado</h1>
@@ -200,11 +206,27 @@ const confirmLogout = async () => {
   flex-grow: 1;
   margin-left: 260px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 2rem;
   box-sizing: border-box;
+  gap: 1.25rem;
+}
+
+.banner {
+  width: min(100%, 480px);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.banner-success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
 }
 
 .construction-card {

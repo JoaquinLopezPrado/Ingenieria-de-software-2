@@ -11,7 +11,6 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordError = ref('')
-const passwordSuccess = ref(false)
 const passwordLoading = ref(false)
 
 onMounted(async () => {
@@ -21,7 +20,6 @@ onMounted(async () => {
 
 const handleChangePassword = async () => {
   passwordError.value = ''
-  passwordSuccess.value = false
   if (newPassword.value !== confirmPassword.value) {
     passwordError.value = 'Las contraseñas nuevas no coinciden.'
     return
@@ -29,18 +27,10 @@ const handleChangePassword = async () => {
   passwordLoading.value = true
   try {
     await authService.changePassword(currentPassword.value, newPassword.value)
-    passwordSuccess.value = true
-    currentPassword.value = ''
-    newPassword.value = ''
-    confirmPassword.value = ''
+    router.push('/list?password_changed=true')
   } catch (err: any) {
-    const detail = err?.response?.data?.detail
     const errors = err?.response?.data?.errors
-    if (errors?.new_password) {
-      passwordError.value = errors.new_password
-    } else {
-      passwordError.value = detail || 'Ocurrió un error al cambiar la contraseña.'
-    }
+    passwordError.value = errors?.new_password || errors?.general || 'Ocurrió un error al cambiar la contraseña.'
   } finally {
     passwordLoading.value = false
   }
@@ -94,7 +84,6 @@ const handleChangePassword = async () => {
           />
         </div>
         <p v-if="passwordError" class="form-error">{{ passwordError }}</p>
-        <p v-if="passwordSuccess" class="form-success">Contraseña actualizada correctamente.</p>
         <button
           type="submit"
           class="btn-primary"

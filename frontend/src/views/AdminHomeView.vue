@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
+
+const route = useRoute()
+const passwordChanged = computed(() => route.query.password_changed === 'true')
 </script>
 
 <template>
   <AdminLayout>
     <section class="admin-home">
+      <div v-if="passwordChanged" class="banner banner-success">
+        Tu contraseña fue actualizada correctamente.
+      </div>
       <div class="welcome-card">
         <p class="eyebrow">Panel de administración</p>
         <h1>Bienvenido al panel de administración</h1>
@@ -19,10 +27,27 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 <style scoped>
 .admin-home {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 2rem;
   box-sizing: border-box;
+  gap: 1.25rem;
+}
+
+.banner {
+  width: min(100%, 720px);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.banner-success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
 }
 
 .welcome-card {

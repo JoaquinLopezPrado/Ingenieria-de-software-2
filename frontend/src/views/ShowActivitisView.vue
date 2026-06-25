@@ -2,6 +2,9 @@
   <div class="page">
 
     <div class="main">
+      <div v-if="passwordChanged" class="banner banner-success">
+        Tu contraseña fue actualizada correctamente.
+      </div>
       <div v-if="googleLinked" class="banner banner-success">
         Tu cuenta de Google fue vinculada correctamente.
       </div>
@@ -325,6 +328,7 @@ const googleUnlinked = computed(() => route.query.google_unlinked === 'true')
 const googleUnlinkError = computed(() => route.query.error === 'google_unlink_failed')
 const googleErrorReason = computed(() => googleLinkError.value && route.query.reason ? String(route.query.reason) : null)
 const googleUnlinkErrorReason = computed(() => googleUnlinkError.value && route.query.reason ? String(route.query.reason) : null)
+const passwordChanged = computed(() => route.query.password_changed === 'true')
 
 const DAY_LABELS = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
