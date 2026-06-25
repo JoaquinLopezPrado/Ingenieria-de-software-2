@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { RouterLink } from 'vue-router'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -39,6 +40,10 @@ const confirmLogout = async () => {
           <p class="brand-subtitle">Panel del empleado</p>
         </div>
       </div>
+
+      <nav class="sidebar-nav">
+        <RouterLink to="/admin/configuracion" class="nav-link">Seguridad</RouterLink>
+      </nav>
 
       <div class="sidebar-spacer"></div>
 
@@ -117,6 +122,29 @@ const confirmLogout = async () => {
   font-size: 0.72rem;
   color: #8fa8a2;
   white-space: nowrap;
+}
+
+.sidebar-nav {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-link {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #c8dbd8;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
 .sidebar-spacer {

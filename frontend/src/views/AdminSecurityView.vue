@@ -4,6 +4,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { authService } from '@/services/authService'
 
 const twoFactorEnabled = ref(false)
+const hasLocalPassword = ref(false)
 
 // Setup flow
 const showSetupModal = ref(false)
@@ -19,9 +20,18 @@ const disableCode = ref('')
 const disableError = ref('')
 const disableLoading = ref(false)
 
+// Change password flow
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordError = ref('')
+const passwordSuccess = ref(false)
+const passwordLoading = ref(false)
+
 onMounted(async () => {
   const { data } = await authService.getMe()
   twoFactorEnabled.value = data.is_2fa_enabled
+  hasLocalPassword.value = data.has_local_password
 })
 
 const handleToggle = async () => {
@@ -86,11 +96,93 @@ const cancelDisable = () => {
   showDisableModal.value = false
   twoFactorEnabled.value = true
 }
+
+const handleChangePassword = async () => {
+  passwordError.value = ''
+  passwordSuccess.value = false
+  if (newPassword.value !== confirmPassword.value) {
+    passwordError.value = 'Las contraseñas nuevas no coinciden.'
+    return
+  }
+  passwordLoading.value = true
+  try {
+    await authService.changePassword(currentPassword.value, newPassword.value)
+    passwordSuccess.value = true
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+  } catch (err: any) {
+    const detail = err?.response?.data?.detail
+    const errors = err?.response?.data?.errors
+    if (errors?.new_password) {
+      passwordError.value = errors.new_password
+    } else {
+      passwordError.value = detail || 'Ocurrió un error al cambiar la contraseña.'
+    }
+  } finally {
+    passwordLoading.value = false
+  }
+}
 </script>
 
 <template>
   <AdminLayout>
     <section class="admin-security">
+      <div class="security-card">
+        <p class="eyebrow">Contraseña</p>
+        <h1>Cambiar contraseña</h1>
+        <p class="intro">Actualizá tu contraseña de acceso.</p>
+
+        <div v-if="!hasLocalPassword" class="no-password-notice">
+          Tu cuenta inició sesión con Google y no tiene contraseña local. No podés cambiar la contraseña desde aquí.
+        </div>
+
+        <form v-else class="password-form" @submit.prevent="handleChangePassword">
+          <div class="field-group">
+            <label class="field-label">Contraseña actual</label>
+            <input
+              v-model="currentPassword"
+              type="password"
+              class="field-input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Nueva contraseña</label>
+            <input
+              v-model="newPassword"
+              type="password"
+              class="field-input"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              required
+            />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Confirmar nueva contraseña</label>
+            <input
+              v-model="confirmPassword"
+              type="password"
+              class="field-input"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              required
+            />
+          </div>
+          <p v-if="passwordError" class="form-error">{{ passwordError }}</p>
+          <p v-if="passwordSuccess" class="form-success">Contraseña actualizada correctamente.</p>
+          <button
+            type="submit"
+            class="btn-primary btn-full"
+            :disabled="passwordLoading"
+          >
+            {{ passwordLoading ? 'Guardando...' : 'Cambiar contraseña' }}
+          </button>
+        </form>
+      </div>
+
       <div class="security-card">
         <p class="eyebrow">Seguridad</p>
         <h1>Configuracion de 2FA</h1>
@@ -198,8 +290,10 @@ const cancelDisable = () => {
 <style scoped>
 .admin-security {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
   padding: 2rem;
   box-sizing: border-box;
 }
@@ -211,6 +305,72 @@ const cancelDisable = () => {
   background: linear-gradient(135deg, #ffffff 0%, #f1f7f6 100%);
   box-shadow: 0 18px 40px rgba(13, 48, 39, 0.12);
   border: 1px solid rgba(17, 153, 142, 0.12);
+}
+
+.no-password-notice {
+  margin-top: 1.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.field-input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 0.95rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  background: #fff;
+}
+
+.field-input:focus { border-color: #00897b; }
+
+.form-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #dc2626;
+}
+
+.form-success {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.btn-full {
+  width: 100%;
+  padding: 13px;
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
 }
 
 .eyebrow {

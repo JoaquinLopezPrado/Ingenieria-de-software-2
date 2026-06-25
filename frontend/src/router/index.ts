@@ -22,7 +22,13 @@ const router = createRouter({
       path: '/admin/configuracion',
       name: 'admin-configuracion',
       component: () => import('../views/AdminSecurityView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
+      path: '/mi-cuenta',
+      name: 'mi-cuenta',
+      component: () => import('../views/ClientSecurityView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/',

@@ -55,4 +55,7 @@ export const authService = {
 
   verify2FA: (preAuthToken: string, code: string) =>
     apiClient.post('/auth/2fa/verify', { pre_auth_token: preAuthToken, code }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword }),
 }
