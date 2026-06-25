@@ -636,6 +636,46 @@ def cambio_horario_turno(
     return _wrap(content)
 
 
+def cambio_horario_clase(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    clase_date: date,
+    horario_str: str,
+) -> str:
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">Cambió el horario de tu clase, {first_name}</h2>
+      <p style="color:#444;line-height:1.6;">
+        El centro modificó una clase puntual en la que estás inscripto. Tu lugar
+        sigue reservado; solo cambió cuándo se dicta esta clase. El resto del turno
+        no se modifica.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Nueva fecha</td>
+          <td style="color:#222;">{_fmt_date(clase_date)}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Nuevo horario</td>
+          <td style="color:#222;">{horario_str}</td>
+        </tr>
+      </table>
+      <p style="color:#444;line-height:1.6;">
+        Si el nuevo horario no te sirve, contactanos. ¡Te esperamos!
+      </p>
+    """
+    return _wrap(content)
+
+
 def waitlist_promoted(
     first_name: str,
     activity_name: str,
