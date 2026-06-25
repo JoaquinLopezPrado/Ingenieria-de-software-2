@@ -149,9 +149,6 @@ class ClaseRepository(AbstractClaseRepository):
     async def list_by_turno(self, turno_id: int, include_past: bool = False) -> List[ClaseDetalle]:
         now_art = datetime.now(timezone(timedelta(hours=-3)))
         today = now_art.date()
-        next_month = today.month % 12 + 1
-        next_month_year = today.year + (1 if today.month == 12 else 0)
-        end_date = date(next_month_year, next_month, calendar.monthrange(next_month_year, next_month)[1])
 
         # Non-correlated enrolled count via UNION + GROUP BY + LEFT JOIN
         sub_subs = (
@@ -189,22 +186,23 @@ class ClaseRepository(AbstractClaseRepository):
             .subquery()
         )
 
-        date_filters = [ClaseORM.date <= end_date]
         if include_past:
-            three_months_ago = today.replace(day=1)
-            for _ in range(3):
-                if three_months_ago.month == 1:
-                    three_months_ago = three_months_ago.replace(year=three_months_ago.year - 1, month=12)
-                else:
-                    three_months_ago = three_months_ago.replace(month=three_months_ago.month - 1)
-            date_filters.append(ClaseORM.date >= three_months_ago)
+            # Vista admin: todas las clases del turno (activas y canceladas), sin recorte de fecha.
+            clase_filter = (ClaseORM.is_active == True) | (ClaseORM.cancelled_at.isnot(None))
+            date_filters = []
         else:
-            date_filters.append(
+            # Vista pública: solo clases futuras activas, hasta el fin del mes siguiente.
+            next_month = today.month % 12 + 1
+            next_month_year = today.year + (1 if today.month == 12 else 0)
+            end_date = date(next_month_year, next_month, calendar.monthrange(next_month_year, next_month)[1])
+            clase_filter = ClaseORM.is_active == True
+            date_filters = [
+                ClaseORM.date <= end_date,
                 or_(
                     ClaseORM.date > today,
                     and_(ClaseORM.date == today, ClaseORM.start_time > now_art.time()),
-                )
-            )
+                ),
+            ]
 
         result = await self._session.execute(
             select(
@@ -216,8 +214,7 @@ class ClaseRepository(AbstractClaseRepository):
             .outerjoin(attendance_per_clase, attendance_per_clase.c.clase_id == ClaseORM.id)
             .where(
                 ClaseORM.turno_id == turno_id,
-                (ClaseORM.is_active == True) | (ClaseORM.cancelled_at.isnot(None))
-                if include_past else ClaseORM.is_active == True,
+                clase_filter,
                 *date_filters,
             )
             .order_by(ClaseORM.date)
