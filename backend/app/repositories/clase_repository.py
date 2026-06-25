@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime, time, timedelta, timezone
 from typing import List, Optional
 
+from fastapi import HTTPException, status
 from sqlalchemy import and_, case, func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +44,12 @@ class AbstractClaseRepository(ABC):
     async def reactivate_turno_baja_clases(
         self, turno_id: int, from_date: date, reason: str
     ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_schedule(
+        self, clase_id: int, new_date: date, start_time: time, end_time: time, capacity: int
+    ) -> ClaseORM:
         raise NotImplementedError
 
     @abstractmethod
@@ -130,6 +137,35 @@ class ClaseRepository(AbstractClaseRepository):
             )
         )
         return result.rowcount
+
+    async def update_schedule(
+        self, clase_id: int, new_date: date, start_time: time, end_time: time, capacity: int
+    ) -> ClaseORM:
+        clase = await self._session.get(ClaseORM, clase_id)
+        if clase is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Clase no encontrada.")
+        if clase.cancelled_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se puede modificar una clase cancelada.",
+            )
+        today = datetime.now(timezone(timedelta(hours=-3))).date()
+        if clase.date < today:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No se puede modificar una clase que ya pasó.",
+            )
+        if new_date < today:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="La nueva fecha no puede ser anterior a hoy.",
+            )
+        clase.date = new_date
+        clase.start_time = start_time
+        clase.end_time = end_time
+        clase.capacity = capacity
+        await self._session.flush()
+        return clase
 
     async def list_by_activity(self, activity_id: int) -> List[Clase]:
         today = date.today()

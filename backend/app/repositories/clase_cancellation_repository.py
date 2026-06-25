@@ -63,6 +63,20 @@ class ClaseCancellationRepository:
         await self._session.flush()
         return afectados
 
+    async def get_clase_afectados(self, clase_id: int) -> List[CancelPreviewAlumno]:
+        """Inscriptos vigentes en la clase (abonados + sueltas), sin las validaciones
+        propias de la cancelación. Se usa para notificar cambios de horario."""
+        result = await self._session.execute(
+            select(ClaseORM, TurnoORM)
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .where(ClaseORM.id == clase_id)
+        )
+        row = result.first()
+        if row is None:
+            return []
+        clase, turno = row
+        return await self._build_afectados(clase_id, turno)
+
     async def _get_clase_and_turno(self, clase_id: int):
         result = await self._session.execute(
             select(ClaseORM, TurnoORM)
