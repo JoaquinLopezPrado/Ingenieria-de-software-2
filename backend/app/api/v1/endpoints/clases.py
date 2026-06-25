@@ -4,8 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, get_db, require_roles
 from app.domain.user import User
 from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
-from app.schemas.clases import CancelClaseRequest, CancelPreviewResponse, CreditInfo
+from app.schemas.clases import (
+    CancelClaseRequest,
+    CancelPreviewResponse,
+    CreditInfo,
+    UpdateClaseHorarioRequest,
+)
 from app.services.clase_cancellation_service import ClaseCancellationService
+from app.services.clase_service import ClaseService
 
 router = APIRouter()
 
@@ -50,3 +56,15 @@ async def cancel_clase(
 ) -> dict:
     await service.cancel(clase_id, req, current_user.id)
     return {"message": "Clase cancelada exitosamente."}
+
+
+@router.patch("/{clase_id}/horario", status_code=http_status.HTTP_200_OK)
+async def update_clase_horario(
+    clase_id: int,
+    req: UpdateClaseHorarioRequest,
+    current_user: User = require_roles("admin"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    service = ClaseService(db)
+    await service.change_schedule(clase_id, req, current_user.id)
+    return {"message": "Horario de la clase actualizado. Los alumnos fueron notificados."}
