@@ -11,7 +11,7 @@ from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, LoginResponse, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest, Token
+from app.schemas.auth import ChangePasswordRequest, ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, LoginResponse, LogoutRequest, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest, Token
 from app.services.auth_service import AuthService
 from app.utils.security import decode_google_state_token
 
@@ -63,6 +63,16 @@ async def logout(
 ):
     await service.logout(user_id, data.refresh_token)
     return {"message": "Sesión cerrada exitosamente."}
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    data: ChangePasswordRequest,
+    user_id: int = Depends(get_current_user_id),
+    service: AuthService = Depends(get_auth_service),
+):
+    await service.change_password(user_id, data)
+    return {"message": "Contraseña actualizada exitosamente."}
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK, responses=FORGOT_PASSWORD_RESPONSES)

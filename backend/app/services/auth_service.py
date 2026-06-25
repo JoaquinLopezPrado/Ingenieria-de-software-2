@@ -13,7 +13,7 @@ from app.repositories.password_reset_repository import AbstractPasswordResetRepo
 from app.repositories.profile_repository import AbstractProfileRepository
 from app.repositories.token_repository import AbstractTokenRepository
 from app.repositories.user_repository import AbstractUserRepository
-from app.schemas.auth import ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest
+from app.schemas.auth import ChangePasswordRequest, ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest
 from app.services.email_service import EmailService
 from app.utils.security import (
     create_access_token,
@@ -351,6 +351,21 @@ class AuthService:
 
         await self._reset_repo.delete_by_hash(token_hash)
         await self._user_repo.update_password(record.user_id, hash_password(data.new_password))
+
+    async def change_password(self, user_id: int, data: ChangePasswordRequest) -> None:
+        user = await self._user_repo.get_by_id(user_id)
+        if user is None or user.hashed_password is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tu cuenta no tiene contraseña local. Iniciaste sesión con Google.",
+            )
+        if not verify_password(data.current_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña actual es incorrecta.",
+            )
+        await self._user_repo.update_password(user_id, hash_password(data.new_password))
+        await self._user_repo.increment_token_version(user_id)
 
     async def _ensure_email_is_unique(self, email: str) -> None:
         if await self._user_repo.get_by_email(email):

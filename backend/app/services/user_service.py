@@ -109,6 +109,7 @@ class UserService:
             email=user.email,
             role=user.role.name,
             has_google_linked=user.google_id is not None,
+            has_local_password=user.hashed_password is not None,
             is_2fa_enabled=user.is_2fa_enabled,
             client_profile=client_profile,
             employee_profile=employee_profile,
