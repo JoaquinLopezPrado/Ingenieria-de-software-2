@@ -396,7 +396,7 @@ onMounted(async () => {
                   class="btn-action btn-editar"
                   @click="abrirModalEditar(clase)"
                 >
-                  Editar horario
+                  Editar clase
                 </button>
                 <button
                   v-if="claseStatus(clase) === 'programada' || claseStatus(clase) === 'hoy'"
@@ -487,7 +487,7 @@ onMounted(async () => {
     <Teleport to="body">
       <div v-if="claseAEditar" class="modal-overlay" @click.self="cerrarModalEditar">
         <div class="modal-box" role="dialog" aria-modal="true">
-          <h2 class="modal-title">Editar horario de la clase</h2>
+          <h2 class="modal-title">Editar clase</h2>
           <p class="modal-subtitle">
             Solo se modifica esta clase. El resto del turno no cambia.
           </p>
