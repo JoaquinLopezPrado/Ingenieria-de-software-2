@@ -213,12 +213,15 @@ function cerrarModalEditar() {
   claseAEditar.value = null
 }
 
+// El cupo nunca puede quedar por debajo de los ya inscriptos (ni en 0/negativo).
+const cupoMinimo = computed(() => Math.max(1, claseAEditar.value?.enrolled ?? 1))
+
 const edicionValida = computed(() =>
   !!editFecha.value &&
   !!editInicio.value &&
   !!editFin.value &&
   editFin.value > editInicio.value &&
-  editCupo.value > 0 &&
+  editCupo.value >= cupoMinimo.value &&
   editFecha.value >= today
 )
 
@@ -507,13 +510,20 @@ onMounted(async () => {
 
           <div class="edit-field">
             <label class="motivo-label">Cupo <span class="required">*</span></label>
-            <input v-model.number="editCupo" type="number" min="1" class="edit-input" />
+            <input v-model.number="editCupo" type="number" :min="cupoMinimo" class="edit-input" />
+            <p v-if="claseAEditar && claseAEditar.enrolled > 0" class="edit-hint">
+              {{ claseAEditar.enrolled }} inscripto{{ claseAEditar.enrolled !== 1 ? 's' : '' }} en esta clase.
+            </p>
           </div>
 
           <p
             v-if="editFin && editInicio && editFin <= editInicio"
             class="modal-error"
           >La hora de fin debe ser posterior a la de inicio.</p>
+          <p
+            v-if="editCupo < cupoMinimo"
+            class="modal-error"
+          >El cupo no puede ser menor a {{ cupoMinimo }} (inscriptos actuales).</p>
           <p v-if="editError" class="modal-error">{{ editError }}</p>
 
           <div class="modal-actions">
@@ -1105,6 +1115,12 @@ onMounted(async () => {
   outline: none;
   border-color: #11998e;
   box-shadow: 0 0 0 3px rgba(17,153,142,0.12);
+}
+
+.edit-hint {
+  margin: 6px 0 0;
+  font-size: 0.74rem;
+  color: #6b7280;
 }
 
 /* ── Toast ── */
