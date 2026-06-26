@@ -8,6 +8,7 @@ import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
 import EditTurnoView from '@/views/activities/EditTurnoView.vue'
 import ListaActividadesView from '@/views/activities/ListaActividadesView.vue'
 import EditActividadView from '@/views/activities/EditActividadView.vue'
+import AlumnoInscripcionesView from '@/views/clientes/AlumnoInscripcionesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -157,6 +158,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/inscripciones',
+      name: 'inscripciones',
+      component: () => import('../views/InscripcionesView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/pagos',
       name: 'pagos',
       component: () => import('../views/PagosView.vue'),
@@ -192,6 +199,12 @@ const router = createRouter({
       component: () => import('../views/clientes/HistorialAsistenciasView.vue'),
       meta: { requiresAuth: true, requiresStaff: true },
     },
+    {
+      path: '/clientes/:clienteId/inscripciones',
+      name: 'cliente-inscripciones',
+      component: AlumnoInscripcionesView,
+      meta: { requiresAuth: true, requiresAdmin: true }
+    }
   ]
 })
 

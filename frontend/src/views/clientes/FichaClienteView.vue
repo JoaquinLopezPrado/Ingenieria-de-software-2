@@ -72,6 +72,12 @@ onMounted(async () => {
           >
             Ver historial de asistencias
           </RouterLink>
+          <RouterLink
+            :to="`/clientes/${clienteId}/inscripciones`"
+            class="action-btn"
+          >
+            Ver inscripciones activas
+          </RouterLink>
         </div>
       </template>
     </div>

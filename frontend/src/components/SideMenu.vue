@@ -143,6 +143,9 @@ const confirmLogout = async () => {
           <button type="button" @click="handleUnlinkGoogle">Desvincular Google</button>
         </li>
         <li>
+          <button type="button" @click="navigateTo('/inscripciones')">Mis inscripciones</button>
+        </li>
+        <li>
           <button type="button" @click="navigateTo('/asistencias')">Mis asistencias</button>
         </li>
         <li>
