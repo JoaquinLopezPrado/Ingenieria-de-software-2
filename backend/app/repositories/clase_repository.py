@@ -160,12 +160,45 @@ class ClaseRepository(AbstractClaseRepository):
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="La nueva fecha no puede ser anterior a hoy.",
             )
+        enrolled = await self._count_enrolled(clase.turno_id, clase_id, clase.date)
+        if capacity < enrolled:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"El cupo no puede ser menor a la cantidad de inscriptos "
+                    f"({enrolled}) en esta clase."
+                ),
+            )
         clase.date = new_date
         clase.start_time = start_time
         clase.end_time = end_time
         clase.capacity = capacity
         await self._session.flush()
         return clase
+
+    async def _count_enrolled(self, turno_id: int, clase_id: int, clase_date: date) -> int:
+        """Usuarios únicos que ocupan un lugar en la clase: abonados activos en la
+        fecha + sueltas activas. Misma fórmula que la capacidad (ver capacity.py)."""
+        sub_subs = (
+            select(SubscriptionORM.user_id)
+            .where(
+                SubscriptionORM.turno_id == turno_id,
+                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+                SubscriptionORM.start_date <= clase_date,
+                or_(SubscriptionORM.ends_on.is_(None), clase_date <= SubscriptionORM.ends_on),
+            )
+        )
+        sub_singles = (
+            select(SingleEnrollmentORM.user_id)
+            .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
+            .where(
+                SingleSlotORM.clase_id == clase_id,
+                SingleEnrollmentORM.status.in_(ACTIVE_SINGLE_STATUSES),
+            )
+        )
+        combined = union(sub_subs, sub_singles).subquery()
+        result = await self._session.execute(select(func.count()).select_from(combined))
+        return result.scalar_one()
 
     async def list_by_activity(self, activity_id: int) -> List[Clase]:
         today = date.today()
