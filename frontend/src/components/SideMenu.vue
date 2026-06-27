@@ -148,6 +148,9 @@ const confirmLogout = async () => {
         <li>
           <button type="button" @click="navigateTo('/asistencias')">Mis asistencias</button>
         </li>
+        <li v-if="!isStaff">
+          <button type="button" @click="navigateTo('/mi-qr')">Mi QR de asistencia</button>
+        </li>
         <li>
           <button type="button" @click="navigateTo('/pagos')">Mis pagos</button>
         </li>
