@@ -11,7 +11,7 @@ interface CheckinResult {
   horario: string
 }
 
-type ScannerState = 'idle' | 'scanning' | 'success' | 'error'
+type ScannerState = 'idle' | 'scanning' | 'processing' | 'success' | 'error'
 
 const state = ref<ScannerState>('idle')
 const errorMsg = ref('')
@@ -41,11 +41,15 @@ const startCamera = async () => {
   }
 }
 
-const stopCamera = () => {
+const stopScanLoop = () => {
   if (rafId !== null) cancelAnimationFrame(rafId)
+  rafId = null
+}
+
+const stopCamera = () => {
+  stopScanLoop()
   stream?.getTracks().forEach((t) => t.stop())
   stream = null
-  rafId = null
 }
 
 const scanLoop = () => {
@@ -84,7 +88,13 @@ const handleQRData = async (raw: string) => {
     rafId = requestAnimationFrame(scanLoop)
     return
   }
-  stopCamera()
+
+  // Detener solo el loop de scan; el video sigue mostrando el último frame
+  stopScanLoop()
+  stream?.getTracks().forEach((t) => t.stop())
+  stream = null
+  state.value = 'processing'
+
   try {
     const res = await api.post('/attendances/checkin', {
       user_id: payload.u,
@@ -128,21 +138,38 @@ onUnmounted(stopCamera)
         </button>
       </div>
 
-      <!-- Scanning -->
-      <div v-else-if="state === 'scanning'" class="scanner-frame-wrapper">
-        <div class="scanner-frame">
+      <!-- Cámara (scanning + processing comparten el frame de video) -->
+      <div v-else-if="state === 'scanning' || state === 'processing'" class="scanner-frame-wrapper">
+        <div class="scanner-frame" :class="{ 'frame-detected': state === 'processing' }">
           <video ref="videoEl" class="scanner-video" muted playsinline></video>
           <canvas ref="canvasEl" class="scanner-canvas"></canvas>
-          <div class="scanner-overlay">
+
+          <!-- Overlay de escaneo activo -->
+          <div v-if="state === 'scanning'" class="scanner-overlay">
             <div class="scan-corner tl"></div>
             <div class="scan-corner tr"></div>
             <div class="scan-corner bl"></div>
             <div class="scan-corner br"></div>
             <div class="scan-line"></div>
           </div>
+
+          <!-- Overlay de QR detectado -->
+          <div v-else class="detected-overlay">
+            <div class="detected-check">✓</div>
+            <p class="detected-label">QR leído</p>
+            <div class="spinner-white"></div>
+          </div>
         </div>
-        <p class="scan-hint">Enfocá el QR dentro del cuadro</p>
-        <button type="button" class="btn-secondary" @click="() => { stopCamera(); reset() }">
+
+        <p v-if="state === 'scanning'" class="scan-hint">Enfocá el QR dentro del cuadro</p>
+        <p v-else class="processing-hint">Registrando asistencia...</p>
+
+        <button
+          v-if="state === 'scanning'"
+          type="button"
+          class="btn-secondary"
+          @click="() => { stopCamera(); reset() }"
+        >
           Cancelar
         </button>
       </div>
@@ -219,6 +246,7 @@ onUnmounted(stopCamera)
 .card-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1f2937; }
 .card-sub { margin: 0; font-size: 0.9rem; color: #6b7280; }
 
+/* ── Frame de cámara ── */
 .scanner-frame-wrapper {
   display: flex;
   flex-direction: column;
@@ -234,15 +262,26 @@ onUnmounted(stopCamera)
   background: black;
   border-radius: 20px;
   overflow: hidden;
+  border: 3px solid transparent;
+  transition: border-color 0.2s;
 }
+
+.scanner-frame.frame-detected {
+  border-color: #4caf50;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.25);
+}
+
 .scanner-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 .scanner-canvas {
   display: none;
 }
+
+/* ── Overlay de escaneo ── */
 .scanner-overlay {
   position: absolute;
   inset: 0;
@@ -274,9 +313,54 @@ onUnmounted(stopCamera)
   animation: scan-move 2s ease-in-out infinite;
 }
 
-.scan-hint { color: #c8dbd8; font-size: 0.85rem; font-weight: 600; }
+/* ── Overlay de QR detectado ── */
+.detected-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
 
-/* Success */
+.detected-check {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #4caf50;
+  color: white;
+  font-size: 2rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(76, 175, 80, 0.6);
+}
+
+.detected-label {
+  margin: 0;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-white {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.scan-hint { color: #c8dbd8; font-size: 0.85rem; font-weight: 600; }
+.processing-hint { color: #a5d6a7; font-size: 0.85rem; font-weight: 700; }
+
+/* ── Success ── */
 .center-card.success { border: 3px solid #c8e6c9; }
 .result-check {
   width: 64px;
@@ -305,7 +389,7 @@ onUnmounted(stopCamera)
   margin-bottom: 8px;
 }
 
-/* Error */
+/* ── Error ── */
 .center-card.error { border: 3px solid #ffcdd2; }
 .error-icon {
   width: 64px;
@@ -320,6 +404,7 @@ onUnmounted(stopCamera)
   justify-content: center;
 }
 
+/* ── Botones ── */
 .btn-primary {
   background: #0d9b8a;
   color: white;
