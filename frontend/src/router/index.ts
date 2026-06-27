@@ -158,6 +158,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/mi-qr',
+      name: 'mi-qr',
+      component: () => import('../views/MiQRView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/scanner',
+      name: 'scanner',
+      component: () => import('../views/ScannerView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true }
+    },
+    {
       path: '/inscripciones',
       name: 'inscripciones',
       component: () => import('../views/InscripcionesView.vue'),

@@ -127,6 +127,13 @@ const clientActions = [
     icon: '🗓️',
     path: '/list',
   },
+  {
+    title: 'Mi QR de asistencia',
+    description:
+      'Mostrá tu código QR en la recepción para registrar tu entrada a clase.',
+    icon: '📲',
+    path: '/mi-qr',
+  },
 ]
 
 function goTo(path: string) {

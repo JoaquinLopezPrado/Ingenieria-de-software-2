@@ -45,6 +45,7 @@ const confirmLogout = async () => {
       </div>
 
       <nav class="sidebar-nav">
+        <RouterLink to="/scanner" class="nav-link">Escáner QR</RouterLink>
         <RouterLink to="/admin/configuracion" class="nav-link">Seguridad</RouterLink>
       </nav>
 
