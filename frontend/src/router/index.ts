@@ -185,7 +185,13 @@ const router = createRouter({
       path: '/empleado',
       name: 'employee-home',
       component: () => import('../views/EmployeeHomeView.vue'),
-      meta: { requiresAuth: true, requiresEmployee: true },
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
+      path: '/empleado/clases',
+      name: 'empleado-clases',
+      component: () => import('../views/ClasesHoyView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
     },
     {
       path: '/report',
