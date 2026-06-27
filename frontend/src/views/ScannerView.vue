@@ -2,6 +2,7 @@
 import { ref, onUnmounted } from 'vue'
 import jsQR from 'jsqr'
 import api from '@/services/api'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 
 interface CheckinResult {
   ok: boolean
@@ -120,6 +121,7 @@ onUnmounted(stopCamera)
 </script>
 
 <template>
+  <AdminLayout>
   <div class="scanner-page">
     <div class="scanner-header">
       <h1 class="scanner-title">Escáner QR</h1>
@@ -198,31 +200,30 @@ onUnmounted(stopCamera)
 
     </div>
   </div>
+  </AdminLayout>
 </template>
 
 <style scoped>
 .scanner-page {
-  min-height: 100vh;
-  background: #0d3027;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 20px 60px;
+  max-width: 560px;
 }
 
 .scanner-header {
-  text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
+  align-self: flex-start;
 }
 .scanner-title {
-  margin: 0 0 6px;
-  color: white;
-  font-size: 1.8rem;
+  margin: 0 0 4px;
+  color: #1f2937;
+  font-size: 1.6rem;
   font-weight: 800;
 }
 .scanner-sub {
   margin: 0;
-  color: #8fa8a2;
+  color: #6b7280;
   font-size: 0.95rem;
 }
 
@@ -357,8 +358,8 @@ onUnmounted(stopCamera)
   animation: spin 0.8s linear infinite;
 }
 
-.scan-hint { color: #c8dbd8; font-size: 0.85rem; font-weight: 600; }
-.processing-hint { color: #a5d6a7; font-size: 0.85rem; font-weight: 700; }
+.scan-hint { color: #4b5563; font-size: 0.85rem; font-weight: 600; }
+.processing-hint { color: #059669; font-size: 0.85rem; font-weight: 700; }
 
 /* ── Success ── */
 .center-card.success { border: 3px solid #c8e6c9; }
@@ -420,15 +421,15 @@ onUnmounted(stopCamera)
 .btn-primary:hover { background: #0b8577; }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.15);
-  color: white;
-  border: 2px solid rgba(255,255,255,0.3);
+  background: white;
+  color: #374151;
+  border: 2px solid #d1d5db;
   border-radius: 999px;
   padding: 10px 24px;
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
-.btn-secondary:hover { background: rgba(255,255,255,0.22); }
+.btn-secondary:hover { background: #f3f4f6; border-color: #9ca3af; }
 </style>
