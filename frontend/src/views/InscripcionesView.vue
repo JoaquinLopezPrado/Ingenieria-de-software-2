@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 import ListLayout from '@/components/ListLayout.vue'
 import ItemCard from '@/components/ItemCard.vue'
 
+type EstadoClase = 'estado-activa' | 'estado-pendiente' | 'estado-baja' | 'estado-confirmada' | 'estado-deposito'
+
 interface InscripcionUnificada {
   id: number
-  tipo: 'Turno Fijo' | 'Clase Individual'
+  tipo: 'Suscripción Mensual' | 'Suscripción a Clase'
   actividad: string
   subtitulo: string
+  instructor: string
   horario: string
-  detalles: string
+  fechaInscripcion: string
+  estadoLabel: string
+  estadoClase: EstadoClase
   badgeFecha?: string
   dias?: string[]
 }
@@ -19,16 +24,19 @@ const inscripciones = ref<InscripcionUnificada[]>([])
 const isLoading = ref(true)
 const hasError = ref(false)
 
-const formatearFecha = (fechaRaw: string): string => {
-  if (!fechaRaw) return ''
+const fmtTime = (t: string | undefined) => (t ?? '').padStart(5, '0')
+
+const fmtFecha = (raw: string | undefined): string => {
+  if (!raw) return ''
   const meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ]
-  const partes = fechaRaw.split('-')
-  if (partes.length !== 3) return fechaRaw
-  const dia = parseInt(partes[2], 10)
-  const mesIndex = parseInt(partes[1], 10) - 1
+  const datePart = raw.includes('T') ? raw.split('T')[0] : raw
+  const parts = (datePart ?? '').split('-')
+  if (parts.length !== 3) return raw
+  const dia = parseInt(parts[2] as string, 10)
+  const mesIndex = parseInt(parts[1] as string, 10) - 1
   return `${dia} ${meses[mesIndex]}`
 }
 
@@ -37,36 +45,50 @@ const fetchInscripcionesActivas = async () => {
     isLoading.value = true
     hasError.value = false
 
-    // CAMBIO CLAVE: Cambiar '/my/monthly' por '/my/subscription'
     const [resSubscription, resSingle] = await Promise.all([
       api.get('/subscriptions/me'),
       api.get('/single-enrollments/me')
     ])
-    
-    // Cambiamos resMonthly por resSubscription
-    const turnosMapeados = resSubscription.data
-      .filter((item: any) => item.is_active ?? true)
-      .map((item: any) => ({
-        id: item.id,
-        tipo: 'Turno Fijo' as const,
-        actividad: item.actividad || item.activity_name || 'Actividad',
-        subtitulo: item.descripcion || item.turno_description || 'Turno fijo',
-        horario: item.horario || `${item.start_time?.slice(0, 5)} - ${item.end_time?.slice(0, 5)}`,
-        detalles: item.periodo || `Mes ${item.month}/${item.year} · Prof. ${item.instructor || 'Profesor'}`,
-        dias: item.dias || []
-      }))
 
-    const clasesMapeadas = resSingle.data
-      .filter((item: any) => item.is_active ?? true)
-      .map((item: any) => ({
-        id: item.id,
-        tipo: 'Clase Individual' as const,
-        actividad: item.actividad || item.activity_name || 'Clase Suelta',
-        subtitulo: `Prof. ${item.instructor || 'Profesor'}`,
-        horario: `${item.horario || item.start_time?.slice(0, 5) || '00:00'} hs`,
-        badgeFecha: formatearFecha(item.date || item.fecha || item.clase?.date),
-        detalles: 'Reserva única'
-      }))
+    const turnosMapeados: InscripcionUnificada[] = resSubscription.data.map((item: any) => {
+      const desde = fmtFecha(item.start_date)
+      const hasta = item.ends_on ? fmtFecha(item.ends_on) : null
+      const bajaProgramada = item.status === 'active' && !!item.ends_on
+      return {
+        id: item.subscription_id,
+        tipo: 'Suscripción Mensual' as const,
+        actividad: item.activity_name,
+        subtitulo: item.turno_description,
+        instructor: item.instructor,
+        horario: `${fmtTime(item.start_time)} - ${fmtTime(item.end_time)}`,
+        fechaInscripcion: hasta ? `${desde} → ${hasta}` : `Desde ${desde}`,
+        estadoLabel: bajaProgramada ? 'Baja programada' : item.status === 'active' ? 'Activa' : 'Pendiente de pago',
+        estadoClase: (bajaProgramada ? 'estado-baja' : item.status === 'active' ? 'estado-activa' : 'estado-pendiente') as EstadoClase,
+        dias: item.days ?? []
+      }
+    })
+
+    const estadoSingle = (status: string): { label: string; clase: EstadoClase } => {
+      if (status === 'confirmed') return { label: 'Confirmada', clase: 'estado-confirmada' }
+      if (status === 'deposit_paid') return { label: 'Depósito pagado', clase: 'estado-deposito' }
+      return { label: 'Pendiente de pago', clase: 'estado-pendiente' }
+    }
+
+    const clasesMapeadas: InscripcionUnificada[] = resSingle.data.map((item: any) => {
+      const { label, clase } = estadoSingle(item.status)
+      return {
+        id: item.enrollment_id,
+        tipo: 'Suscripción a Clase' as const,
+        actividad: item.activity_name,
+        subtitulo: item.turno_description,
+        instructor: item.instructor,
+        horario: `${fmtTime(item.start_time)} - ${fmtTime(item.end_time)}`,
+        fechaInscripcion: `Inscripto el ${fmtFecha(item.created_at)}`,
+        estadoLabel: label,
+        estadoClase: clase,
+        badgeFecha: fmtFecha(item.clase_date)
+      }
+    })
 
     inscripciones.value = [...turnosMapeados, ...clasesMapeadas]
 
@@ -86,7 +108,7 @@ onMounted(() => {
 <template>
   <ListLayout pageTitle="Mis Inscripciones">
     <div class="central-wrapper">
-      
+
       <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
         <span>Cargando tus inscripciones vigentes...</span>
@@ -110,9 +132,14 @@ onMounted(() => {
             :subtitle="item.subtitulo"
             class="inscripcion-card"
           >
+            <template #left-detail>
+              <span class="instructor-label">Prof. {{ item.instructor }}</span>
+              <span :class="['estado-badge', item.estadoClase]">{{ item.estadoLabel }}</span>
+            </template>
+
             <template #right>
               <div class="inscripcion-right">
-                <span :class="['type-badge', item.tipo === 'Turno Fijo' ? 'badge-turno' : 'badge-clase']">
+                <span :class="['type-badge', item.tipo === 'Suscripción Mensual' ? 'badge-turno' : 'badge-clase']">
                   {{ item.tipo }}
                 </span>
 
@@ -124,7 +151,7 @@ onMounted(() => {
 
                 <span v-if="item.badgeFecha" class="fecha-badge">{{ item.badgeFecha }}</span>
                 <span class="horario-label">{{ item.horario }}</span>
-                <span class="periodo-label">{{ item.detalles }}</span>
+                <span class="inscripcion-detalle">{{ item.fechaInscripcion }}</span>
               </div>
             </template>
           </ItemCard>
@@ -161,6 +188,47 @@ onMounted(() => {
   align-items: center;
 }
 
+.instructor-label {
+  color: #11a691;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.estado-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.estado-activa {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+.estado-pendiente {
+  background-color: #fff8e1;
+  color: #f57f17;
+  border: 1px solid #ffe082;
+}
+.estado-baja {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+.estado-confirmada {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+.estado-deposito {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+
 .inscripcion-right {
   display: flex;
   flex-direction: column;
@@ -168,7 +236,7 @@ onMounted(() => {
   justify-content: center;
   gap: 5px;
   height: 100%;
-  min-width: 140px;
+  min-width: 160px;
 }
 
 .type-badge {
@@ -213,9 +281,10 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.periodo-label {
-  color: #7f8c8d;
-  font-size: 11px;
+.inscripcion-detalle {
+  color: #aab7b8;
+  font-size: 10px;
+  font-style: italic;
 }
 
 .fecha-badge {
@@ -238,7 +307,6 @@ onMounted(() => {
   font-weight: 600;
 }
 
-/* Feedback de Red */
 .loading-state, .error-state {
   display: flex;
   flex-direction: column;

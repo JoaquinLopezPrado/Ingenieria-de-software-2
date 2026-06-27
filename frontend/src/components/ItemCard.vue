@@ -10,6 +10,7 @@ defineProps<{
     <div class="card-left">
       <span class="card-title">{{ title }}</span>
       <span v-if="subtitle" class="card-subtitle">{{ subtitle }}</span>
+      <slot name="left-detail"></slot>
     </div>
     <div class="card-right">
       <slot name="right"></slot>
