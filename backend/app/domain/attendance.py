@@ -41,6 +41,20 @@ class MyAttendanceRecord:
         self.status = status
 
 
+class CheckinResult:
+    def __init__(
+        self,
+        first_name: str,
+        last_name: str,
+        activity_name: str,
+        horario: str,
+    ):
+        self.first_name = first_name
+        self.last_name = last_name
+        self.activity_name = activity_name
+        self.horario = horario
+
+
 class AsistenciaRegistro:
     """Vista de un registro de asistencia para el historial de un cliente.
 

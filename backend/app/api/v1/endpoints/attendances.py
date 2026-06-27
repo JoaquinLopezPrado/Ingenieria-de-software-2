@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user_id, get_db, require_roles
 from app.repositories.attendance_repository import AttendanceRepository
-from app.schemas.attendance import DeleteAttendanceRequest, MarkAttendanceRequest, MyAttendanceResponse, RosterEntryResponse
+from app.schemas.attendance import CheckinRequest, CheckinResponse, DeleteAttendanceRequest, MarkAttendanceRequest, MyAttendanceResponse, RosterEntryResponse
 from app.services.attendance_service import AttendanceService
 
 router = APIRouter()
@@ -20,6 +20,16 @@ async def get_my_attendance(
 ):
     records = await service.get_my_history(user_id=user_id)
     return [MyAttendanceResponse.from_record(r) for r in records]
+
+
+@router.post("/checkin", response_model=CheckinResponse, status_code=status.HTTP_200_OK)
+async def checkin_qr(
+    body: CheckinRequest,
+    _=require_roles("admin", "empleado"),
+    service: AttendanceService = Depends(get_attendance_service),
+):
+    result = await service.checkin(user_id=body.user_id, clase_id=body.clase_id)
+    return CheckinResponse.from_result(result)
 
 
 @router.get("/roster/{clase_id}", response_model=list[RosterEntryResponse], status_code=status.HTTP_200_OK)

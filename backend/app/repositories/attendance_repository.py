@@ -6,7 +6,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus, MyAttendanceRecord
+from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus, CheckinResult, MyAttendanceRecord
 from app.domain.single_enrollment import SingleEnrollmentStatus
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.repositories.capacity import subscription_covers
@@ -50,6 +50,14 @@ class AbstractAttendanceRepository(ABC):
 
     @abstractmethod
     async def get_my_history(self, user_id: int, today: date) -> list[MyAttendanceRecord]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def checkin(self, user_id: int, clase_id: int, today: date) -> CheckinResult:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def checkin(self, user_id: int, clase_id: int, today: date) -> CheckinResult:
         raise NotImplementedError
 
     @abstractmethod
@@ -171,6 +179,54 @@ class AttendanceRepository(AbstractAttendanceRepository):
                 seen[clase_id] = MyAttendanceRecord(clase_id, activity_name, clase_date, start_time, end_time, att_status)
 
         return sorted(seen.values(), key=lambda r: r.clase_date, reverse=True)
+
+    async def checkin(self, user_id: int, clase_id: int, today: date) -> CheckinResult:
+        clase_row = (await self._session.execute(
+            select(
+                ClaseORM.date,
+                ActivityORM.name,
+                TurnoORM.start_time,
+                TurnoORM.end_time,
+            )
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .where(ClaseORM.id == clase_id)
+        )).one_or_none()
+
+        if clase_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Clase no encontrada.")
+
+        clase_date, activity_name, start_time, end_time = clase_row
+        if clase_date != today:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La clase no corresponde al día de hoy.")
+
+        profile_row = (await self._session.execute(
+            select(ClientProfileORM.first_name, ClientProfileORM.last_name)
+            .where(ClientProfileORM.user_id == user_id)
+        )).one_or_none()
+
+        if profile_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+
+        first_name, last_name = profile_row
+
+        stmt = (
+            pg_insert(AttendanceORM)
+            .values(user_id=user_id, clase_id=clase_id, status=AttendanceStatus.PRESENTE)
+            .on_conflict_do_update(
+                index_elements=["user_id", "clase_id"],
+                set_={"status": AttendanceStatus.PRESENTE},
+            )
+        )
+        await self._session.execute(stmt)
+
+        horario = f"{start_time.hour:02d}:{start_time.minute:02d} – {end_time.hour:02d}:{end_time.minute:02d}"
+        return CheckinResult(
+            first_name=first_name,
+            last_name=last_name,
+            activity_name=activity_name,
+            horario=horario,
+        )
 
     async def get_roster(self, clase_id: int) -> list[RosterEntry]:
         clase = await self._session.get(ClaseORM, clase_id)

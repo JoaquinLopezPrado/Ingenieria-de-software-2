@@ -2,7 +2,7 @@ from datetime import date, time
 
 from pydantic import BaseModel, computed_field
 
-from app.domain.attendance import AttendanceStatus, MyAttendanceRecord
+from app.domain.attendance import AttendanceStatus, CheckinResult, MyAttendanceRecord
 
 
 def _fmt_time(value: time) -> str:
@@ -66,6 +66,29 @@ class RosterEntryResponse(BaseModel):
             last_name=e.last_name,
             source=e.source,
             estado=e.status,
+        )
+
+
+class CheckinRequest(BaseModel):
+    user_id: int
+    clase_id: int
+
+
+class CheckinResponse(BaseModel):
+    ok: bool
+    first_name: str
+    last_name: str
+    activity_name: str
+    horario: str
+
+    @classmethod
+    def from_result(cls, r: CheckinResult) -> "CheckinResponse":
+        return cls(
+            ok=True,
+            first_name=r.first_name,
+            last_name=r.last_name,
+            activity_name=r.activity_name,
+            horario=r.horario,
         )
 
 
