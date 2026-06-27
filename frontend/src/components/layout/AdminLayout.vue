@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { isAdminUser } from '@/utils/role'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -11,7 +12,13 @@ const authStore = useAuthStore()
 const showLogoutConfirm = ref(false)
 const isLoggingOut = ref(false)
 
-const adminEmail = computed(() => authStore.user?.email ?? authStore.user?.username ?? 'Sin correo')
+const isAdmin = computed(() => isAdminUser(authStore.user))
+const userEmail = computed(() => authStore.user?.email ?? authStore.user?.username ?? 'Sin correo')
+const userName = computed(() => {
+  const p = authStore.user?.employee_profile ?? authStore.user?.client_profile
+  if (p?.first_name) return `${p.first_name} ${p.last_name ?? ''}`.trim()
+  return userEmail.value
+})
 
 const openLogoutConfirm = () => {
   showLogoutConfirm.value = true
@@ -41,28 +48,28 @@ const confirmLogout = async () => {
       <div class="brand-header">
         <div class="brand-text">
           <h2 class="brand-title">SiempreGym</h2>
-          <p class="brand-subtitle">Panel de administración</p>
+          <p class="brand-subtitle">{{ isAdmin ? 'Panel de administración' : 'Panel del empleado' }}</p>
         </div>
       </div>
 
       <nav class="sidebar-nav">
         <div class="nav-group">
           <p class="nav-label">PRINCIPAL</p>
-          <RouterLink to="/admin" class="nav-item" active-class="active" exact>
+          <RouterLink :to="isAdmin ? '/admin' : '/empleado'" class="nav-item" active-class="active" exact>
             <span class="nav-icon">⊞</span> Inicio
           </RouterLink>
-          <a href="#" class="nav-item">
-            <span class="nav-icon">☰</span> Inscripciones
-          </a>
-          <RouterLink to="/clientes" class="nav-item" active-class="active">
+          <RouterLink v-if="isAdmin" to="/clientes" class="nav-item" active-class="active">
             <span class="nav-icon">◎</span> Alumnos
           </RouterLink>
-          <RouterLink to="/activities" class="nav-item" active-class="active">
+          <RouterLink v-if="isAdmin" to="/activities" class="nav-item" active-class="active">
             <span class="nav-icon">◈</span> Actividades
+          </RouterLink>
+          <RouterLink v-if="!isAdmin" to="/clientes" class="nav-item" active-class="active">
+            <span class="nav-icon">◎</span> Alumnos
           </RouterLink>
         </div>
 
-        <div class="nav-group">
+        <div v-if="isAdmin" class="nav-group">
           <p class="nav-label">ADMINISTRACIÓN</p>
           <RouterLink to="/report" class="nav-item" active-class="active">
             <span class="nav-icon">▦</span> Reportes
@@ -70,18 +77,29 @@ const confirmLogout = async () => {
           <RouterLink to="/activities/turnos" class="nav-item" active-class="active">
             <span class="nav-icon">◷</span> Grilla de Turnos
           </RouterLink>
-          <a href="#" class="nav-item">
-            <span class="nav-icon">✓</span> Asistencia
-          </a>
           <RouterLink to="/admin/configuracion" class="nav-item" active-class="active">
             <span class="nav-icon">⚙</span> Configuración
+          </RouterLink>
+        </div>
+
+        <div v-if="!isAdmin" class="nav-group">
+          <p class="nav-label">HERRAMIENTAS</p>
+          <RouterLink to="/empleado/clases" class="nav-item" active-class="active">
+            <span class="nav-icon">✓</span> Asistencias
+          </RouterLink>
+          <RouterLink to="/scanner" class="nav-item" active-class="active">
+            <span class="nav-icon">▣</span> Escáner QR
+          </RouterLink>
+          <RouterLink to="/admin/configuracion" class="nav-item" active-class="active">
+            <span class="nav-icon">⚙</span> Seguridad
           </RouterLink>
         </div>
       </nav>
 
       <div class="user-footer">
-        <div class="brand-text user-meta">
-          <p class="user-email">{{ adminEmail }}</p>
+        <div class="user-meta">
+          <p class="user-name">{{ userName }}</p>
+          <p class="user-email">{{ userEmail }}</p>
         </div>
 
         <button type="button" class="btn-logout" @click="openLogoutConfirm">
@@ -218,10 +236,20 @@ const confirmLogout = async () => {
   min-width: 0;
 }
 
+.user-name {
+  margin: 0 0 2px;
+  font-size: 0.85rem;
+  color: white;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .user-email {
   margin: 0;
-  font-size: 0.78rem;
-  color: #d1dadd;
+  font-size: 0.75rem;
+  color: #8fa8a2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

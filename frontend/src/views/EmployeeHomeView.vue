@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import EmployeeLayout from '@/components/layout/EmployeeLayout.vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -41,7 +41,7 @@ const accesos = [
 </script>
 
 <template>
-  <EmployeeLayout>
+  <AdminLayout>
     <div class="home-content">
       <div class="welcome-card">
         <p class="eyebrow">Panel del empleado</p>
@@ -63,7 +63,7 @@ const accesos = [
         </div>
       </div>
     </div>
-  </EmployeeLayout>
+  </AdminLayout>
 </template>
 
 <style scoped>

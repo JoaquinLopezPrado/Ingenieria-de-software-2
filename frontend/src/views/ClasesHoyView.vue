@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import EmployeeLayout from '@/components/layout/EmployeeLayout.vue'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
 
 interface ClaseHoy {
   clase_id: number
@@ -53,7 +53,7 @@ onMounted(fetchClases)
 </script>
 
 <template>
-  <EmployeeLayout>
+  <AdminLayout>
     <div class="clases-content">
       <div class="page-header">
         <h1 class="page-title">Asistencias</h1>
@@ -97,7 +97,7 @@ onMounted(fetchClases)
         </div>
       </div>
     </div>
-  </EmployeeLayout>
+  </AdminLayout>
 </template>
 
 <style scoped>
