@@ -175,11 +175,11 @@ onUnmounted(stopCamera)
       </div>
 
       <!-- Success -->
-      <div v-else-if="state === 'success' && lastResult" class="center-card success">
+      <div v-if="state === 'success' && lastResult" class="center-card success">
         <div class="result-check">✓</div>
-        <p class="result-name">{{ lastResult.first_name }} {{ lastResult.last_name }}</p>
-        <p class="result-actividad">{{ lastResult.activity_name }}</p>
-        <p class="result-horario">{{ lastResult.horario }}</p>
+        <p class="result-name">{{ lastResult?.first_name }} {{ lastResult?.last_name }}</p>
+        <p class="result-actividad">{{ lastResult?.activity_name }}</p>
+        <p class="result-horario">{{ lastResult?.horario }}</p>
         <span class="badge-presente">PRESENTE</span>
         <button type="button" class="btn-primary" @click="() => { reset(); startCamera() }">
           Escanear otro
@@ -187,7 +187,7 @@ onUnmounted(stopCamera)
       </div>
 
       <!-- Error -->
-      <div v-else-if="state === 'error'" class="center-card error">
+      <div v-if="state === 'error'" class="center-card error">
         <div class="error-icon">✕</div>
         <p class="card-title">Error</p>
         <p class="card-sub">{{ errorMsg }}</p>
