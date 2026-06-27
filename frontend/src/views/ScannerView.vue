@@ -90,7 +90,6 @@ const handleQRData = async (raw: string) => {
     return
   }
 
-  // Detener solo el loop de scan; el video sigue mostrando el último frame
   stopScanLoop()
   stream?.getTracks().forEach((t) => t.stop())
   stream = null
@@ -123,30 +122,62 @@ onUnmounted(stopCamera)
 <template>
   <AdminLayout>
   <div class="scanner-page">
+
     <div class="scanner-header">
       <h1 class="scanner-title">Escáner QR</h1>
-      <p class="scanner-sub">Apuntá la cámara al QR del alumno</p>
+      <p class="scanner-sub">Registrá la asistencia escaneando el código QR del alumno</p>
     </div>
 
     <div class="scanner-body">
 
       <!-- Idle -->
-      <div v-if="state === 'idle'" class="center-card">
-        <div class="cam-icon">📷</div>
-        <p class="card-title">Listo para escanear</p>
-        <p class="card-sub">Presioná el botón para activar la cámara</p>
+      <div v-if="state === 'idle'" class="idle-card">
+        <div class="idle-icon-wrap">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <path d="M14 14h2v2h-2zM18 14h3M14 18h1M17 18h4M14 21h3M20 18v3"/>
+          </svg>
+        </div>
+        <div class="idle-text">
+          <h2 class="idle-title">Listo para escanear</h2>
+          <p class="idle-sub">Activá la cámara y apuntá al código QR que muestra el alumno desde su teléfono.</p>
+        </div>
+        <div class="idle-steps">
+          <div class="step">
+            <span class="step-num">1</span>
+            <span class="step-label">El alumno abre su QR en la app</span>
+          </div>
+          <div class="step">
+            <span class="step-num">2</span>
+            <span class="step-label">Activás la cámara con el botón de abajo</span>
+          </div>
+          <div class="step">
+            <span class="step-num">3</span>
+            <span class="step-label">Apuntás al código — la asistencia se registra sola</span>
+          </div>
+        </div>
         <button type="button" class="btn-primary" @click="startCamera">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+            <path d="M23 7 16 12 23 17V7z"/>
+            <rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
           Activar cámara
         </button>
       </div>
 
       <!-- Cámara: v-show para que <video> siempre esté en el DOM y el ref sea válido -->
-      <div v-show="state === 'scanning' || state === 'processing'" class="scanner-frame-wrapper">
+      <div v-show="state === 'scanning' || state === 'processing'" class="camera-card">
+        <div class="camera-card-header">
+          <span class="status-dot" :class="state === 'processing' ? 'dot-green' : 'dot-pulse'"></span>
+          <span class="status-label">{{ state === 'processing' ? 'QR detectado — registrando…' : 'Cámara activa — buscando QR…' }}</span>
+        </div>
+
         <div class="scanner-frame" :class="{ 'frame-detected': state === 'processing' }">
           <video ref="videoEl" class="scanner-video" muted playsinline></video>
           <canvas ref="canvasEl" class="scanner-canvas"></canvas>
 
-          <!-- Overlay de escaneo activo -->
           <div v-if="state === 'scanning'" class="scanner-overlay">
             <div class="scan-corner tl"></div>
             <div class="scan-corner tr"></div>
@@ -155,44 +186,54 @@ onUnmounted(stopCamera)
             <div class="scan-line"></div>
           </div>
 
-          <!-- Overlay de QR detectado -->
           <div v-else class="detected-overlay">
-            <div class="detected-check">✓</div>
+            <div class="detected-check">&#x2713;</div>
             <p class="detected-label">QR leído</p>
             <div class="spinner-white"></div>
           </div>
         </div>
 
-        <p v-if="state === 'scanning'" class="scan-hint">Enfocá el QR dentro del cuadro</p>
-        <p v-else class="processing-hint">Registrando asistencia...</p>
-
-        <button
-          v-if="state === 'scanning'"
-          type="button"
-          class="btn-secondary"
-          @click="() => { stopCamera(); reset() }"
-        >
-          Cancelar
-        </button>
+        <div class="camera-card-footer">
+          <p class="scan-hint">Mantené el código centrado y bien iluminado</p>
+          <button
+            v-if="state === 'scanning'"
+            type="button"
+            class="btn-secondary"
+            @click="() => { stopCamera(); reset() }"
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
 
       <!-- Success -->
-      <div v-if="state === 'success' && lastResult" class="center-card success">
-        <div class="result-check">✓</div>
-        <p class="result-name">{{ lastResult?.first_name }} {{ lastResult?.last_name }}</p>
-        <p class="result-actividad">{{ lastResult?.activity_name }}</p>
-        <p class="result-horario">{{ lastResult?.horario }}</p>
+      <div v-if="state === 'success' && lastResult" class="result-card success-card">
+        <div class="result-icon-wrap success-wrap">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
         <span class="badge-presente">PRESENTE</span>
+        <p class="result-name">{{ lastResult?.first_name }} {{ lastResult?.last_name }}</p>
+        <div class="result-meta">
+          <span class="meta-pill">{{ lastResult?.activity_name }}</span>
+          <span class="meta-pill">{{ lastResult?.horario }}</span>
+        </div>
         <button type="button" class="btn-primary" @click="() => { reset(); startCamera() }">
           Escanear otro
         </button>
       </div>
 
       <!-- Error -->
-      <div v-if="state === 'error'" class="center-card error">
-        <div class="error-icon">✕</div>
-        <p class="card-title">Error</p>
-        <p class="card-sub">{{ errorMsg }}</p>
+      <div v-if="state === 'error'" class="result-card error-card">
+        <div class="result-icon-wrap error-wrap">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </div>
+        <p class="result-error-title">No se pudo registrar</p>
+        <p class="result-error-msg">{{ errorMsg }}</p>
         <button type="button" class="btn-primary" @click="() => { reset(); startCamera() }">
           Reintentar
         </button>
@@ -207,13 +248,11 @@ onUnmounted(stopCamera)
 .scanner-page {
   display: flex;
   flex-direction: column;
-  align-items: center;
   max-width: 560px;
 }
 
 .scanner-header {
-  margin-bottom: 28px;
-  align-self: flex-start;
+  margin-bottom: 24px;
 }
 .scanner-title {
   margin: 0 0 4px;
@@ -227,49 +266,117 @@ onUnmounted(stopCamera)
   font-size: 0.95rem;
 }
 
-.scanner-body {
-  width: 100%;
-  max-width: 480px;
-}
-
-.center-card {
+/* ── Idle ── */
+.idle-card {
   background: white;
-  border-radius: 24px;
-  padding: 40px 28px;
-  text-align: center;
+  border-radius: 20px;
+  padding: 32px 28px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.idle-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: rgba(13,155,138,0.1);
+  color: #0d9b8a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.idle-text {}
+.idle-title { margin: 0 0 6px; font-size: 1.2rem; font-weight: 700; color: #1f2937; }
+.idle-sub { margin: 0; font-size: 0.9rem; color: #6b7280; line-height: 1.5; }
+
+.idle-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f9fafb;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.step {
+  display: flex;
   align-items: center;
   gap: 12px;
 }
-
-.cam-icon { font-size: 3rem; }
-.card-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1f2937; }
-.card-sub { margin: 0; font-size: 0.9rem; color: #6b7280; }
-
-/* ── Frame de cámara ── */
-.scanner-frame-wrapper {
+.step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #0d9b8a;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step-label {
+  font-size: 0.88rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+/* ── Camera card ── */
+.camera-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.camera-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-pulse {
+  background: #0d9b8a;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+.dot-green {
+  background: #4caf50;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+
+.status-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #374151;
 }
 
 .scanner-frame {
   position: relative;
   width: 100%;
-  max-width: 360px;
   aspect-ratio: 1;
   background: black;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 3px solid transparent;
-  transition: border-color 0.2s;
+  border-top: none;
+  border-bottom: none;
+  transition: box-shadow 0.2s;
 }
 
 .scanner-frame.frame-detected {
-  border-color: #4caf50;
-  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.25);
+  box-shadow: inset 0 0 0 4px #4caf50;
 }
 
 .scanner-video {
@@ -282,7 +389,22 @@ onUnmounted(stopCamera)
   display: none;
 }
 
-/* ── Overlay de escaneo ── */
+.camera-card-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.scan-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* ── Scan overlay ── */
 .scanner-overlay {
   position: absolute;
   inset: 0;
@@ -314,7 +436,7 @@ onUnmounted(stopCamera)
   animation: scan-move 2s ease-in-out infinite;
 }
 
-/* ── Overlay de QR detectado ── */
+/* ── Overlay detectado ── */
 .detected-overlay {
   position: absolute;
   inset: 0;
@@ -325,7 +447,6 @@ onUnmounted(stopCamera)
   justify-content: center;
   gap: 10px;
 }
-
 .detected-check {
   width: 64px;
   height: 64px;
@@ -339,13 +460,11 @@ onUnmounted(stopCamera)
   justify-content: center;
   box-shadow: 0 0 24px rgba(76, 175, 80, 0.6);
 }
-
 .detected-label {
   margin: 0;
   color: white;
   font-size: 1.1rem;
   font-weight: 800;
-  letter-spacing: 0.3px;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -358,55 +477,85 @@ onUnmounted(stopCamera)
   animation: spin 0.8s linear infinite;
 }
 
-.scan-hint { color: #4b5563; font-size: 0.85rem; font-weight: 600; }
-.processing-hint { color: #059669; font-size: 0.85rem; font-weight: 700; }
+/* ── Result cards ── */
+.result-card {
+  background: white;
+  border-radius: 20px;
+  padding: 36px 28px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
 
-/* ── Success ── */
-.center-card.success { border: 3px solid #c8e6c9; }
-.result-check {
-  width: 64px;
-  height: 64px;
+.result-icon-wrap {
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: #e8f5e9;
-  color: #2e7d32;
-  font-size: 2rem;
-  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.result-name { margin: 4px 0 0; font-size: 1.3rem; font-weight: 800; color: #1f2937; }
-.result-actividad { margin: 0; font-size: 1rem; font-weight: 600; color: #374151; }
-.result-horario { margin: 0 0 4px; font-size: 0.9rem; color: #6b7280; }
+.success-wrap { background: #e8f5e9; color: #2e7d32; }
+.error-wrap   { background: #ffebee; color: #c62828; }
+
+.success-card { border-top: 4px solid #4caf50; }
+.error-card   { border-top: 4px solid #ef5350; }
+
 .badge-presente {
   background: #e8f5e9;
   color: #2e7d32;
   border: 1px solid #c8e6c9;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  padding: 3px 14px;
+  padding: 4px 14px;
   border-radius: 20px;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  letter-spacing: 0.8px;
 }
 
-/* ── Error ── */
-.center-card.error { border: 3px solid #ffcdd2; }
-.error-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: #ffebee;
-  color: #c62828;
-  font-size: 1.8rem;
-  font-weight: 900;
+.result-name {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.result-meta {
   display: flex;
-  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   justify-content: center;
+}
+.meta-pill {
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.result-error-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+.result-error-msg {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  line-height: 1.5;
 }
 
 /* ── Botones ── */
 .btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: #0d9b8a;
   color: white;
   border: none;
@@ -415,8 +564,8 @@ onUnmounted(stopCamera)
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  margin-top: 4px;
   transition: background 0.15s;
+  width: 100%;
 }
 .btn-primary:hover { background: #0b8577; }
 
