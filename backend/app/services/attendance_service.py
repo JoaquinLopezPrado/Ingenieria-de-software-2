@@ -1,4 +1,6 @@
-from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus
+from datetime import date
+
+from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus, MyAttendanceRecord
 from app.repositories.attendance_repository import AbstractAttendanceRepository, RosterEntry
 
 
@@ -6,6 +8,9 @@ class AttendanceService:
 
     def __init__(self, attendance_repo: AbstractAttendanceRepository):
         self._repo = attendance_repo
+
+    async def get_my_history(self, user_id: int) -> list[MyAttendanceRecord]:
+        return await self._repo.get_my_history(user_id=user_id, today=date.today())
 
     async def get_historial(self, user_id: int) -> list[AsistenciaRegistro]:
         return await self._repo.get_historial_by_user(user_id=user_id)

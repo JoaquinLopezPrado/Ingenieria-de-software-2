@@ -2,7 +2,7 @@ from datetime import date, time
 
 from pydantic import BaseModel, computed_field
 
-from app.domain.attendance import AttendanceStatus
+from app.domain.attendance import AttendanceStatus, MyAttendanceRecord
 
 
 def _fmt_time(value: time) -> str:
@@ -24,6 +24,24 @@ class AsistenciaResponse(BaseModel):
             actividad=r.activity_name,
             fecha=r.clase_date,
             horario=f"{_fmt_time(r.start_time)} – {_fmt_time(r.end_time)}",
+            estado=r.status,
+        )
+
+
+class MyAttendanceResponse(BaseModel):
+    clase_id: int
+    activity_name: str
+    clase_date: date
+    horario: str
+    estado: AttendanceStatus | None = None
+
+    @classmethod
+    def from_record(cls, r: MyAttendanceRecord) -> "MyAttendanceResponse":
+        return cls(
+            clase_id=r.clase_id,
+            activity_name=r.activity_name,
+            clase_date=r.clase_date,
+            horario=f"{r.start_time.hour:02d}:{r.start_time.minute:02d} – {r.end_time.hour:02d}:{r.end_time.minute:02d}",
             estado=r.status,
         )
 

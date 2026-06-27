@@ -23,6 +23,24 @@ class Attendance:
         self.marked_at = marked_at
 
 
+class MyAttendanceRecord:
+    def __init__(
+        self,
+        clase_id: int,
+        activity_name: str,
+        clase_date: date,
+        start_time: time,
+        end_time: time,
+        status: "AttendanceStatus | None",
+    ):
+        self.clase_id = clase_id
+        self.activity_name = activity_name
+        self.clase_date = clase_date
+        self.start_time = start_time
+        self.end_time = end_time
+        self.status = status
+
+
 class AsistenciaRegistro:
     """Vista de un registro de asistencia para el historial de un cliente.
 

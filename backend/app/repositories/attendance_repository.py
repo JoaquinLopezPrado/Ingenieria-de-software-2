@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus
+from app.domain.attendance import AsistenciaRegistro, Attendance, AttendanceStatus, MyAttendanceRecord
 from app.domain.single_enrollment import SingleEnrollmentStatus
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.repositories.capacity import subscription_covers
@@ -46,6 +46,10 @@ class AbstractAttendanceRepository(ABC):
 
     @abstractmethod
     async def delete(self, user_id: int, clase_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_my_history(self, user_id: int, today: date) -> list[MyAttendanceRecord]:
         raise NotImplementedError
 
     @abstractmethod
@@ -110,6 +114,63 @@ class AttendanceRepository(AbstractAttendanceRepository):
         )
         row = (await self._session.execute(stmt)).one()
         return Attendance(id=row[0], user_id=user_id, clase_id=clase_id, status=status, marked_at=row[1])
+
+    async def get_my_history(self, user_id: int, today: date) -> list[MyAttendanceRecord]:
+        _COLS = (
+            ClaseORM.id.label("clase_id"),
+            ActivityORM.name.label("activity_name"),
+            ClaseORM.date.label("clase_date"),
+            TurnoORM.start_time,
+            TurnoORM.end_time,
+            AttendanceORM.status,
+        )
+        _ATT_JOIN = (
+            AttendanceORM,
+            (AttendanceORM.clase_id == ClaseORM.id) & (AttendanceORM.user_id == user_id),
+        )
+
+        sub_rows = (await self._session.execute(
+            select(*_COLS)
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .join(SubscriptionORM, SubscriptionORM.turno_id == TurnoORM.id)
+            .outerjoin(*_ATT_JOIN)
+            .where(
+                SubscriptionORM.user_id == user_id,
+                ClaseORM.date >= SubscriptionORM.start_date,
+                or_(SubscriptionORM.ends_on.is_(None), ClaseORM.date <= SubscriptionORM.ends_on),
+                ClaseORM.date <= today,
+            )
+            .distinct()
+        )).all()
+
+        single_rows = (await self._session.execute(
+            select(*_COLS)
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .join(SingleSlotORM, SingleSlotORM.clase_id == ClaseORM.id)
+            .join(SingleEnrollmentORM, SingleEnrollmentORM.id == SingleSlotORM.enrollment_id)
+            .outerjoin(*_ATT_JOIN)
+            .where(
+                SingleEnrollmentORM.user_id == user_id,
+                SingleEnrollmentORM.status.in_([
+                    SingleEnrollmentStatus.CONFIRMED,
+                    SingleEnrollmentStatus.DEPOSIT_PAID,
+                ]),
+                ClaseORM.date <= today,
+            )
+            .distinct()
+        )).all()
+
+        seen: dict[int, MyAttendanceRecord] = {}
+        for clase_id, activity_name, clase_date, start_time, end_time, att_status in sub_rows:
+            if clase_id not in seen:
+                seen[clase_id] = MyAttendanceRecord(clase_id, activity_name, clase_date, start_time, end_time, att_status)
+        for clase_id, activity_name, clase_date, start_time, end_time, att_status in single_rows:
+            if clase_id not in seen:
+                seen[clase_id] = MyAttendanceRecord(clase_id, activity_name, clase_date, start_time, end_time, att_status)
+
+        return sorted(seen.values(), key=lambda r: r.clase_date, reverse=True)
 
     async def get_roster(self, clase_id: int) -> list[RosterEntry]:
         clase = await self._session.get(ClaseORM, clase_id)

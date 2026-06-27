@@ -1,94 +1,48 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 import ListLayout from '@/components/ListLayout.vue'
 import ItemCard from '@/components/ItemCard.vue'
 
-interface ClaseAsistenciaPlana {
-  keyUnique: string
-  tipo: 'Turno Fijo' | 'Clase Individual'
-  actividad: string
-  instructor: string
-  fecha: string
-  fechaObjeto: Date // La usamos para ordenar de forma cronológica exacta en el Front
+interface AsistenciaItem {
+  clase_id: number
+  activity_name: string
+  clase_date: string
   horario: string
-  asistio: boolean
+  estado: 'presente' | 'ausente' | null
+  fechaFormateada: string
 }
 
-const historialClases = ref<ClaseAsistenciaPlana[]>([])
+const historial = ref<AsistenciaItem[]>([])
 const isLoading = ref(true)
 const hasError = ref(false)
 
-const formatearFecha = (fechaRaw: string): string => {
-  if (!fechaRaw) return ''
+const fmtFecha = (raw: string): string => {
   const meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ]
-  const partes = fechaRaw.split('-')
-  if (partes.length !== 3) return fechaRaw
-  const dia = parseInt(partes[2], 10)
-  const mesIndex = parseInt(partes[1], 10) - 1
+  const parts = raw.split('-')
+  const dia = parseInt(parts[2] as string, 10)
+  const mesIndex = parseInt(parts[1] as string, 10) - 1
   return `${dia} ${meses[mesIndex]}`
 }
 
-const fetchHistorialAsistencias = async () => {
+const fetchHistorial = async () => {
   try {
     isLoading.value = true
     hasError.value = false
 
-    // CAMBIO CLAVE: Cambiar '/my/monthly' por '/my/subscription'
-    const [resSubscription, resSingle] = await Promise.all([
-      api.get('/subscriptions/me'),
-      api.get('/single-enrollments/me')
-    ])
-    
-    
-    const listaPlana: ClaseAsistenciaPlana[] = []
-
-    // 1. Procesamos los desgloses internos de las suscripciones (turnos fijos)
-    // Cambiamos resMonthly por resSubscription
-    resSubscription.data.forEach((turno: any) => {
-      const clasesAsociadas = turno.clases_asociadas || turno.slots || []
-      clasesAsociadas.forEach((c: any) => {
-        const fechaStr = c.date || c.fecha || c.clase?.date;
-        listaPlana.push({
-          keyUnique: `subscription-${turno.id}-${c.id}`,
-          tipo: 'Turno Fijo',
-          actividad: turno.actividad || turno.activity_name || 'Actividad',
-          instructor: turno.instructor || 'Profesor',
-          fecha: formatearFecha(fechaStr),
-          fechaObjeto: new Date(fechaStr),
-          horario: c.horario || turno.start_time?.slice(0, 5) || '00:00',
-          asistio: c.asistio ?? c.has_attended ?? false
-        })
-      })
-    })
-
-    // 2. Procesamos las clases sueltas individuales (queda igual)
-    resSingle.data.forEach((clase: any) => {
-      const fechaStr = clase.date || clase.fecha || clase.clase?.date;
-      listaPlana.push({
-        keyUnique: `single-${clase.id}`,
-        tipo: 'Clase Individual',
-        actividad: clase.actividad || clase.activity_name || 'Clase Suelta',
-        instructor: clase.instructor || 'Profesor',
-        fecha: formatearFecha(fechaStr),
-        fechaObjeto: new Date(fechaStr),
-        horario: clase.horario || clase.start_time?.slice(0, 5) || '00:00',
-        asistio: clase.asistio ?? clase.has_attended ?? false
-      })
-    })
-
-    // Ordenamos el listado de forma segura
-    historialClases.value = listaPlana.sort((a, b) => {
-      const tiempoA = isNaN(a.fechaObjeto.getTime()) ? 0 : a.fechaObjeto.getTime()
-      const tiempoB = isNaN(b.fechaObjeto.getTime()) ? 0 : b.fechaObjeto.getTime()
-      return tiempoB - tiempoA
-    })
-
-  } catch (error) {
-    console.error('Error al armar el historial de asistencias:', error)
+    const res = await api.get('/attendances/me')
+    historial.value = res.data.map((item: any) => ({
+      clase_id: item.clase_id,
+      activity_name: item.activity_name,
+      clase_date: item.clase_date,
+      horario: item.horario,
+      estado: item.estado ?? null,
+      fechaFormateada: fmtFecha(item.clase_date),
+    }))
+  } catch {
     hasError.value = true
   } finally {
     isLoading.value = false
@@ -96,50 +50,47 @@ const fetchHistorialAsistencias = async () => {
 }
 
 onMounted(() => {
-  fetchHistorialAsistencias()
+  fetchHistorial()
 })
 </script>
 
 <template>
   <ListLayout pageTitle="Mis Asistencias">
     <div class="central-wrapper">
-      
+
       <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
-        <span>Sincronizando historial de asistencias...</span>
+        <span>Cargando tu historial de asistencias...</span>
       </div>
 
       <div v-else-if="hasError" class="error-state">
-        <span>No se pudo procesar tu historial médico-deportivo.</span>
-        <button type="button" class="btn-retry" @click="fetchHistorialAsistencias">Reintentar</button>
+        <span>No se pudo cargar el historial.</span>
+        <button type="button" class="btn-retry" @click="fetchHistorial">Reintentar</button>
       </div>
 
       <div v-else class="cards-stack">
-        <div v-if="historialClases.length === 0" class="empty-column-sub">
-          <span>No tenés asistencias registradas en el sistema</span>
+        <div v-if="historial.length === 0" class="empty-state">
+          <span>No tenés asistencias registradas todavía</span>
         </div>
 
         <template v-else>
           <ItemCard
-            v-for="clase in historialClases"
-            :key="clase.keyUnique"
-            :title="clase.actividad"
-            :subtitle="`Prof. ${clase.instructor}`"
+            v-for="item in historial"
+            :key="item.clase_id"
+            :title="item.activity_name"
+            :subtitle="item.horario"
             class="asistencia-card"
           >
             <template #right>
-              <div class="inscripcion-right">
-                <div class="tags-row">
-                  <span :class="['type-badge', clase.tipo === 'Turno Fijo' ? 'badge-turno' : 'badge-clase']">
-                    {{ clase.tipo }}
-                  </span>
-                  <span :class="['status-badge-inline', clase.asistio ? 'asistio' : 'no-asistio']">
-                    {{ clase.asistio ? 'Asistió' : 'No asistió' }}
-                  </span>
-                </div>
-
-                <span class="horario-label-single">{{ clase.fecha }}</span>
-                <span class="periodo-label">{{ clase.horario }} hs</span>
+              <div class="asistencia-right">
+                <span class="fecha-label">{{ item.fechaFormateada }}</span>
+                <span
+                  v-if="item.estado"
+                  :class="['estado-badge', item.estado === 'presente' ? 'presente' : 'ausente']"
+                >
+                  {{ item.estado === 'presente' ? 'Presente' : 'Ausente' }}
+                </span>
+                <span v-else class="estado-badge sin-registro">Sin registro</span>
               </div>
             </template>
           </ItemCard>
@@ -171,90 +122,63 @@ onMounted(() => {
 }
 
 :deep(.item-card) {
-  min-height: 106px;
+  min-height: 90px;
   display: flex;
   align-items: center;
 }
 
-.inscripcion-right {
+.asistencia-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: center;
   gap: 6px;
-  height: 100%;
-  min-width: 150px;
+  min-width: 110px;
 }
 
-.tags-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.type-badge {
-  font-size: 9px;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 6px;
-  text-transform: uppercase;
-}
-
-.type-badge.badge-turno {
-  background-color: #f5f5f5;
-  color: #616161;
-  border: 1px solid #e0e0e0;
-}
-
-.type-badge.badge-clase {
-  background-color: #f5f5f5;
-  color: #616161;
-  border: 1px solid #e0e0e0;
-}
-
-.status-badge-inline {
-  font-size: 10px;
+.fecha-label {
+  color: #2c3e50;
+  font-size: 15px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 8px;
-  text-transform: uppercase;
 }
 
-.status-badge-inline.asistio {
+.estado-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.estado-badge.presente {
   background-color: #e8f5e9;
   color: #2e7d32;
   border: 1px solid #c8e6c9;
 }
 
-.status-badge-inline.no-asistio {
+.estado-badge.ausente {
   background-color: #ffebee;
   color: #c62828;
   border: 1px solid #ffcdd2;
 }
 
-.horario-label-single {
-  color: #2c3e50;
-  font-weight: 700;
-  font-size: 14px;
+.estado-badge.sin-registro {
+  background-color: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #e0e0e0;
 }
 
-.periodo-label {
-  color: #7f8c8d;
-  font-size: 12px;
-}
-
-.empty-column-sub {
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px dashed #b0bec5;
-  padding: 32px 16px;
+.empty-state {
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px dashed #cfeee6;
+  padding: 40px 20px;
   text-align: center;
-  border-radius: 12px;
+  border-radius: 16px;
   color: #78909c;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
-/* Feedback de Red */
 .loading-state, .error-state {
   display: flex;
   flex-direction: column;
@@ -266,9 +190,7 @@ onMounted(() => {
   font-weight: 700;
   font-size: 16px;
 }
-.error-state {
-  color: #c62828;
-}
+.error-state { color: #c62828; }
 .btn-retry {
   background: #c62828;
   color: white;
@@ -286,8 +208,5 @@ onMounted(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
