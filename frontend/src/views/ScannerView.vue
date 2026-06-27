@@ -138,8 +138,8 @@ onUnmounted(stopCamera)
         </button>
       </div>
 
-      <!-- Cámara (scanning + processing comparten el frame de video) -->
-      <div v-else-if="state === 'scanning' || state === 'processing'" class="scanner-frame-wrapper">
+      <!-- Cámara: v-show para que <video> siempre esté en el DOM y el ref sea válido -->
+      <div v-show="state === 'scanning' || state === 'processing'" class="scanner-frame-wrapper">
         <div class="scanner-frame" :class="{ 'frame-detected': state === 'processing' }">
           <video ref="videoEl" class="scanner-video" muted playsinline></video>
           <canvas ref="canvasEl" class="scanner-canvas"></canvas>
