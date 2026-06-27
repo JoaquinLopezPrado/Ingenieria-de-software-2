@@ -6,13 +6,14 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 
 interface CheckinResult {
   ok: boolean
+  already_present: boolean
   first_name: string
   last_name: string
   activity_name: string
   horario: string
 }
 
-type ScannerState = 'idle' | 'scanning' | 'processing' | 'success' | 'error'
+type ScannerState = 'idle' | 'scanning' | 'processing' | 'success' | 'already_present' | 'error'
 
 const state = ref<ScannerState>('idle')
 const errorMsg = ref('')
@@ -101,7 +102,7 @@ const handleQRData = async (raw: string) => {
       clase_id: payload.c,
     })
     lastResult.value = res.data as CheckinResult
-    state.value = 'success'
+    state.value = lastResult.value.already_present ? 'already_present' : 'success'
   } catch (err: any) {
     state.value = 'error'
     errorMsg.value =
@@ -215,6 +216,27 @@ onUnmounted(stopCamera)
         </div>
         <span class="badge-presente">PRESENTE</span>
         <p class="result-name">{{ lastResult?.first_name }} {{ lastResult?.last_name }}</p>
+        <div class="result-meta">
+          <span class="meta-pill">{{ lastResult?.activity_name }}</span>
+          <span class="meta-pill">{{ lastResult?.horario }}</span>
+        </div>
+        <button type="button" class="btn-primary" @click="() => { reset(); startCamera() }">
+          Escanear otro
+        </button>
+      </div>
+
+      <!-- Ya presente -->
+      <div v-if="state === 'already_present' && lastResult" class="result-card already-card">
+        <div class="result-icon-wrap already-wrap">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <span class="badge-ya-presente">YA REGISTRADO</span>
+        <p class="result-name">{{ lastResult?.first_name }} {{ lastResult?.last_name }}</p>
+        <p class="already-msg">Este alumno ya tiene la asistencia marcada para esta clase.</p>
         <div class="result-meta">
           <span class="meta-pill">{{ lastResult?.activity_name }}</span>
           <span class="meta-pill">{{ lastResult?.horario }}</span>
@@ -581,4 +603,23 @@ onUnmounted(stopCamera)
   transition: background 0.15s, border-color 0.15s;
 }
 .btn-secondary:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+.already-card { border-top: 4px solid #f59e0b; }
+.already-wrap { background: #fffbeb; color: #b45309; }
+.badge-ya-presente {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 14px;
+  border-radius: 20px;
+  letter-spacing: 0.8px;
+}
+.already-msg {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
 </style>
