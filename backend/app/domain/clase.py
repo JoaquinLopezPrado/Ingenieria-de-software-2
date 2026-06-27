@@ -37,3 +37,23 @@ class ClaseDetalle:
         self.is_active = is_active
         self.cancelled_reason = cancelled_reason
         self.cancelled_at = cancelled_at
+
+
+class ClaseHoy:
+    def __init__(
+        self,
+        clase_id: int,
+        activity_name: str,
+        instructor: str,
+        start_time: time,
+        end_time: time,
+        capacity: int,
+        is_active: bool,
+    ):
+        self.clase_id = clase_id
+        self.activity_name = activity_name
+        self.instructor = instructor
+        self.start_time = start_time
+        self.end_time = end_time
+        self.capacity = capacity
+        self.is_active = is_active

@@ -1,6 +1,8 @@
+from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.clase import ClaseHoy
 from app.models.activity import Activity as ActivityORM
 from app.models.turno import Turno as TurnoORM
 from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
@@ -53,3 +55,6 @@ class ClaseService:
                 clase_date=clase.date,
                 horario_str=horario_str,
             )
+
+    async def get_clases_hoy(self) -> list[ClaseHoy]:
+        return await self._clase_repo.list_hoy(today=date.today())

@@ -54,3 +54,25 @@ class CreditInfo(BaseModel):
     amount: Decimal
     expires_at: datetime
     source_clase_date: Optional[date] = None
+
+
+class ClaseHoyResponse(BaseModel):
+    clase_id: int
+    activity_name: str
+    instructor: str
+    start_time: str
+    end_time: str
+    capacity: int
+    is_active: bool
+
+    @classmethod
+    def from_clase(cls, c) -> "ClaseHoyResponse":
+        return cls(
+            clase_id=c.clase_id,
+            activity_name=c.activity_name,
+            instructor=c.instructor,
+            start_time=f"{c.start_time.hour:02d}:{c.start_time.minute:02d}",
+            end_time=f"{c.end_time.hour:02d}:{c.end_time.minute:02d}",
+            capacity=c.capacity,
+            is_active=c.is_active,
+        )

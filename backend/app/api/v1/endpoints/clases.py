@@ -7,6 +7,7 @@ from app.repositories.clase_cancellation_repository import ClaseCancellationRepo
 from app.schemas.clases import (
     CancelClaseRequest,
     CancelPreviewResponse,
+    ClaseHoyResponse,
     CreditInfo,
     UpdateClaseHorarioRequest,
 )
@@ -36,6 +37,16 @@ async def get_my_credits(
         )
         for c in credits
     ]
+
+
+@router.get("/hoy", response_model=list[ClaseHoyResponse], status_code=http_status.HTTP_200_OK)
+async def get_clases_hoy(
+    _=require_roles("admin", "empleado"),
+    db: AsyncSession = Depends(get_db),
+) -> list[ClaseHoyResponse]:
+    service = ClaseService(db)
+    clases = await service.get_clases_hoy()
+    return [ClaseHoyResponse.from_clase(c) for c in clases]
 
 
 @router.get("/{clase_id}/cancel-preview", response_model=CancelPreviewResponse)

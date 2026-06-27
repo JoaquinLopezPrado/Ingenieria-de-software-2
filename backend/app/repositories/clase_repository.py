@@ -7,7 +7,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import and_, case, func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.clase import Clase, ClaseDetalle
+from app.domain.clase import Clase, ClaseDetalle, ClaseHoy
+from app.models.activity import Activity as ActivityORM
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.domain.attendance import AttendanceStatus
 from app.models.attendance import Attendance as AttendanceORM
@@ -58,6 +59,10 @@ class AbstractClaseRepository(ABC):
 
     @abstractmethod
     async def list_by_turno(self, turno_id: int) -> List[ClaseDetalle]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_hoy(self, today: date) -> List[ClaseHoy]:
         raise NotImplementedError
 
 
@@ -303,6 +308,35 @@ class ClaseRepository(AbstractClaseRepository):
                 cancelled_at=row.Clase.cancelled_at,
             )
             for row in result
+        ]
+
+    async def list_hoy(self, today: date) -> List[ClaseHoy]:
+        result = await self._session.execute(
+            select(
+                ClaseORM.id,
+                ActivityORM.name,
+                TurnoORM.instructor,
+                ClaseORM.start_time,
+                ClaseORM.end_time,
+                ClaseORM.capacity,
+                ClaseORM.is_active,
+            )
+            .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .where(ClaseORM.date == today)
+            .order_by(ClaseORM.start_time)
+        )
+        return [
+            ClaseHoy(
+                clase_id=row[0],
+                activity_name=row[1],
+                instructor=row[2],
+                start_time=row[3],
+                end_time=row[4],
+                capacity=row[5],
+                is_active=row[6],
+            )
+            for row in result.all()
         ]
 
     def _to_domain(self, orm: ClaseORM) -> Clase:
