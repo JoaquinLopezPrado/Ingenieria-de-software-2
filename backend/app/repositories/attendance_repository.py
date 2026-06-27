@@ -210,15 +210,23 @@ class AttendanceRepository(AbstractAttendanceRepository):
 
         first_name, last_name = profile_row
 
-        stmt = (
-            pg_insert(AttendanceORM)
-            .values(user_id=user_id, clase_id=clase_id, status=AttendanceStatus.PRESENTE)
-            .on_conflict_do_update(
-                index_elements=["user_id", "clase_id"],
-                set_={"status": AttendanceStatus.PRESENTE},
+        existing = (await self._session.execute(
+            select(AttendanceORM.status)
+            .where(AttendanceORM.user_id == user_id, AttendanceORM.clase_id == clase_id)
+        )).scalar_one_or_none()
+
+        already_present = existing == AttendanceStatus.PRESENTE
+
+        if not already_present:
+            stmt = (
+                pg_insert(AttendanceORM)
+                .values(user_id=user_id, clase_id=clase_id, status=AttendanceStatus.PRESENTE)
+                .on_conflict_do_update(
+                    index_elements=["user_id", "clase_id"],
+                    set_={"status": AttendanceStatus.PRESENTE},
+                )
             )
-        )
-        await self._session.execute(stmt)
+            await self._session.execute(stmt)
 
         horario = f"{start_time.hour:02d}:{start_time.minute:02d} – {end_time.hour:02d}:{end_time.minute:02d}"
         return CheckinResult(
@@ -226,6 +234,7 @@ class AttendanceRepository(AbstractAttendanceRepository):
             last_name=last_name,
             activity_name=activity_name,
             horario=horario,
+            already_present=already_present,
         )
 
     async def get_roster(self, clase_id: int) -> list[RosterEntry]:

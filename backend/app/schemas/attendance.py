@@ -76,6 +76,7 @@ class CheckinRequest(BaseModel):
 
 class CheckinResponse(BaseModel):
     ok: bool
+    already_present: bool
     first_name: str
     last_name: str
     activity_name: str
@@ -85,6 +86,7 @@ class CheckinResponse(BaseModel):
     def from_result(cls, r: CheckinResult) -> "CheckinResponse":
         return cls(
             ok=True,
+            already_present=r.already_present,
             first_name=r.first_name,
             last_name=r.last_name,
             activity_name=r.activity_name,
