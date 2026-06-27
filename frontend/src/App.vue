@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterView } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import SideMenu from '@/components/SideMenu.vue'
-import { isAdminUser } from '@/utils/role'
+import { isStaffUser } from '@/utils/role'
 
 const authStore = useAuthStore()
 const showGlobalSideMenu = computed(() => {
@@ -11,7 +11,7 @@ const showGlobalSideMenu = computed(() => {
     return false
   }
 
-  return !isAdminUser(authStore.user)
+  return !isStaffUser(authStore.user)
 })
 </script>
 
