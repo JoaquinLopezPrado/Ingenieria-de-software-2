@@ -123,10 +123,6 @@ function inscribirAClase() {
             </RouterLink>
 
             <button type="button" class="action-btn action-secondary" disabled>
-              Ver pagos / saldos
-            </button>
-
-            <button type="button" class="action-btn action-secondary" disabled>
               Editar datos
             </button>
           </div>
