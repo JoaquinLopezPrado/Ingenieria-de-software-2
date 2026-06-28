@@ -200,6 +200,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
+      path: '/admin/empleados',
+      name: 'admin-empleados',
+      component: () => import('../views/admin/EmpleadosView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/clientes',
       name: 'lista-alumnos',
       component: () => import('../views/clientes/ListaAlumnosView.vue'),
