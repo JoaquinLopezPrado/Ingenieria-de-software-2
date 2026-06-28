@@ -66,6 +66,16 @@ async def list_my_paid_charges(
     return await service.get_paid_charges(user_id=current_user.id)
 
 
+@router.get("/user/{user_id}", response_model=list[MySubscriptionResponse], status_code=status.HTTP_200_OK)
+async def list_subscriptions_by_user(
+    user_id: int,
+    _=require_roles("admin", "empleado"),
+    service: SubscriptionService = Depends(get_subscription_service),
+):
+    items = await service.get_subscriptions_by_user(user_id=user_id)
+    return [_to_response(item) for item in items]
+
+
 @router.get("/overdue", response_model=list[OverdueSubscriptionResponse], status_code=status.HTTP_200_OK)
 async def list_overdue_subscriptions(
     min_unpaid: int = 2,

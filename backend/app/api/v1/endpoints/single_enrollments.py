@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_db
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.domain.user import User
 from app.repositories.single_enrollment_repository import SingleEnrollmentRepository
 from app.schemas.single_enrollment import (
@@ -26,6 +26,16 @@ async def create_single_enrollment(
 ):
     enrollment = await service.create_single(clase_ids=body.clase_ids, user_id=current_user.id, credit_id=body.credit_id)
     return SingleEnrollmentResponse.model_validate(enrollment.__dict__)
+
+
+@router.get("/user/{user_id}", response_model=list[MySingleEnrollmentResponse], status_code=status.HTTP_200_OK)
+async def list_single_enrollments_by_user(
+    user_id: int,
+    _=require_roles("admin", "empleado"),
+    service: SingleEnrollmentService = Depends(get_single_service),
+):
+    items = await service.get_single_by_user(user_id=user_id)
+    return [MySingleEnrollmentResponse.model_validate(e.__dict__) for e in items]
 
 
 @router.get("/me", response_model=list[MySingleEnrollmentResponse], status_code=status.HTTP_200_OK)
