@@ -718,3 +718,29 @@ def waitlist_promoted(
       </p>
     """
     return _wrap(content)
+
+
+def employee_welcome(first_name: str, set_password_url: str) -> str:
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">¡Bienvenido/a al equipo, {first_name}!</h2>
+      <p style="color:#444;line-height:1.6;">
+        Se creó tu cuenta de empleado en <strong>Centro de Actividades</strong>.
+        Para acceder al sistema por primera vez, tenés que establecer tu contraseña
+        haciendo clic en el botón de abajo.
+      </p>
+      <p style="color:#888;font-size:13px;">
+        El enlace es válido por <strong>24 horas</strong> y de un solo uso.
+      </p>
+      <p style="margin-top:28px;">
+        <a href="{set_password_url}"
+           style="background:#11a691;color:#fff;padding:12px 24px;
+                  border-radius:8px;text-decoration:none;font-weight:bold;">
+          Establecer contraseña
+        </a>
+      </p>
+      <p style="color:#aaa;font-size:12px;margin-top:24px;">
+        Si no esperabas este mensaje, podés ignorarlo.
+      </p>
+    """
+    return _wrap(content)
+

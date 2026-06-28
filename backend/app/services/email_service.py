@@ -18,6 +18,7 @@ from app.services.email_templates import (
     clase_cancelada_suscripcion,
     deposit_confirmed,
     deposit_refunded,
+    employee_welcome,
     password_reset,
     single_payment_confirmed,
     subscription_payment_confirmed,
@@ -39,6 +40,11 @@ class EmailService:
     def send_password_reset(self, to: str, reset_url: str) -> None:
         asyncio.create_task(
             self._send(to, "Recuperá tu contraseña — Centro de Actividades", password_reset(reset_url))
+        )
+
+    def send_employee_welcome(self, to: str, first_name: str, set_password_url: str) -> None:
+        asyncio.create_task(
+            self._send(to, "Tu cuenta de empleado — Centro de Actividades", employee_welcome(first_name, set_password_url))
         )
 
     def send_subscription_confirmed(
