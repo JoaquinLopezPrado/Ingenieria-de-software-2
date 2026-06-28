@@ -90,12 +90,6 @@ function inscribirAClase() {
         </div>
 
 
-          <RouterLink
-            :to="`/clientes/${clienteId}/inscripciones`"
-            class="action-btn"
-          >
-            Ver inscripciones activas
-          </RouterLink>
         <!-- ── Acciones ── -->
         <div class="actions-card">
           <div class="actions-grid">
@@ -113,6 +107,13 @@ function inscribirAClase() {
             >
               Inscribir a Clase
             </button>
+
+            <RouterLink
+              :to="`/clientes/${clienteId}/inscripciones`"
+              class="action-btn action-secondary"
+            >
+              Ver inscripciones activas
+            </RouterLink>
 
             <RouterLink
               :to="`/clientes/${clienteId}/asistencias`"
