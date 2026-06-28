@@ -36,6 +36,7 @@ class EmployeeProfile(IDMixin, TimestampMixin, Base):
     
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
-    internal_file_number = Column(String, unique=True, nullable=True) 
+    phone = Column(String, nullable=True)
+    internal_file_number = Column(String, unique=True, nullable=True)
 
     user = relationship("User", back_populates="employee_profile")
