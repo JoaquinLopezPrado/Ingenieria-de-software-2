@@ -82,5 +82,10 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchUser()
   }
 
-  return { user, isAuthenticated, login, loginWith2FA, register, logout, fetchUser, forgotPassword, resetPassword, loginWithTokens, googleComplete, unlinkGoogle }
+  const updateMyPhone = async (phone: string) => {
+    await authService.updateMyPhone(phone)
+    await fetchUser()
+  }
+
+  return { user, isAuthenticated, login, loginWith2FA, register, logout, fetchUser, forgotPassword, resetPassword, loginWithTokens, googleComplete, unlinkGoogle, updateMyPhone}
 })

@@ -21,6 +21,9 @@ export const authService = {
       refresh_token: refreshToken,
     }),
 
+  updateMyPhone: (phone: string) =>
+    apiClient.patch('/users/me/phone', { phone }),
+
   getMe: () =>
     apiClient.get('/users/me'),
 

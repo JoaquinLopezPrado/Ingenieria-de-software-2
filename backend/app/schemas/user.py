@@ -66,6 +66,10 @@ class ClienteListItem(BaseModel):
     doc_number: str
 
 
+class UpdateClientPhoneRequest(BaseModel):
+    phone: str
+
+
 class ClientesPaginadosResponse(BaseModel):
     items: List[ClienteListItem]
     total: int

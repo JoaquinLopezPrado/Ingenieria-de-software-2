@@ -9,7 +9,7 @@ from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.attendance import AsistenciaResponse
-from app.schemas.user import ClienteListItem, ClientesPaginadosResponse, UserMeResponse
+from app.schemas.user import ClienteListItem, ClientesPaginadosResponse, UserMeResponse, UpdateClientPhoneRequest
 from app.services.attendance_service import AttendanceService
 from app.services.user_service import UserService
 
@@ -33,6 +33,15 @@ async def me(
     service: UserService = Depends(get_user_service),
 ):
     return await service.get_me(user_id)
+
+
+@router.patch("/me/phone", response_model=UserMeResponse)
+async def update_my_phone(
+    data: UpdateClientPhoneRequest,
+    user_id: int = Depends(get_current_user_id),
+    service: UserService = Depends(get_user_service),
+):
+    return await service.update_my_phone(user_id=user_id, data=data)
 
 
 @router.get("", response_model=ClientesPaginadosResponse)

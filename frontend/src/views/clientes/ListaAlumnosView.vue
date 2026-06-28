@@ -45,12 +45,14 @@ const errorMessage = ref('')
 async function cargarClientes() {
   isLoading.value  = true
   errorMessage.value = ''
+
   try {
     const result = await listClientes({
-      q:         searchQuery.value.trim() || undefined,
-      page:      currentPage.value,
+      q: searchQuery.value.trim() || undefined,
+      page: currentPage.value,
       page_size: PAGE_SIZE,
     })
+
     clientes.value    = result.items
     total.value       = result.total
     totalPages.value  = result.total_pages
@@ -69,6 +71,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(searchQuery, () => {
   if (debounceTimer) clearTimeout(debounceTimer)
+
   debounceTimer = setTimeout(() => {
     currentPage.value = 1
     cargarClientes()
@@ -80,22 +83,28 @@ watch(currentPage, () => {
 })
 
 onMounted(() => cargarClientes())
-onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
+
+onBeforeUnmount(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 // ─── Paginación ───────────────────────────────────────────────────────────────
 
 const paginationRange = computed((): (number | '...')[] => {
   const total = totalPages.value
   const cur   = currentPage.value
+
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  if (cur <= 4)         return [1, 2, 3, 4, 5, '...', total]
+  if (cur <= 4) return [1, 2, 3, 4, 5, '...', total]
   if (cur >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total]
+
   return [1, '...', cur - 1, cur, cur + 1, '...', total]
 })
 
 const showingFrom = computed(() =>
   clientes.value.length === 0 ? 0 : (currentPage.value - 1) * PAGE_SIZE + 1,
 )
+
 const showingTo = computed(() =>
   (currentPage.value - 1) * PAGE_SIZE + clientes.value.length,
 )
@@ -104,11 +113,33 @@ function goToPage(page: number | '...') {
   if (typeof page === 'number') currentPage.value = page
 }
 
+// ─── Navegación ───────────────────────────────────────────────────────────────
+
+function irARegistrarCliente() {
+  router.push({ name: 'registrar-cliente-admin' })
+}
+
 // ─── Flags de UI ──────────────────────────────────────────────────────────────
 
-const isEmpty    = computed(() => !isLoading.value && !errorMessage.value && total.value === 0 && !searchQuery.value.trim())
-const noResults  = computed(() => !isLoading.value && !errorMessage.value && total.value === 0 && !!searchQuery.value.trim())
-const hasData    = computed(() => !isLoading.value && !errorMessage.value && clientes.value.length > 0)
+const isEmpty = computed(() =>
+  !isLoading.value &&
+  !errorMessage.value &&
+  total.value === 0 &&
+  !searchQuery.value.trim(),
+)
+
+const noResults = computed(() =>
+  !isLoading.value &&
+  !errorMessage.value &&
+  total.value === 0 &&
+  !!searchQuery.value.trim(),
+)
+
+const hasData = computed(() =>
+  !isLoading.value &&
+  !errorMessage.value &&
+  clientes.value.length > 0,
+)
 </script>
 
 <template>
@@ -127,6 +158,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
       <div v-if="!errorMessage" class="search-card">
         <div class="search-input-wrapper">
           <span class="search-icon" aria-hidden="true">⌕</span>
+
           <input
             v-model="searchQuery"
             type="search"
@@ -135,6 +167,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
             autocomplete="off"
             aria-label="Buscar clientes"
           />
+
           <button
             v-if="searchQuery"
             type="button"
@@ -157,6 +190,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
         <div class="state-icon">⚠</div>
         <h2 class="state-title">Error al cargar los clientes</h2>
         <p class="state-desc">{{ errorMessage }}</p>
+
         <button class="btn-secondary" type="button" @click="cargarClientes">
           Reintentar
         </button>
@@ -192,6 +226,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
                 <th>Acciones</th>
               </tr>
             </thead>
+
             <tbody>
               <tr
                 v-for="cliente in clientes"
@@ -202,12 +237,20 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
                 <td class="cell-nombre">
                   {{ cliente.first_name }} {{ cliente.last_name }}
                 </td>
+
                 <td class="cell-doc">
                   <span class="doc-type">{{ cliente.doc_type_name }}</span>
                   {{ cliente.doc_number }}
                 </td>
-                <td class="cell-email">{{ cliente.email }}</td>
-                <td class="cell-phone">{{ cliente.phone }}</td>
+
+                <td class="cell-email">
+                  {{ cliente.email }}
+                </td>
+
+                <td class="cell-phone">
+                  {{ cliente.phone }}
+                </td>
+
                 <td class="cell-actions" @click.stop>
                   <button type="button" class="btn-accion btn-inscribir-turno" @click.stop="inscribirATurno(cliente)">
                     Inscribir a Turno
@@ -243,18 +286,23 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
             >
               ←
             </button>
+
             <button
               v-for="(page, idx) in paginationRange"
               :key="idx"
-              :class="['page-btn', {
-                'page-btn-active': page === currentPage,
-                'page-btn-dots':   page === '...',
-              }]"
+              :class="[
+                'page-btn',
+                {
+                  'page-btn-active': page === currentPage,
+                  'page-btn-dots': page === '...',
+                },
+              ]"
               :disabled="page === '...'"
               @click="goToPage(page)"
             >
               {{ page }}
             </button>
+
             <button
               class="page-btn"
               :disabled="currentPage === totalPages"
@@ -265,6 +313,17 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- ── Botón registrar cliente ── -->
+      <div class="register-client-footer">
+        <button
+          type="button"
+          class="btn-register-client"
+          @click="irARegistrarCliente"
+        >
+          Registrar cliente
+        </button>
       </div>
 
     </div>
@@ -377,8 +436,13 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
 }
 
 @keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ── Estados ── */
@@ -605,7 +669,7 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
   border-color: #6ee7b7;
 }
 
-/* ── Footer ── */
+/* ── Footer tabla ── */
 
 .table-footer {
   display: flex;
@@ -669,6 +733,39 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
   cursor: default;
 }
 
+/* ── Registrar cliente ── */
+
+.register-client-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 1.5rem;
+}
+
+.btn-register-client {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #11998e;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.75rem 1.4rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s, transform 0.12s;
+}
+
+.btn-register-client:hover {
+  background-color: #0c8a70;
+  transform: translateY(-1px);
+}
+
+.btn-register-client:active {
+  transform: translateY(0);
+}
+
 /* ── Responsivo ── */
 
 @media (max-width: 640px) {
@@ -690,6 +787,14 @@ const hasData    = computed(() => !isLoading.value && !errorMessage.value && cli
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+
+  .register-client-footer {
+    justify-content: stretch;
+  }
+
+  .btn-register-client {
+    width: 100%;
   }
 }
 </style>

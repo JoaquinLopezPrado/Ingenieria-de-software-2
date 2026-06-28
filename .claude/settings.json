@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /home/cathbad/Documentos/facultad/repo_is2/is2/frontend *)",
+      "Bash(node _e2e_baja.mjs)",
+      "Bash(ls -A ~/.cache/ms-playwright/)",
+      "Bash(rmdir ~/.cache/ms-playwright/)",
+      "Bash(ls node_modules/playwright node_modules/.bin/playwright)",
+      "Bash(awk '/async def _cancel_expired_enrollments/,/^async def [a-z_]+\\\\\\(.*:/' app/core/tasks.py)",
+      "Bash(curl -s -X POST http://localhost:8001/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"cliente@centro.com\",\"password\":\"MiPass12#\"}')"
+    ],
+    "additionalDirectories": [
+      "/tmp/shots"
+    ]
+  }
+}

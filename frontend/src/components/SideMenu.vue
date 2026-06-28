@@ -157,6 +157,9 @@ const confirmLogout = async () => {
         <li v-if="!isStaff">
           <button type="button" @click="navigateTo('/mi-cuenta')">Cambiar contraseña</button>
         </li>
+        <li>
+          <button type="button" @click="navigateTo('/mis-datos')">Modificar datos personales</button>
+        </li>
         <li class="logout-item">
           <button type="button" @click="handleLogout" class="btn-logout">
             <svg class="logout-icon" viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">

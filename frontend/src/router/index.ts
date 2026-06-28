@@ -220,6 +220,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresStaff: true },
     },
     {
+      path: '/clientes/registrar',
+      name: 'registrar-cliente-admin',
+      component: () => import('../views/clientes/RegistrarClienteView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
       path: '/clientes/:clienteId',
       name: 'ficha-cliente',
       component: () => import('../views/clientes/FichaClienteView.vue'),
@@ -296,6 +302,12 @@ const router = createRouter({
       component: () => import('../views/inscripciones/InscribirClaseView.vue'),
       meta: { requiresAuth: true, requiresStaff: true, claseFlow: true },
     },
+    {
+      path: '/mis-datos',
+      name: 'modificar-datos-personales',
+      component: () => import('../views/ModificarDatosPersonalesView.vue'),
+      meta: { requiresAuth: true },
+    }
   ]
 })
 

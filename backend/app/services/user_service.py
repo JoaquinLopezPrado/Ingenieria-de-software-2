@@ -11,6 +11,7 @@ from app.schemas.user import (
     DocumentTypeResponse,
     EmployeeProfileMeResponse,
     UserMeResponse,
+    UpdateClientPhoneRequest,
 )
 
 
@@ -67,6 +68,31 @@ class UserService:
             doc_type_name=client.document_type.name,
             doc_number=client.doc_number,
         )
+
+    async def update_my_phone(
+        self,
+        user_id: int,
+        data: UpdateClientPhoneRequest,
+    ) -> UserMeResponse:
+        new_phone = data.phone.strip()
+
+        if not new_phone:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El teléfono es obligatorio.",
+            )
+
+        client = await self._profile_repo.get_client_by_user_id(user_id)
+
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Perfil de cliente no encontrado.",
+            )
+
+        await self._profile_repo.update_client_phone(user_id=user_id, phone=new_phone)
+
+        return await self.get_me(user_id)
 
     async def get_me(self, user_id: int) -> UserMeResponse:
         user = await self._user_repo.get_by_id(user_id)

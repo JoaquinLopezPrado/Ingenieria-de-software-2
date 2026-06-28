@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,6 +15,10 @@ class AbstractProfileRepository(ABC):
 
     @abstractmethod
     async def get_client_by_user_id(self, user_id: int) -> Optional[ClientProfile]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_client_phone(self, user_id: int, phone: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -96,6 +100,13 @@ class ProfileRepository(AbstractProfileRepository):
         self._session.add(profile)
         await self._session.flush()
         return self._employee_to_domain(profile)
+
+    async def update_client_phone(self, user_id: int, phone: str) -> None:
+        await self._session.execute(
+            update(ClientProfileORM)
+            .where(ClientProfileORM.user_id == user_id)
+            .values(phone=phone)
+        )
 
     def _client_to_domain(self, orm_profile: ClientProfileORM) -> ClientProfile:
         return ClientProfile(
