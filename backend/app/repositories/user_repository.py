@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.user import AuthProvider, ClientProfile, Role, User
 from app.models.auth import Role as RoleORM, User as UserORM
-from app.models.profile import ClientProfile as ClientProfileORM, DocumentType as DocumentTypeORM
+from app.models.profile import ClientProfile as ClientProfileORM, DocumentType as DocumentTypeORM, EmployeeProfile as EmployeeProfileORM
 
 
 @dataclass
@@ -20,6 +20,16 @@ class ClienteRow:
     phone: str
     doc_type_name: str
     doc_number: str
+
+
+@dataclass
+class EmpleadoRow:
+    id: int
+    email: str
+    first_name: str
+    last_name: str
+    phone: str | None
+    is_active: bool
 
 
 class AbstractUserRepository(ABC):
@@ -72,6 +82,26 @@ class AbstractUserRepository(ABC):
 
     @abstractmethod
     async def update_password(self, user_id: int, hashed_password: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_employees(self) -> list["EmpleadoRow"]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_employee(
+        self, email: str, hashed_password: str, first_name: str, last_name: str, phone: str | None
+    ) -> "EmpleadoRow":
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_employee(
+        self, employee_id: int, first_name: str, last_name: str, phone: str | None
+    ) -> "EmpleadoRow":
+        raise NotImplementedError
+
+    @abstractmethod
+    async def deactivate_employee(self, employee_id: int) -> None:
         raise NotImplementedError
 
 
@@ -229,6 +259,95 @@ class UserRepository(AbstractUserRepository):
             first_name=orm_profile.first_name,
             last_name=orm_profile.last_name,
             phone=orm_profile.phone,
+        )
+
+    async def list_employees(self) -> list[EmpleadoRow]:
+        empleado_role = await self._session.execute(
+            select(RoleORM.id).where(RoleORM.name == "empleado")
+        )
+        role_id = empleado_role.scalar_one_or_none()
+        if role_id is None:
+            return []
+        rows = (await self._session.execute(
+            select(UserORM, EmployeeProfileORM)
+            .outerjoin(EmployeeProfileORM, EmployeeProfileORM.user_id == UserORM.id)
+            .where(UserORM.role_id == role_id)
+            .order_by(EmployeeProfileORM.last_name, EmployeeProfileORM.first_name)
+        )).all()
+        return [
+            EmpleadoRow(
+                id=user.id,
+                email=user.email,
+                first_name=profile.first_name if profile else "",
+                last_name=profile.last_name if profile else "",
+                phone=profile.phone if profile else None,
+                is_active=user.is_active,
+            )
+            for user, profile in rows
+        ]
+
+    async def create_employee(
+        self, email: str, hashed_password: str, first_name: str, last_name: str, phone: str | None
+    ) -> EmpleadoRow:
+        empleado_role = await self._session.execute(
+            select(RoleORM).where(RoleORM.name == "empleado")
+        )
+        role = empleado_role.scalar_one()
+        user_orm = UserORM(
+            email=email,
+            role_id=role.id,
+            auth_provider=AuthProvider.LOCAL,
+            hashed_password=hashed_password,
+            is_active=True,
+            is_2fa_enabled=False,
+        )
+        self._session.add(user_orm)
+        await self._session.flush()
+        profile_orm = EmployeeProfileORM(
+            user_id=user_orm.id,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+        )
+        self._session.add(profile_orm)
+        await self._session.flush()
+        return EmpleadoRow(
+            id=user_orm.id,
+            email=user_orm.email,
+            first_name=profile_orm.first_name,
+            last_name=profile_orm.last_name,
+            phone=profile_orm.phone,
+            is_active=user_orm.is_active,
+        )
+
+    async def update_employee(
+        self, employee_id: int, first_name: str, last_name: str, phone: str | None
+    ) -> EmpleadoRow:
+        await self._session.execute(
+            update(EmployeeProfileORM)
+            .where(EmployeeProfileORM.user_id == employee_id)
+            .values(first_name=first_name, last_name=last_name, phone=phone)
+        )
+        user = (await self._session.execute(
+            select(UserORM).where(UserORM.id == employee_id)
+        )).scalar_one()
+        profile = (await self._session.execute(
+            select(EmployeeProfileORM).where(EmployeeProfileORM.user_id == employee_id)
+        )).scalar_one()
+        return EmpleadoRow(
+            id=user.id,
+            email=user.email,
+            first_name=profile.first_name,
+            last_name=profile.last_name,
+            phone=profile.phone,
+            is_active=user.is_active,
+        )
+
+    async def deactivate_employee(self, employee_id: int) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == employee_id)
+            .values(is_active=False)
         )
 
     def _role_to_domain(self, orm_role: RoleORM) -> Role:
