@@ -58,9 +58,6 @@ const confirmLogout = async () => {
           <RouterLink :to="isAdmin ? '/admin' : '/empleado'" class="nav-item" active-class="active" exact>
             <span class="nav-icon">⊞</span> Inicio
           </RouterLink>
-          <RouterLink to="/inscripciones" class="nav-item" active-class="active">
-            <span class="nav-icon">☰</span> Inscripciones
-          </RouterLink>
           <RouterLink to="/clientes" class="nav-item" active-class="active">
             <span class="nav-icon">◎</span> Clientes
           </RouterLink>
