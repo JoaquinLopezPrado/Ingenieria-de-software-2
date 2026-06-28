@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getActivePinia } from 'pinia'
 import router from '@/router'
 
 const api = axios.create({
@@ -22,7 +23,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      // Redirige solo si no estamos ya en la pantalla de login
+      // Limpiar estado del store sincrónicamente para que el guard no vea datos stale.
+      // getActivePinia() evita el import circular (api → authStore → authService → api).
+      const pinia = getActivePinia()
+      if (pinia?.state.value?.auth) {
+        pinia.state.value.auth.user = null
+        pinia.state.value.auth.isAuthenticated = false
+      }
       if (router.currentRoute.value.name !== 'login') {
         router.push({ name: 'login' })
       }
