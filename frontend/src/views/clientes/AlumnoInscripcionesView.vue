@@ -2,51 +2,86 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getClienteById, type Cliente } from '@/services/clientesService'
+import {
+  getClienteById,
+  getSubscripcionesByCliente,
+  getSingleEnrollmentsByCliente,
+  type Cliente,
+  type ClienteSubscripcion,
+  type ClienteSingleEnrollment,
+} from '@/services/clientesService'
 import { extractBackendError } from '@/services/sessionService'
 
-interface InscripcionCliente {
-  id: number
+interface InscripcionRow {
+  id: string
   actividad: string
   horario: string
   tipo: 'Turno Fijo' | 'Clase Individual'
   instructor: string
+  estado: string
+  detalle: string
 }
 
 const route = useRoute()
 const clienteId = Number(route.params.clienteId)
 
-// ─── Estado ──────────────────────────────────────────────────────────────────
-
 const cliente = ref<Cliente | null>(null)
-const allInscripciones = ref<InscripcionCliente[]>([]) // Arranca vacío sin mocks
+const allInscripciones = ref<InscripcionRow[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
-
-// ─── Filtros ─────────────────────────────────────────────────────────────────
 
 const filterActividad = ref('')
 const filtroTipo = ref('')
 
-// ─── Carga ────────────────────────────────────────────────────────────────────
+function formatTime(t: string): string {
+  return t.padStart(5, '0')
+}
+
+function mapSubscripcion(s: ClienteSubscripcion): InscripcionRow {
+  const horario = `${formatTime(s.start_time)} – ${formatTime(s.end_time)}`
+  const dias = s.days.join(', ')
+  return {
+    id: `sub-${s.subscription_id}`,
+    actividad: s.activity_name,
+    horario: `${horario} (${dias})`,
+    tipo: 'Turno Fijo',
+    instructor: s.instructor,
+    estado: s.status,
+    detalle: s.turno_description,
+  }
+}
+
+function mapSingle(e: ClienteSingleEnrollment): InscripcionRow {
+  const horario = `${formatTime(e.start_time)} – ${formatTime(e.end_time)}`
+  return {
+    id: `single-${e.enrollment_id}`,
+    actividad: e.activity_name,
+    horario: `${horario} (${e.clase_date})`,
+    tipo: 'Clase Individual',
+    instructor: e.instructor,
+    estado: e.status,
+    detalle: e.turno_description,
+  }
+}
 
 onMounted(async () => {
   try {
-    const c = await getClienteById(clienteId)
+    const [c, subs, singles] = await Promise.all([
+      getClienteById(clienteId),
+      getSubscripcionesByCliente(clienteId),
+      getSingleEnrollmentsByCliente(clienteId),
+    ])
     cliente.value = c
-    
-    // TODO: Conectar con el endpoint real cuando esté listo
-    // const respuesta = await getInscripcionesCliente(clienteId)
-    // allInscripciones.value = respuesta
-    allInscripciones.value = [] 
+    allInscripciones.value = [
+      ...subs.map(mapSubscripcion),
+      ...singles.map(mapSingle),
+    ]
   } catch (err) {
     error.value = extractBackendError(err) ?? 'No se pudo cargar el listado de inscripciones.'
   } finally {
     loading.value = false
   }
 })
-
-// ─── Computed ─────────────────────────────────────────────────────────────────
 
 const actividadOptions = computed(() => {
   const set = new Set(allInscripciones.value.map(i => i.actividad))
@@ -69,11 +104,27 @@ const resumen = computed(() => {
   return `El cliente registra ${total} inscripción${total === 1 ? ' activa' : 'es activas'} con los filtros aplicados.`
 })
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function limpiarFiltros() {
   filterActividad.value = ''
   filtroTipo.value = ''
+}
+
+function estadoLabel(estado: string): string {
+  const map: Record<string, string> = {
+    active: 'Activa',
+    pending: 'Pendiente',
+    cancelled: 'Cancelada',
+    scheduled_cancellation: 'Baja prog.',
+    confirmed: 'Confirmada',
+    deposit_paid: 'Seña pagada',
+  }
+  return map[estado] ?? estado
+}
+
+function estadoClass(estado: string): string {
+  if (['active', 'confirmed', 'deposit_paid'].includes(estado)) return 'badge-active'
+  if (estado === 'pending') return 'badge-pending'
+  return 'badge-cancelled'
 }
 </script>
 
@@ -102,7 +153,7 @@ function limpiarFiltros() {
 
       <template v-else>
         <div v-if="allInscripciones.length === 0" class="state-box">
-          <p class="state-text">El cliente no registra inscripciones activas actualmente.</p>
+          <p class="state-text">El cliente no registra inscripciones actualmente.</p>
         </div>
 
         <template v-else>
@@ -152,11 +203,15 @@ function limpiarFiltros() {
                   <th>Tipo</th>
                   <th>Horario</th>
                   <th>Instructor</th>
+                  <th>Estado</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="item in filteredInscripciones" :key="item.id">
-                  <td class="actividad-cell">{{ item.actividad }}</td>
+                  <td class="actividad-cell">
+                    {{ item.actividad }}
+                    <span class="detalle-text">{{ item.detalle }}</span>
+                  </td>
                   <td>
                     <span :class="['tipo-badge', item.tipo === 'Turno Fijo' ? 'badge-turno' : 'badge-clase']">
                       {{ item.tipo }}
@@ -164,6 +219,11 @@ function limpiarFiltros() {
                   </td>
                   <td class="horario-cell">{{ item.horario }}</td>
                   <td class="instructor-cell">{{ item.instructor }}</td>
+                  <td>
+                    <span :class="['estado-badge', estadoClass(item.estado)]">
+                      {{ estadoLabel(item.estado) }}
+                    </span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -176,7 +236,7 @@ function limpiarFiltros() {
 
 <style scoped>
 .inscripciones-page {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -298,7 +358,14 @@ function limpiarFiltros() {
 .inscripciones-table tbody tr:hover td { background: #f9fafb; }
 
 .actividad-cell { font-weight: 600; color: #111827; }
-.horario-cell { white-space: nowrap; color: #374151; font-weight: 500; }
+.detalle-text {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+.horario-cell { white-space: nowrap; color: #374151; font-weight: 500; font-size: 0.87rem; }
 .instructor-cell { color: #6b7280; }
 
 .tipo-badge {
@@ -310,4 +377,15 @@ function limpiarFiltros() {
 }
 .tipo-badge.badge-turno { background: #d1fae5; color: #065f46; }
 .tipo-badge.badge-clase { background: #e0f2fe; color: #0369a1; }
+
+.estado-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge-active { background: #d1fae5; color: #065f46; }
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-cancelled { background: #f3f4f6; color: #6b7280; }
 </style>
