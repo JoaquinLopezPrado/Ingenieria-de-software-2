@@ -12,6 +12,36 @@ export interface Cliente {
   doc_number: string
 }
 
+export interface ClienteSubscripcion {
+  subscription_id: number
+  status: string
+  start_date: string
+  ends_on: string | null
+  turno_id: number
+  turno_description: string
+  start_time: string
+  end_time: string
+  instructor: string
+  activity_name: string
+  days: string[]
+}
+
+export interface ClienteSingleEnrollment {
+  enrollment_id: number
+  status: string
+  amount: number
+  expires_at: string | null
+  created_at: string
+  turno_id: number
+  clase_id: number
+  clase_date: string
+  start_time: string
+  end_time: string
+  turno_description: string
+  instructor: string
+  activity_name: string
+}
+
 export interface ListClientesParams {
   q?: string
   page?: number
@@ -37,5 +67,15 @@ export const listClientes = async (
 
 export const getClienteById = async (userId: number): Promise<Cliente> => {
   const res = await api.get(`/users/${userId}`)
+  return res.data
+}
+
+export const getSubscripcionesByCliente = async (userId: number): Promise<ClienteSubscripcion[]> => {
+  const res = await api.get(`/subscriptions/user/${userId}`)
+  return res.data
+}
+
+export const getSingleEnrollmentsByCliente = async (userId: number): Promise<ClienteSingleEnrollment[]> => {
+  const res = await api.get(`/single-enrollments/user/${userId}`)
   return res.data
 }
