@@ -221,7 +221,7 @@ const router = createRouter({
       path: '/clientes/:clienteId/inscripciones',
       name: 'cliente-inscripciones',
       component: AlumnoInscripcionesView,
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, requiresStaff: true }
     }
   ]
 })
