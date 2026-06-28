@@ -257,7 +257,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
     return { name: 'list' }
   }
 
-  if (isAuthenticated && isEmployee && !to.meta.requiresStaff && to.name !== 'employee-home') {
+  if (isAuthenticated && isEmployee && !to.meta.requiresStaff && !isPublicRoute && to.name !== 'employee-home') {
     return { name: 'employee-home' }
   }
 
