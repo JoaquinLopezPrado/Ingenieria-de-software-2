@@ -8,6 +8,11 @@ class CreateActivityRequest(BaseModel):
     description: str = Field(min_length=1, max_length=500)
 
 
+class UpdateActivityRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: str = Field(default="", max_length=500)
+
+
 class ActivityResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

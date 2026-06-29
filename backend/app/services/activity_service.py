@@ -24,3 +24,18 @@ class ActivityService:
                 detail="Ya existe una actividad activa con ese nombre.",
             )
         return await self._activity_repo.create(name, description)
+
+    async def update(self, activity_id: int, name: str, description: str) -> Activity:
+        activity = await self._activity_repo.get_by_id(activity_id)
+        if not activity:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Actividad no encontrada.")
+
+        if name != activity.name:
+            existing = await self._activity_repo.get_active_by_name(name)
+            if existing and existing.id != activity_id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Ya existe una actividad activa con ese nombre.",
+                )
+
+        return await self._activity_repo.update(activity_id, name, description)
