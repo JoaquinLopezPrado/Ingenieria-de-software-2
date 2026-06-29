@@ -1,4 +1,5 @@
 import calendar
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -16,12 +17,25 @@ def _end_of_month(year: int, month: int) -> date:
     return date(year, month, calendar.monthrange(year, month)[1])
 
 
+@dataclass
+class _EnrollmentPlan:
+    amount: Decimal
+    original_amount: Decimal
+    discount_deposit_single: Decimal
+    discount_full_classes: Decimal
+    period_month: int
+    period_year: int
+    start_date: date
+    due_date: date
+
+
 class SubscriptionService:
 
     def __init__(self, subscription_repo: AbstractSubscriptionRepository):
         self._repo = subscription_repo
 
-    async def create(self, turno_id: int, user_id: int, expires_at_override: "datetime | None" = None) -> SubscriptionCharge:
+    async def _plan_enrollment(self, turno_id: int, user_id: int) -> _EnrollmentPlan:
+        """Valida y calcula los parámetros de una suscripción sin persistir nada."""
         turno = await self._repo.lock_active_turno(turno_id)
         await self._repo.check_duplicate(turno_id, user_id)
 
@@ -32,15 +46,8 @@ class SubscriptionService:
                 detail="El turno no tiene clases futuras disponibles.",
             )
 
-        # Obtener inscripciones sueltas activas del usuario en clases futuras antes de
-        # buscar el período: la propia inscripción del usuario no suma nueva ocupación
-        # al suscribirse (es la misma persona ocupando el mismo slot).
         all_future_ids = [c.id for c in future_clases]
 
-        # Solape horario: un abono es recurrente (ocupa todas sus clases desde el arranque),
-        # así que no puede arrancar mientras se pise con otra inscripción del cliente. En vez
-        # de bloquear de una, arranca DESPUÉS de la última clase en conflicto (ej. cuando
-        # vence la baja programada del otro turno). Si no queda ninguna clase libre → 409.
         conflicts = await self._repo.find_schedule_conflicts(user_id, all_future_ids)
         if conflicts:
             last_conflict = max(slot.date for slot in conflicts.values())
@@ -55,8 +62,6 @@ class SubscriptionService:
         user_confirmed, user_deposit = await self._repo.get_single_covered_clase_ids(user_id, all_future_ids)
         user_single_ids = user_confirmed | user_deposit
 
-        # Elige el primer período (mes) con cupo disponible. Capacidad por período:
-        # un abonado saliente ocupa su período pagado y libera el siguiente.
         period_month, period_year, period_clases = await self._first_available_period(
             turno, future_clases, user_single_ids
         )
@@ -68,13 +73,10 @@ class SubscriptionService:
 
         clase_ids = [c.id for c in period_clases]
         full_clase_ids = await self._repo.get_full_clase_ids(clase_ids, turno.capacity)
-        # Una clase donde el usuario ya tiene inscripción suelta no es "llena para él":
-        # ocupa su propio slot, no agrega una persona nueva al suscribirse.
         user_single_in_period = set(clase_ids) & user_single_ids
         truly_full_clase_ids = full_clase_ids - user_single_in_period
 
         billable_clase_ids = [cid for cid in clase_ids if cid not in truly_full_clase_ids]
-
         confirmed_covered = user_confirmed & set(billable_clase_ids)
         deposit_covered = user_deposit & set(billable_clase_ids)
 
@@ -88,26 +90,41 @@ class SubscriptionService:
             deposit_covered=deposit_covered,
         )
 
-        # start_date = primera clase con cupo en el período; así la suscripción no ocupa
-        # fechas anteriores que ya estaban llenas (evita contadores sobre-capacidad).
         start_date = period_clases[0].date
-
         due_date = _end_of_month(period_year, period_month)
+
+        return _EnrollmentPlan(
+            amount=amount,
+            original_amount=original_amount,
+            discount_deposit_single=discount_deposit_single,
+            discount_full_classes=discount_full_classes,
+            period_month=period_month,
+            period_year=period_year,
+            start_date=start_date,
+            due_date=due_date,
+        )
+
+    async def preview_subscription(self, turno_id: int, user_id: int) -> _EnrollmentPlan:
+        """Devuelve el plan de suscripción (monto, período) sin escribir en la base de datos."""
+        return await self._plan_enrollment(turno_id, user_id)
+
+    async def create(self, turno_id: int, user_id: int, expires_at_override: "datetime | None" = None) -> SubscriptionCharge:
+        plan = await self._plan_enrollment(turno_id, user_id)
         expires_at = expires_at_override or datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
 
         _, charge = await self._repo.create(
             turno_id=turno_id,
             user_id=user_id,
-            start_date=start_date,
-            period_month=period_month,
-            period_year=period_year,
-            amount=amount,
-            original_amount=original_amount,
-            due_date=due_date,
+            start_date=plan.start_date,
+            period_month=plan.period_month,
+            period_year=plan.period_year,
+            amount=plan.amount,
+            original_amount=plan.original_amount,
+            due_date=plan.due_date,
             expires_at=expires_at,
         )
-        charge.discount_deposit_single = discount_deposit_single
-        charge.discount_full_classes = discount_full_classes
+        charge.discount_deposit_single = plan.discount_deposit_single
+        charge.discount_full_classes = plan.discount_full_classes
         return charge
 
     async def _first_available_period(self, turno, future_clases, user_single_ids: set[int]):

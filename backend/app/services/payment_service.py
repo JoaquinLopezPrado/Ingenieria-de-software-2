@@ -278,6 +278,20 @@ class PaymentService:
     # Cancelación con reintegro de seña (clase suelta)                     #
     # ------------------------------------------------------------------ #
 
+    # ------------------------------------------------------------------ #
+    # Pago en efectivo (admin / empleado)                                  #
+    # ------------------------------------------------------------------ #
+
+    async def cash_confirm_subscription_charge(self, charge_id: int) -> None:
+        await self._confirm_subscription_charge(charge_id, "CASH")
+
+    async def cash_confirm_single_enrollment(self, enrollment_id: int) -> None:
+        await self._handle_single_full_approved(enrollment_id, "CASH")
+
+    # ------------------------------------------------------------------ #
+    # Cancelación con reintegro de seña (clase suelta)                     #
+    # ------------------------------------------------------------------ #
+
     async def cancel_deposit_enrollment(self, enrollment_id: int, user_id: int) -> dict:
         info = await self._single_repo.get_deposit_info(enrollment_id, user_id)
         if info is None:
