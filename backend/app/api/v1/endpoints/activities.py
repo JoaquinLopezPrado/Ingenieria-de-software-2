@@ -7,7 +7,7 @@ from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
 from app.repositories.turno_repository import TurnoRepository
-from app.schemas.activity import ActivityResponse, ClaseDiaResponse, CreateActivityRequest
+from app.schemas.activity import ActivityResponse, ClaseDiaResponse, CreateActivityRequest, UpdateActivityRequest
 from app.services.activity_service import ActivityService
 from app.services.turno_service import TurnoService
 
@@ -64,6 +64,20 @@ async def create_activity(
     service: ActivityService = Depends(get_activity_service),
 ):
     return await service.create(name=body.name, description=body.description)
+
+
+@router.patch(
+    "/{activity_id}",
+    response_model=ActivityResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_activity(
+    activity_id: int,
+    body: UpdateActivityRequest,
+    _=require_roles("admin"),
+    service: ActivityService = Depends(get_activity_service),
+):
+    return await service.update(activity_id, name=body.name, description=body.description)
 
 
 @router.get(
