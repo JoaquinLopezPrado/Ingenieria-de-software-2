@@ -3,8 +3,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
-import { getTurnosParaInscripcion, getAdminWaitlistEntries, quitarDeListaEspera } from '@/services/inscripcionService'
-import type { AdminWaitlistEntry } from '@/services/inscripcionService'
+import {
+  getTurnosParaInscripcion,
+  getAdminWaitlistEntries, quitarDeListaEspera,
+  getSubscriptionsByUser, adminCancelSubscription,
+} from '@/services/inscripcionService'
+import type { AdminWaitlistEntry, SubscriptionEntry } from '@/services/inscripcionService'
 import { getFormOptions, extractBackendError, type Turno, type ActivityOption } from '@/services/sessionService'
 import { getClienteById } from '@/services/clientesService'
 import type { Cliente as ClienteService } from '@/services/clientesService'
@@ -202,6 +206,21 @@ function handleListaEspera(turno: Turno) {
 }
 
 const removingEsperaId = ref<number | null>(null)
+const cancellingSubscriptionId = ref<number | null>(null)
+
+async function handleDarDeBaja(turno: Turno) {
+  const entry = inscripcionStore.getSubscriptionEntry(turno.id)
+  if (!entry || entry.status !== 'ACTIVE' || cancellingSubscriptionId.value !== null) return
+  cancellingSubscriptionId.value = entry.subscription_id
+  try {
+    await adminCancelSubscription(entry.subscription_id)
+    inscripcionStore.markSubscriptionPendingCancel(entry.subscription_id)
+  } catch {
+    // el botón vuelve a habilitarse para reintentar
+  } finally {
+    cancellingSubscriptionId.value = null
+  }
+}
 
 async function handleQuitarEspera(turno: Turno) {
   const entry = inscripcionStore.getWaitlistEntry(turno.id)
@@ -227,12 +246,14 @@ onMounted(async () => {
       getTurnosParaInscripcion(),
       getFormOptions(),
       userId !== null ? getAdminWaitlistEntries(userId) : Promise.resolve([] as AdminWaitlistEntry[]),
+      userId !== null ? getSubscriptionsByUser(userId) : Promise.resolve([] as SubscriptionEntry[]),
     ] as const
-    const [turnosRes, formOpts, waitlistEntries] = await Promise.all(requests)
+    const [turnosRes, formOpts, waitlistEntries, subscriptionEntries] = await Promise.all(requests)
     allTurnos.value = turnosRes.items
     allActivities.value = formOpts.activities
     activityMap.value = new Map(formOpts.activities.map((a: ActivityOption) => [a.id, a.name]))
     inscripcionStore.setWaitlistEntries(waitlistEntries)
+    inscripcionStore.setSubscriptionEntries(subscriptionEntries)
   } catch (err) {
     errorMessage.value = extractBackendError(err)
   } finally {
@@ -421,9 +442,29 @@ onMounted(async () => {
                   </span>
                 </td>
                 <td class="cell-accion">
-                  <!-- Turno con cupo → Inscribir cliente -->
+                  <!-- Ya inscripto (ACTIVE) → Dar de baja -->
                   <button
-                    v-if="turno.has_remaining_classes"
+                    v-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'ACTIVE'"
+                    type="button"
+                    class="btn-dar-baja"
+                    :disabled="cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
+                    @click="handleDarDeBaja(turno)"
+                  >
+                    {{ cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id
+                      ? 'Procesando...'
+                      : 'Dar de baja'
+                    }}
+                  </button>
+                  <!-- Baja ya programada (PENDING_CANCEL) → indicador informativo -->
+                  <span
+                    v-else-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'PENDING_CANCEL'"
+                    class="badge-baja-programada"
+                  >
+                    Baja programada
+                  </span>
+                  <!-- Con cupo y sin suscripción → Inscribir cliente -->
+                  <button
+                    v-else-if="turno.has_remaining_classes"
                     type="button"
                     class="btn-inscribir"
                     @click="handleInscribir(turno)"
@@ -948,6 +989,46 @@ onMounted(async () => {
 
 .btn-inscribir:hover {
   background-color: #0d9b8a;
+}
+
+/* Suscripto activo → Dar de baja */
+.btn-dar-baja {
+  display: inline-flex;
+  align-items: center;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.btn-dar-baja:hover:not(:disabled) {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.btn-dar-baja:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Baja ya programada → badge informativo */
+.badge-baja-programada {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  white-space: nowrap;
 }
 
 /* Escenario 7 — turno sin cupo */
