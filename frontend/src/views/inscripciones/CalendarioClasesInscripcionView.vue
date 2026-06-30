@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
 import { getTurnosAll, getFormOptions, extractBackendError, getClasesByTurno } from '@/services/sessionService'
+import { getEnrolledSingleClaseIds } from '@/services/inscripcionService'
 import type { Turno } from '@/services/sessionService'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -152,10 +153,12 @@ function handleClaseClick(clase: ClaseInscribible) {
 
 onMounted(async () => {
   try {
-    const [turnosRes, formOpts] = await Promise.all([
+    const [turnosRes, formOpts, enrolledIds] = await Promise.all([
       getTurnosAll({ page_size: 500 }),
       getFormOptions(),
+      cliente.value ? getEnrolledSingleClaseIds(cliente.value.id) : Promise.resolve([] as number[]),
     ])
+    store.setEnrolledClaseIds(enrolledIds)
 
     const activityMap = new Map<number, string>(
       formOpts.activities.map(a => [a.id, a.name])
@@ -307,17 +310,27 @@ onMounted(async () => {
               v-for="clase in clasesDelDia(day)"
               :key="clase.id"
               type="button"
-              :class="['clase-card', { 'clase-card--llena': clase.enrolled >= clase.capacity }]"
-              :disabled="clase.enrolled >= clase.capacity"
+              :class="[
+                'clase-card',
+                { 'clase-card--inscripto': store.enrolledClaseIds.includes(clase.id) },
+                { 'clase-card--llena': !store.enrolledClaseIds.includes(clase.id) && clase.enrolled >= clase.capacity },
+              ]"
+              :disabled="store.enrolledClaseIds.includes(clase.id) || clase.enrolled >= clase.capacity"
               @click="handleClaseClick(clase)"
             >
               <span class="clase-actividad">{{ clase.activity_name }}</span>
               <span class="clase-horario">{{ clase.start_time }} – {{ clase.end_time }}</span>
               <div class="clase-meta">
-                <span :class="['clase-cupo', { 'clase-cupo--llena': clase.enrolled >= clase.capacity }]">
-                  {{ clase.enrolled >= clase.capacity
-                    ? 'Sin cupo'
-                    : `${clase.capacity - clase.enrolled} lugar${clase.capacity - clase.enrolled !== 1 ? 'es' : ''}`
+                <span :class="[
+                  'clase-cupo',
+                  { 'clase-cupo--inscripto': store.enrolledClaseIds.includes(clase.id) },
+                  { 'clase-cupo--llena': !store.enrolledClaseIds.includes(clase.id) && clase.enrolled >= clase.capacity },
+                ]">
+                  {{ store.enrolledClaseIds.includes(clase.id)
+                    ? 'Ya inscripto'
+                    : clase.enrolled >= clase.capacity
+                      ? 'Sin cupo'
+                      : `${clase.capacity - clase.enrolled} lugar${clase.capacity - clase.enrolled !== 1 ? 'es' : ''}`
                   }}
                 </span>
                 <span class="clase-precio">${{ clase.class_price.toLocaleString('es-AR') }}</span>
@@ -701,6 +714,14 @@ onMounted(async () => {
   opacity: 0.7;
 }
 
+.clase-card--inscripto {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  border-left-color: #3b82f6;
+  cursor: default;
+  opacity: 0.85;
+}
+
 .clase-actividad {
   font-size: 0.72rem;
   font-weight: 700;
@@ -734,6 +755,11 @@ onMounted(async () => {
 
 .clase-cupo--llena {
   color: #9ca3af;
+}
+
+.clase-cupo--inscripto {
+  color: #1d4ed8;
+  font-weight: 700;
 }
 
 .clase-precio {
