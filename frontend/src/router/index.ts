@@ -208,6 +208,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
+      path: '/admin/suscripciones',
+      name: 'admin-suscripciones',
+      component: () => import('../views/admin/AdminSuscripcionesView.vue'),
+      meta: { requiresAuth: true, requiresStaff: true },
+    },
+    {
       path: '/clientes',
       name: 'lista-alumnos',
       component: () => import('../views/clientes/ListaAlumnosView.vue'),
