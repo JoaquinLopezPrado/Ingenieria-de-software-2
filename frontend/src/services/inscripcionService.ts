@@ -110,10 +110,13 @@ export const getPreviewInscripcion = async (
   turnoId: number,
   userId: number,
   _classPriceHint = 0,
+  startMonth?: number,
+  startYear?: number,
 ): Promise<PreviewInscripcionResponse> => {
   const res = await api.post('/admin/enrollments/subscription/preview', {
     turno_id: turnoId,
     user_id: userId,
+    ...(startMonth && startYear ? { start_month: startMonth, start_year: startYear } : {}),
   })
   return res.data
 }
@@ -121,10 +124,13 @@ export const getPreviewInscripcion = async (
 export const inscribirCliente = async (
   turnoId: number,
   userId: number,
+  startMonth?: number,
+  startYear?: number,
 ): Promise<void> => {
   await api.post('/admin/enrollments/subscription', {
     turno_id: turnoId,
     user_id: userId,
+    ...(startMonth && startYear ? { start_month: startMonth, start_year: startYear } : {}),
   })
 }
 

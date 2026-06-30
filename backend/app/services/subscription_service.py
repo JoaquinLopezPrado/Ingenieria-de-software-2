@@ -38,7 +38,10 @@ class SubscriptionService:
     def __init__(self, subscription_repo: AbstractSubscriptionRepository):
         self._repo = subscription_repo
 
-    async def _plan_enrollment(self, turno_id: int, user_id: int) -> _EnrollmentPlan:
+    async def _plan_enrollment(
+        self, turno_id: int, user_id: int,
+        min_month: "int | None" = None, min_year: "int | None" = None,
+    ) -> _EnrollmentPlan:
         """Valida y calcula los parámetros de una suscripción sin persistir nada."""
         turno = await self._repo.lock_active_turno(turno_id)
         await self._repo.check_duplicate(turno_id, user_id)
@@ -67,13 +70,15 @@ class SubscriptionService:
         user_single_ids = user_confirmed | user_deposit
 
         period_month, period_year, period_clases = await self._first_available_period(
-            turno, future_clases, user_single_ids
+            turno, future_clases, user_single_ids, min_month=min_month, min_year=min_year
         )
         if period_clases is None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="No hay lugares disponibles en este turno.",
+            detail = (
+                f"No hay lugares disponibles en el turno para {min_month}/{min_year}."
+                if min_month and min_year
+                else "No hay lugares disponibles en este turno."
             )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
         clase_ids = [c.id for c in period_clases]
         full_clase_ids = await self._repo.get_full_clase_ids(clase_ids, turno.capacity)
@@ -120,12 +125,16 @@ class SubscriptionService:
             clases_ya_abonadas=clases_ya_abonadas,
         )
 
-    async def preview_subscription(self, turno_id: int, user_id: int) -> _EnrollmentPlan:
+    async def preview_subscription(
+        self, turno_id: int, user_id: int,
+        min_month: "int | None" = None, min_year: "int | None" = None,
+    ) -> _EnrollmentPlan:
         """Devuelve el plan de suscripción (monto, período) sin escribir en la base de datos."""
-        return await self._plan_enrollment(turno_id, user_id)
+        return await self._plan_enrollment(turno_id, user_id, min_month=min_month, min_year=min_year)
 
-    async def create(self, turno_id: int, user_id: int, expires_at_override: "datetime | None" = None) -> SubscriptionCharge:
-        plan = await self._plan_enrollment(turno_id, user_id)
+    async def create(self, turno_id: int, user_id: int, expires_at_override: "datetime | None" = None,
+                     min_month: "int | None" = None, min_year: "int | None" = None) -> SubscriptionCharge:
+        plan = await self._plan_enrollment(turno_id, user_id, min_month=min_month, min_year=min_year)
         expires_at = expires_at_override or datetime.now(timezone.utc) + timedelta(minutes=settings.enrollment_ttl_minutes)
 
         _, charge = await self._repo.create(
@@ -143,23 +152,30 @@ class SubscriptionService:
         charge.discount_full_classes = plan.discount_full_classes
         return charge
 
-    async def _first_available_period(self, turno, future_clases, user_single_ids: set[int]):
+    async def _first_available_period(
+        self, turno, future_clases, user_single_ids: set[int],
+        min_month: "int | None" = None, min_year: "int | None" = None,
+    ):
         """Primer (mes, año) con al menos una clase con cupo combinado disponible.
 
-        Recorre clase a clase usando capacidad combinada (suscripciones + sueltas) para
-        evitar que la suscripción arranque en una fecha ya llena. Devuelve el período y
-        las clases a partir de la primera con cupo, o (_, _, None) si no hay ninguna.
-
-        ``user_single_ids``: clases donde el usuario ya tiene inscripción suelta activa.
-        Al chequear capacidad se resta 1 para esas clases: el usuario no agrega nueva
-        ocupación al suscribirse, simplemente convierte su slot suelto a abono.
+        Si se especifica min_month/min_year, solo evalúa ese mes exacto y devuelve
+        (0, 0, None) si está lleno o no tiene clases (no avanza al mes siguiente).
+        Sin restricción, busca el primer mes disponible desde hoy en adelante.
         """
+        target = (min_year, min_month) if min_month and min_year else None
         for month, year, clases in self._periods(future_clases):
+            if target:
+                if (year, month) < target:
+                    continue
+                if (year, month) > target:
+                    return 0, 0, None
             for i, clase in enumerate(clases):
                 combined = await self._repo.count_combined_on(turno.id, clase.id, clase.date)
                 adjustment = 1 if clase.id in user_single_ids else 0
                 if combined - adjustment < turno.capacity:
                     return month, year, clases[i:]
+            if target:
+                return 0, 0, None
         return 0, 0, None
 
     @staticmethod

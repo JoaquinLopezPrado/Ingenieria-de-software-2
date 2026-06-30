@@ -68,7 +68,10 @@ async def preview_subscription_enrollment(
     _=require_roles("admin", "empleado"),
     service: SubscriptionService = Depends(_get_subscription_service),
 ):
-    plan = await service.preview_subscription(body.turno_id, body.user_id)
+    plan = await service.preview_subscription(
+        body.turno_id, body.user_id,
+        min_month=body.start_month, min_year=body.start_year,
+    )
     return AdminSubscriptionPreviewResponse(
         turno_id=body.turno_id,
         user_id=body.user_id,
@@ -93,7 +96,10 @@ async def enroll_subscription_cash(
     subscription_service: SubscriptionService = Depends(_get_subscription_service),
     payment_service: PaymentService = Depends(_get_payment_service),
 ):
-    charge = await subscription_service.create(body.turno_id, body.user_id)
+    charge = await subscription_service.create(
+        body.turno_id, body.user_id,
+        min_month=body.start_month, min_year=body.start_year,
+    )
     await payment_service.cash_confirm_subscription_charge(charge.id)
     return AdminSubscriptionEnrollResponse(
         subscription_id=charge.subscription_id,

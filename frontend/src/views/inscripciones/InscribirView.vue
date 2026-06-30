@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
@@ -28,6 +28,27 @@ const DAY_LABELS: Record<string, string> = {
   lunes: 'Lun', martes: 'Mar', miercoles: 'Mié',
   jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb',
 }
+
+// ─── Mes de inicio ────────────────────────────────────────────────────────────
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+               'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+interface MesOption { label: string; month: number; year: number }
+
+function buildMesOptions(): MesOption[] {
+  const opts: MesOption[] = []
+  const now = new Date()
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    opts.push({ label: `${MESES[d.getMonth()]} ${d.getFullYear()}`, month: d.getMonth() + 1, year: d.getFullYear() })
+  }
+  return opts
+}
+
+const mesOptions = buildMesOptions()
+// null = auto (primer mes disponible); { month, year } = mes específico
+const selectedMes = ref<MesOption | null>(null)
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
 
@@ -64,19 +85,32 @@ function formatMoney(amount: number): string {
 
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 
-onMounted(async () => {
+async function fetchPreview() {
+  const userId = isClienteFlow.value ? Number(route.params.clienteId) : store.clienteSeleccionado!.id
+  isLoadingPreview.value = true
+  previewError.value = null
   try {
-    const userId = isClienteFlow.value ? Number(route.params.clienteId) : store.clienteSeleccionado!.id
-    const [formOptions, previewData] = await Promise.all([
-      getFormOptions(),
-      getPreviewInscripcion(turno.value.id, userId, turno.value.class_price),
-    ])
-    allActivities.value = formOptions.activities
-    preview.value = previewData
+    preview.value = await getPreviewInscripcion(
+      turno.value.id, userId, turno.value.class_price,
+      selectedMes.value?.month, selectedMes.value?.year,
+    )
   } catch (err) {
+    preview.value = null
     previewError.value = extractBackendError(err) || 'No se pudo calcular el monto de la inscripción'
   } finally {
     isLoadingPreview.value = false
+  }
+}
+
+onMounted(async () => {
+  try {
+    const [formOptions] = await Promise.all([
+      getFormOptions(),
+      fetchPreview(),
+    ])
+    allActivities.value = formOptions.activities
+  } catch {
+    // fetchPreview ya maneja su propio error
   }
 
   // Carga del banner del cliente (no bloquea el preview)
@@ -87,6 +121,11 @@ onMounted(async () => {
   }
 })
 
+watch(selectedMes, () => {
+  confirmError.value = null
+  fetchPreview()
+})
+
 // ─── Acciones ─────────────────────────────────────────────────────────────────
 
 async function handleConfirmar() {
@@ -95,7 +134,7 @@ async function handleConfirmar() {
   isConfirming.value = true
   try {
     const userId = isClienteFlow.value ? clienteId.value! : store.clienteSeleccionado!.id
-    await inscribirCliente(turno.value.id, userId)
+    await inscribirCliente(turno.value.id, userId, selectedMes.value?.month, selectedMes.value?.year)
     store.setTurno(null)
     isSuccess.value = true
   } catch (err) {
@@ -198,6 +237,24 @@ function handleCambiarCliente() {
               <span class="field-value">{{ formatMoney(turno.class_price) }}</span>
             </div>
           </div>
+        </div>
+
+        <!-- Selector de mes de inicio (solo flujo admin) -->
+        <div v-if="isClienteFlow" class="mes-selector-card">
+          <label class="mes-label" for="mes-inicio">Mes de inicio</label>
+          <select
+            id="mes-inicio"
+            class="mes-select"
+            :value="selectedMes ? `${selectedMes.month}-${selectedMes.year}` : ''"
+            @change="selectedMes = mesOptions.find(o => `${o.month}-${o.year}` === ($event.target as HTMLSelectElement).value) ?? null"
+          >
+            <option value="">Próximo disponible</option>
+            <option
+              v-for="m in mesOptions"
+              :key="`${m.month}-${m.year}`"
+              :value="`${m.month}-${m.year}`"
+            >{{ m.label }}</option>
+          </select>
         </div>
 
         <!-- Card de resumen / preview -->
@@ -323,6 +380,43 @@ function handleCambiarCliente() {
   color: #6b7280;
   font-size: 0.88rem;
   margin: 0;
+}
+
+/* ─── Selector de mes ────────────────────────────────── */
+
+.mes-selector-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.85rem 1.2rem;
+  margin-bottom: 1.25rem;
+}
+
+.mes-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.mes-select {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #111827;
+  background: #f9fafb;
+  cursor: pointer;
+  outline: none;
+  text-transform: capitalize;
+}
+
+.mes-select:focus {
+  border-color: #11a691;
 }
 
 .btn-secondary {

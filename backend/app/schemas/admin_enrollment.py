@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 class AdminSubscriptionPreviewRequest(BaseModel):
     turno_id: int
     user_id: int
+    start_month: int | None = None
+    start_year: int | None = None
 
 
 class ClasePreviewItem(BaseModel):
@@ -30,6 +32,8 @@ class AdminSubscriptionPreviewResponse(BaseModel):
 class AdminSubscriptionEnrollRequest(BaseModel):
     turno_id: int
     user_id: int
+    start_month: int | None = None
+    start_year: int | None = None
 
 
 class AdminSubscriptionEnrollResponse(BaseModel):
