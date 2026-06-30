@@ -119,7 +119,7 @@ async def admin_generate_next_month_charges(
         period_month=month,
         period_year=year,
         email_service=EmailService(),
-        payment_url=f"{settings.frontend_url}/pagos",
+        payment_url=f"{settings.frontend_url}/list",
     )
     if created:
         await db.commit()
