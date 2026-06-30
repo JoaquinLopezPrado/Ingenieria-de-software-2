@@ -64,9 +64,6 @@ const confirmLogout = async () => {
           <RouterLink v-if="isAdmin" to="/activities" class="nav-item" active-class="active">
             <span class="nav-icon">◈</span> Actividades
           </RouterLink>
-          <RouterLink v-if="!isAdmin" to="/clientes" class="nav-item" active-class="active">
-            <span class="nav-icon">◎</span> Alumnos
-          </RouterLink>
         </div>
 
         <div v-if="isAdmin" class="nav-group">

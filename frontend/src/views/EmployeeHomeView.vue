@@ -26,12 +26,6 @@ const accesos = [
     path: '/scanner',
   },
   {
-    title: 'Alumnos',
-    description: 'Buscar clientes y ver su perfil, inscripciones y asistencias.',
-    icon: '◎',
-    path: '/clientes',
-  },
-  {
     title: 'Seguridad',
     description: 'Cambiar tu contraseña.',
     icon: '⚙',
