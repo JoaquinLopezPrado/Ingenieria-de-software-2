@@ -173,8 +173,21 @@ class TurnoService:
 
         today = datetime.now(_ART).date()
         horario_cambia = req.start_time != turno.start_time or req.end_time != turno.end_time
+        cupo_cambia = req.capacity != turno.capacity
         quitados = set(turno.days) - set(req.days)
         agregados = set(req.days) - set(turno.days)
+
+        # Validar que ninguna clase futura tenga más inscriptos que el nuevo cupo.
+        if cupo_cambia:
+            max_enrolled = await self._clase_repo.get_max_enrolled_future(turno_id, today)
+            if max_enrolled > req.capacity:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"No se puede reducir el cupo a {req.capacity}: "
+                        f"hay clases futuras con {max_enrolled} inscriptos."
+                    ),
+                )
 
         # 1. Campos del turno (nuevo horario, capacidad, precio, etc.)
         await self._turno_repo.update_fields(
@@ -190,10 +203,11 @@ class TurnoService:
         # 4. Generar clases futuras de días agregados (hasta el horizonte actual)
         if agregados:
             await self._generate_clases_on_days(turno_id, agregados, req, today)
-        # 5. Propagar el nuevo horario a las clases futuras de días conservados.
-        #    La capacidad NO se propaga: cada clase conserva su snapshot.
+        # 5. Propagar horario y/o cupo a las clases futuras de días conservados.
         if horario_cambia:
             await self._clase_repo.update_future_time(turno_id, req.start_time, req.end_time, today)
+        if cupo_cambia:
+            await self._clase_repo.update_future_capacity(turno_id, req.capacity, today)
 
         # 6. Avisar por email a inscriptos que conservan su lugar (los que perdieron
         #    clases ya recibieron el email de cancelación al generarse sus créditos).
