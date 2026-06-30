@@ -113,6 +113,11 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def admin_schedule_cancellation(self, subscription_id: int) -> "tuple[date, int] | None":
+        """Igual que schedule_cancellation pero sin verificar user_id (uso admin). Retorna (ends_on, turno_id) o None."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def effectivize_scheduled_cancellations(self) -> list[int]:
         """Efectiviza bajas programadas vencidas. Retorna turno_ids liberados."""
         raise NotImplementedError
@@ -527,6 +532,44 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
 
         sub.ends_on = ends_on
         # Los cargos pendientes/vencidos ya no se cobran.
+        await self._session.execute(
+            update(SubscriptionChargeORM)
+            .where(
+                SubscriptionChargeORM.subscription_id == subscription_id,
+                SubscriptionChargeORM.status.in_([ChargeStatus.PENDING, ChargeStatus.OVERDUE]),
+            )
+            .values(status=ChargeStatus.WAIVED)
+        )
+        await self._session.flush()
+        return ends_on, sub.turno_id
+
+    async def admin_schedule_cancellation(self, subscription_id: int) -> "tuple[date, int] | None":
+        sub = (await self._session.execute(
+            select(SubscriptionORM).where(
+                SubscriptionORM.id == subscription_id,
+                SubscriptionORM.status == SubscriptionStatus.ACTIVE,
+            )
+        )).scalar_one_or_none()
+        if sub is None:
+            return None
+
+        last_paid = (await self._session.execute(
+            select(SubscriptionChargeORM.period_month, SubscriptionChargeORM.period_year)
+            .where(
+                SubscriptionChargeORM.subscription_id == subscription_id,
+                SubscriptionChargeORM.status == ChargeStatus.PAID,
+            )
+            .order_by(SubscriptionChargeORM.period_year.desc(), SubscriptionChargeORM.period_month.desc())
+            .limit(1)
+        )).first()
+
+        if last_paid is not None:
+            month, year = last_paid[0], last_paid[1]
+            ends_on = date(year, month, calendar.monthrange(year, month)[1])
+        else:
+            ends_on = date.today()
+
+        sub.ends_on = ends_on
         await self._session.execute(
             update(SubscriptionChargeORM)
             .where(
