@@ -62,6 +62,7 @@ async function handleConfirmar() {
   isConfirming.value = true
   try {
     await inscribirClienteClase(clase.value.id, cliente.value.id)
+    store.markClaseEnrolled(clase.value.id)
     isSuccess.value = true
   } catch (err) {
     confirmError.value = extractBackendError(err)
