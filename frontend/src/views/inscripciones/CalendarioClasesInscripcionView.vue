@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
-import { getTurnosAll, getClasesByTurnoAdmin, getFormOptions, extractBackendError, getClasesByTurno } from '@/services/sessionService'
+import { getTurnosAll, getFormOptions, extractBackendError, getClasesByTurno } from '@/services/sessionService'
 import type { Turno } from '@/services/sessionService'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -170,8 +170,6 @@ onMounted(async () => {
             clases
               .filter(c =>
                 c.is_active &&
-                c.capacity > 0 &&
-                c.enrolled < c.capacity &&
                 c.date >= today &&
                 c.date <= horizonEnd
               )
@@ -205,7 +203,7 @@ onMounted(async () => {
       <div class="page-header">
         <div>
           <h1 class="page-title">Inscribir a clase</h1>
-          <p class="page-subtitle">Seleccioná una clase disponible para inscribir al cliente</p>
+          <p class="page-subtitle">Seleccioná una clase para inscribir al cliente</p>
         </div>
         <button
           type="button"
@@ -276,7 +274,7 @@ onMounted(async () => {
         <div class="state-icon">📅</div>
         <h2 class="state-title">No hay clases disponibles</h2>
         <p class="state-desc">
-          No se encontraron clases con cupo disponible en los próximos 3 meses.
+          No se encontraron clases en los próximos 3 meses.
         </p>
       </div>
 
@@ -309,15 +307,18 @@ onMounted(async () => {
               v-for="clase in clasesDelDia(day)"
               :key="clase.id"
               type="button"
-              class="clase-card"
+              :class="['clase-card', { 'clase-card--llena': clase.enrolled >= clase.capacity }]"
+              :disabled="clase.enrolled >= clase.capacity"
               @click="handleClaseClick(clase)"
             >
               <span class="clase-actividad">{{ clase.activity_name }}</span>
               <span class="clase-horario">{{ clase.start_time }} – {{ clase.end_time }}</span>
               <div class="clase-meta">
-                <span class="clase-cupo">
-                  {{ clase.capacity - clase.enrolled }}
-                  lugar{{ clase.capacity - clase.enrolled !== 1 ? 'es' : '' }}
+                <span :class="['clase-cupo', { 'clase-cupo--llena': clase.enrolled >= clase.capacity }]">
+                  {{ clase.enrolled >= clase.capacity
+                    ? 'Sin cupo'
+                    : `${clase.capacity - clase.enrolled} lugar${clase.capacity - clase.enrolled !== 1 ? 'es' : ''}`
+                  }}
                 </span>
                 <span class="clase-precio">${{ clase.class_price.toLocaleString('es-AR') }}</span>
               </div>
@@ -685,11 +686,19 @@ onMounted(async () => {
   transition: background-color 0.12s, border-color 0.12s, transform 0.1s;
 }
 
-.clase-card:hover {
+.clase-card:hover:not(:disabled) {
   background: #dcfce7;
   border-color: #6ee7b7;
   border-left-color: #059669;
   transform: translateY(-1px);
+}
+
+.clase-card--llena {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  border-left-color: #d1d5db;
+  cursor: default;
+  opacity: 0.7;
 }
 
 .clase-actividad {
@@ -721,6 +730,10 @@ onMounted(async () => {
   font-weight: 600;
   color: #0d9b8a;
   white-space: nowrap;
+}
+
+.clase-cupo--llena {
+  color: #9ca3af;
 }
 
 .clase-precio {
