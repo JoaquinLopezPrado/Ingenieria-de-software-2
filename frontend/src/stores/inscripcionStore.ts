@@ -14,10 +14,12 @@ export const useInscripcionStore = defineStore('inscripcion', () => {
   const turnoSeleccionado = ref<Turno | null>(null)
   const claseSeleccionada = ref<ClaseInscribible | null>(null)
   const waitlistEntries = ref<WaitlistEntry[]>([])
+  const enrolledClaseIds = ref<number[]>([])
 
   function setCliente(cliente: Cliente | null) {
     clienteSeleccionado.value = cliente
     waitlistEntries.value = []
+    enrolledClaseIds.value = []
   }
 
   function setTurno(turno: Turno | null) {
@@ -46,17 +48,29 @@ export const useInscripcionStore = defineStore('inscripcion', () => {
     return waitlistEntries.value.find(e => e.turno_id === turno_id)
   }
 
+  function setEnrolledClaseIds(ids: number[]) {
+    enrolledClaseIds.value = ids
+  }
+
+  function markClaseEnrolled(claseId: number) {
+    if (!enrolledClaseIds.value.includes(claseId)) {
+      enrolledClaseIds.value.push(claseId)
+    }
+  }
+
   function reset() {
     clienteSeleccionado.value = null
     turnoSeleccionado.value = null
     claseSeleccionada.value = null
     waitlistEntries.value = []
+    enrolledClaseIds.value = []
   }
 
   return {
-    clienteSeleccionado, turnoSeleccionado, claseSeleccionada, waitlistEntries,
+    clienteSeleccionado, turnoSeleccionado, claseSeleccionada, waitlistEntries, enrolledClaseIds,
     setCliente, setTurno, setClase,
     markWaitlisted, setWaitlistEntries, removeWaitlistEntry, getWaitlistEntry,
+    setEnrolledClaseIds, markClaseEnrolled,
     reset,
   }
 })
