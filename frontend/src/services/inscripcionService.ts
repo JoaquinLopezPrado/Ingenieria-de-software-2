@@ -144,6 +144,11 @@ export const inscribirClienteClase = async (
  * Ver docs/pendientes-backend.md § 9.
  * Para activar: descomentar llamada real y eliminar bloque mock.
  */
+export const getEnrolledSingleClaseIds = async (userId: number): Promise<number[]> => {
+  const res = await api.get(`/single-enrollments/user/${userId}`)
+  return (res.data as { clase_id: number }[]).map(e => e.clase_id)
+}
+
 export interface AdminWaitlistEntry {
   entry_id: number
   turno_id: number
