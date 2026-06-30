@@ -11,6 +11,7 @@ from app.repositories.waitlist_repository import WaitlistRepository
 from app.schemas.subscription import (
     CancelSubscriptionsRequest,
     CreateSubscriptionRequest,
+    GenerateChargesResponse,
     JoinWaitlistRequest,
     MySubscriptionResponse,
     OverdueSubscriptionResponse,
@@ -97,6 +98,32 @@ async def cancel_overdue_subscriptions(
         await db.commit()
         asyncio.create_task(promote_freed_turnos(freed_turno_ids))
     return {"cancelled": len(freed_turno_ids)}
+
+
+@router.post("/admin/generate-charges", response_model=GenerateChargesResponse, status_code=status.HTTP_200_OK)
+async def admin_generate_next_month_charges(
+    _=require_roles("admin", "empleado"),
+    service: SubscriptionService = Depends(get_subscription_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Genera los cargos del mes siguiente y envía mail de recordatorio a cada abonado."""
+    import calendar
+    from datetime import date
+    from app.core.config import settings
+
+    today = date.today()
+    month = today.month % 12 + 1
+    year = today.year + (1 if today.month == 12 else 0)
+
+    created = await service.generate_charges_and_notify(
+        period_month=month,
+        period_year=year,
+        email_service=EmailService(),
+        payment_url=f"{settings.frontend_url}/pagos",
+    )
+    if created:
+        await db.commit()
+    return GenerateChargesResponse(charges_created=created, period_month=month, period_year=year)
 
 
 @router.post("/{subscription_id}/cancel", status_code=status.HTTP_200_OK)

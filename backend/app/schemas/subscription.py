@@ -83,6 +83,12 @@ class CancelSubscriptionsRequest(BaseModel):
     subscription_ids: List[int]
 
 
+class GenerateChargesResponse(BaseModel):
+    charges_created: int
+    period_month: int
+    period_year: int
+
+
 class MySubscriptionResponse(BaseModel):
     subscription_id: int
     status: SubscriptionStatus
