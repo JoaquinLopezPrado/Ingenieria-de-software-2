@@ -165,6 +165,11 @@ watch([filterActivity, filterDays, filterHorario], () => {
 
 const activityName = (id: number) => activityMap.value.get(id) ?? `Actividad #${id}`
 
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
 const cupoDisponible = (turno: Turno) =>
   Math.max(0, turno.capacity - turno.enrolled)
 
@@ -468,7 +473,7 @@ onMounted(async () => {
                     v-else-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !!inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on"
                     class="badge-baja-programada"
                   >
-                    Baja programada
+                    Baja programada · hasta el {{ formatDate(inscripcionStore.getSubscriptionEntry(turno.id)!.ends_on!) }}
                   </span>
                   <!-- Con cupo y sin suscripción → Inscribir cliente -->
                   <button
