@@ -252,6 +252,17 @@
             </div>
 
             <div v-else class="acciones-card">
+              <div v-if="turnosConCuotaPendiente.has(turno.id)" class="cuota-pendiente-info">
+                <span>Cuota pendiente de pago</span>
+                <button
+                  class="continuar-btn"
+                  type="button"
+                  :disabled="loadingTurno === turno.id"
+                  @click="pagarCuotaMensual(turno)"
+                >
+                  Pagar cuota
+                </button>
+              </div>
               <div v-if="subForDate(turno)?.ends_on" class="baja-info">
                 Baja programada: tu lugar sigue activo hasta el
                 {{ formatBaja(subForDate(turno).ends_on) }}
@@ -399,7 +410,8 @@ const TODOS_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" 
 const tabs = computed(() => ['Todos', ...activities.value.map(a => a.name)])
 const currentTab = ref('')
 const inscriptos = ref(new Set())
-const activeSubsByTurno = ref(new Map()) // turno_id → [{ subscription_id, start_date, ends_on }]
+const activeSubsByTurno = ref(new Map()) // turno_id → [{ subscription_id, start_date, ends_on, pending_charge }]
+const turnosConCuotaPendiente = ref(new Map()) // turno_id → { subscription_id, pending_charge } para subs activas con cuota impaga
 // Ocupación firme del cliente (abonos + sueltas) para detectar solape de horario.
 const misOcupaciones = ref([])
 const turnosPendienteMensual = ref(new Map())
@@ -464,12 +476,17 @@ const loadEnrollments = async () => {
   const activeSubs = mySubscriptionRes.data.filter((s) => s.status === 'active')
   inscriptos.value = new Set(activeSubs.map((s) => s.turno_id))
   const subsByTurno = new Map()
+  const cuotaPendienteMap = new Map()
   activeSubs.forEach((s) => {
-    const entry = { subscription_id: s.subscription_id, start_date: s.start_date, ends_on: s.ends_on }
+    const entry = { subscription_id: s.subscription_id, start_date: s.start_date, ends_on: s.ends_on, pending_charge: s.pending_charge ?? null }
     if (!subsByTurno.has(s.turno_id)) subsByTurno.set(s.turno_id, [])
     subsByTurno.get(s.turno_id).push(entry)
+    if (s.pending_charge) {
+      cuotaPendienteMap.set(s.turno_id, { subscription_id: s.subscription_id, pending_charge: s.pending_charge })
+    }
   })
   activeSubsByTurno.value = subsByTurno
+  turnosConCuotaPendiente.value = cuotaPendienteMap
 
   turnosPendienteMensual.value = new Map(
     mySubscriptionRes.data
@@ -804,6 +821,30 @@ const handleBaja = async (turno) => {
   } finally {
     loadingTurno.value = null
   }
+}
+
+const pagarCuotaMensual = (turno) => {
+  const entry = turnosConCuotaPendiente.value.get(turno.id)
+  if (!entry) return
+  const charge = entry.pending_charge
+  router.push({
+    name: 'ticket',
+    query: {
+      kind:            'subscription',
+      charge_id:       charge.charge_id,
+      subscription_id: entry.subscription_id,
+      actividad:       turno.actividad,
+      descripcion:     turno.descripcion,
+      dia:             turno.dia,
+      hora:            turno.hora,
+      duracion:        turno.dur,
+      instructor:      turno.inst,
+      nivel:           turno.nivel,
+      numero:          entry.subscription_id,
+      amount:          charge.amount,
+      original_amount: charge.original_amount,
+    },
+  })
 }
 
 const continuarPago = (turno) => {
@@ -1409,6 +1450,26 @@ h1 {
   background: #FFF3E0;
   border: 1px solid rgba(255, 152, 0, 0.3);
   border-radius: 8px;
+}
+
+.cuota-pendiente-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e65100;
+  padding: 8px 10px;
+  background: rgba(230, 81, 0, 0.07);
+  border: 1px solid rgba(230, 81, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.cuota-pendiente-info .continuar-btn {
+  width: auto;
+  padding: 6px 14px;
+  font-size: 12px;
 }
 
 .pago-pendiente-info {
