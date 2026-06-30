@@ -215,8 +215,8 @@ async function handleDarDeBaja(turno: Turno) {
   bajaError.value = null
   cancellingSubscriptionId.value = entry.subscription_id
   try {
-    await adminCancelSubscription(entry.subscription_id)
-    inscripcionStore.markSubscriptionPendingCancel(entry.subscription_id)
+    const endsOn = await adminCancelSubscription(entry.subscription_id)
+    inscripcionStore.markSubscriptionEndsOn(entry.subscription_id, endsOn)
   } catch (err) {
     bajaError.value = extractBackendError(err)
   } finally {
@@ -450,9 +450,9 @@ onMounted(async () => {
                   </span>
                 </td>
                 <td class="cell-accion">
-                  <!-- Ya inscripto (ACTIVE) → Dar de baja -->
+                  <!-- Ya inscripto (activo, sin baja programada) → Dar de baja -->
                   <button
-                    v-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'ACTIVE'"
+                    v-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on"
                     type="button"
                     class="btn-dar-baja"
                     :disabled="cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
@@ -463,9 +463,9 @@ onMounted(async () => {
                       : 'Dar de baja'
                     }}
                   </button>
-                  <!-- Baja ya programada (PENDING_CANCEL) → indicador informativo -->
+                  <!-- Baja ya programada (active + ends_on seteado) → indicador informativo -->
                   <span
-                    v-else-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'PENDING_CANCEL'"
+                    v-else-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !!inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on"
                     class="badge-baja-programada"
                   >
                     Baja programada

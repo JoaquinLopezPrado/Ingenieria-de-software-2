@@ -153,12 +153,13 @@ export interface SubscriptionEntry {
   subscription_id: number
   turno_id: number
   status: string
+  ends_on: string | null
 }
 
 export const getSubscriptionsByUser = async (userId: number): Promise<SubscriptionEntry[]> => {
   const res = await api.get(`/subscriptions/user/${userId}`)
-  return (res.data as { subscription_id: number; turno_id: number; status: string }[])
-    .map(e => ({ subscription_id: e.subscription_id, turno_id: e.turno_id, status: e.status }))
+  return (res.data as { subscription_id: number; turno_id: number; status: string; ends_on: string | null }[])
+    .map(e => ({ subscription_id: e.subscription_id, turno_id: e.turno_id, status: e.status, ends_on: e.ends_on ?? null }))
 }
 
 export const adminCancelSubscription = async (subscriptionId: number): Promise<string> => {

@@ -12,7 +12,8 @@ export interface WaitlistEntry {
 export interface SubscriptionEntry {
   subscription_id: number
   turno_id: number
-  status: string  // 'ACTIVE' | 'PENDING_CANCEL' | etc.
+  status: string       // "active" | "pending" | "cancelled" | ...
+  ends_on: string | null  // null = vigente; fecha = baja programada
 }
 
 export const useInscripcionStore = defineStore('inscripcion', () => {
@@ -74,9 +75,9 @@ export const useInscripcionStore = defineStore('inscripcion', () => {
     return subscriptionEntries.value.find(e => e.turno_id === turnoId)
   }
 
-  function markSubscriptionPendingCancel(subscriptionId: number) {
+  function markSubscriptionEndsOn(subscriptionId: number, endsOn: string) {
     subscriptionEntries.value = subscriptionEntries.value.map(e =>
-      e.subscription_id === subscriptionId ? { ...e, status: 'PENDING_CANCEL' } : e
+      e.subscription_id === subscriptionId ? { ...e, ends_on: endsOn } : e
     )
   }
 
@@ -95,7 +96,7 @@ export const useInscripcionStore = defineStore('inscripcion', () => {
     setCliente, setTurno, setClase,
     markWaitlisted, setWaitlistEntries, removeWaitlistEntry, getWaitlistEntry,
     setEnrolledClaseIds, markClaseEnrolled,
-    setSubscriptionEntries, getSubscriptionEntry, markSubscriptionPendingCancel,
+    setSubscriptionEntries, getSubscriptionEntry, markSubscriptionEndsOn,
     reset,
   }
 })
