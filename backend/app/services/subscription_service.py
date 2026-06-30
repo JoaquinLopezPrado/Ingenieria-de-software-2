@@ -224,6 +224,47 @@ class SubscriptionService:
         """Crea los cargos faltantes del período para TODAS las suscripciones activas (cron)."""
         return await self._ensure_current_charges(period_month=period_month, period_year=period_year)
 
+    async def generate_charges_and_notify(
+        self, period_month: int, period_year: int, email_service: "EmailService", payment_url: str
+    ) -> int:
+        """Genera cargos del período y envía mail de recordatorio a cada afectado.
+        Retorna la cantidad de cargos nuevos creados."""
+        from app.services.email_service import EmailService  # evitar import circular
+
+        due_date = _end_of_month(period_year, period_month)
+        pending = await self._repo.get_active_missing_charge_full(period_month, period_year)
+        created = 0
+        notifications: list[tuple] = []
+        for sub_id, turno_id, class_price, user_email, first_name, activity_name, turno_desc in pending:
+            num_classes = await self._repo.count_clases_in_period(turno_id, period_month, period_year)
+            if num_classes == 0:
+                continue
+            amount = Decimal(class_price) * num_classes
+            await self._repo.add_charge(
+                subscription_id=sub_id,
+                period_month=period_month,
+                period_year=period_year,
+                amount=amount,
+                original_amount=amount,
+                due_date=due_date,
+            )
+            notifications.append((user_email, first_name, activity_name, turno_desc, amount))
+            created += 1
+
+        for user_email, first_name, activity_name, turno_desc, amount in notifications:
+            email_service.send_subscription_charge_pending(
+                to=user_email,
+                first_name=first_name,
+                activity_name=activity_name,
+                turno_description=turno_desc,
+                amount=amount,
+                period_month=period_month,
+                period_year=period_year,
+                due_date=due_date,
+                payment_url=payment_url,
+            )
+        return created
+
     async def _ensure_current_charges(
         self, user_id: int | None = None, period_month: int | None = None, period_year: int | None = None
     ) -> int:
