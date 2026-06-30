@@ -1,7 +1,10 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_roles
+from app.core.tasks import promote_freed_turnos
 from app.repositories.config_repository import ConfigRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.single_enrollment_repository import SingleEnrollmentRepository
@@ -155,3 +158,20 @@ async def add_to_waitlist(
         turno_id=entry.turno_id,
         user_id=entry.user_id,
     )
+
+
+@router.post(
+    "/subscription/{subscription_id}/cancel",
+    status_code=status.HTTP_200_OK,
+)
+async def admin_cancel_subscription(
+    subscription_id: int,
+    _=require_roles("admin", "empleado"),
+    service: SubscriptionService = Depends(_get_subscription_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Baja programada iniciada por admin: efectiva al fin del período pagado."""
+    ends_on, turno_id = await service.admin_unsubscribe(subscription_id=subscription_id)
+    await db.commit()
+    asyncio.create_task(promote_freed_turnos([turno_id]))
+    return {"ends_on": ends_on.isoformat()}
