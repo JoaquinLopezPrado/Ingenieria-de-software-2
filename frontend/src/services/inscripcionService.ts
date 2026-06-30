@@ -2,11 +2,12 @@
  * inscripcionService.ts — Gestión de Inscripciones (flujo admin/empleado)
  * -------------------------------------------------------------------------
  * Pasos del flujo:
- *   1. buscarClientePorDni     → GET  /api/v1/users/search          (⏳ ver pendientes-backend.md § 6)
- *   2. getTurnosParaInscripcion → GET /api/v1/turnos                 (✅ implementado)
- *   3. getPreviewInscripcion   → GET  /api/v1/enrollments/admin/preview (⏳ ver pendientes-backend.md § 7)
- *   3. inscribirCliente        → POST /api/v1/enrollments/admin/subscription (⏳ ver pendientes-backend.md § 8)
- *   4. agregarListaEspera      → POST /api/v1/enrollments/admin/waitlist     (⏳ ver pendientes-backend.md § 9)
+ *   1. buscarClientePorDni        → GET  /api/v1/users/search             (⏳ mock)
+ *   2. getTurnosParaInscripcion   → GET  /api/v1/turnos                   (✅)
+ *   3. getPreviewInscripcion      → POST /api/v1/admin/enrollments/subscription/preview (✅)
+ *   4a. inscribirCliente          → POST /api/v1/admin/enrollments/subscription         (✅)
+ *   4b. inscribirClienteClase     → POST /api/v1/admin/enrollments/single               (✅)
+ *   5. agregarListaEspera         → POST /api/v1/enrollments/admin/waitlist             (⏳ mock)
  */
 import api from './api'
 import type { TurnoPageResponse } from './sessionService'
@@ -36,15 +37,6 @@ export interface PreviewInscripcionResponse {
   clases_sin_cupo: ClasePreviewItem[]
   clases_ya_abonadas: ClasePreviewItem[]
   total: number
-}
-
-export interface InscripcionAdminResponse {
-  id: number
-  user_id: number
-  turno_id: number
-  type: 'subscription'
-  status: string
-  created_at: string
 }
 
 export interface WaitlistEntry {
@@ -78,10 +70,6 @@ const MOCK_CLIENTES: Record<string, Cliente> = {
     doc_number: '23456789',
   },
 }
-
-// ⏳ Eliminar cuando backend implemente INS-02, INS-03 e INS-04
-const MOCK_ENROLLED = new Set<string>()  // clave: `${userId}-${turnoId}`
-const MOCK_WAITLIST = new Set<string>()  // clave: `${userId}-${turnoId}`
 
 // ─── Funciones ────────────────────────────────────────────────────────────────
 
@@ -125,76 +113,36 @@ export const getTurnosParaInscripcion = async (params?: {
   return res.data
 }
 
-/**
- * Paso 3 (preview) — calcula el importe sin persistir ni descontar cupos.
- * ⏳ Mock activo — endpoint GET /api/v1/enrollments/admin/preview no implementado (INS-02).
- * Ver docs/pendientes-backend.md § 7.
- * Para activar: descomentar llamada real y eliminar bloque mock.
- */
 export const getPreviewInscripcion = async (
   turnoId: number,
   userId: number,
-  classPriceHint = 0,
+  _classPriceHint = 0,
 ): Promise<PreviewInscripcionResponse> => {
-  // const res = await api.get('/enrollments/admin/preview', {
-  //   params: { turno_id: turnoId, user_id: userId },
-  // })
-  // return res.data
-  await new Promise(resolve => setTimeout(resolve, 600))
-  const makeDate = (weeksAhead: number): string => {
-    const d = new Date()
-    d.setDate(d.getDate() + weeksAhead * 7)
-    return d.toISOString().split('T')[0] ?? ''
-  }
-  return {
+  const res = await api.post('/admin/enrollments/subscription/preview', {
     turno_id: turnoId,
     user_id: userId,
-    precio_por_clase: classPriceHint,
-    clases_con_cupo: [
-      { clase_id: 101, fecha: makeDate(1) },
-      { clase_id: 102, fecha: makeDate(2) },
-      { clase_id: 103, fecha: makeDate(3) },
-    ],
-    clases_sin_cupo: [],
-    clases_ya_abonadas: [],
-    total: 3 * classPriceHint,
-  }
+  })
+  return res.data
 }
 
-/**
- * Paso 3 (confirmar) — registra la inscripción con pago presencial en efectivo.
- * ⏳ Mock activo — endpoint POST /api/v1/enrollments/admin/subscription no implementado (INS-03).
- * Ver docs/pendientes-backend.md § 8.
- * Para activar: descomentar llamada real y eliminar bloque mock.
- */
 export const inscribirCliente = async (
   turnoId: number,
   userId: number,
-): Promise<InscripcionAdminResponse> => {
-  // const res = await api.post('/enrollments/admin/subscription', {
-  //   turno_id: turnoId,
-  //   user_id: userId,
-  // })
-  // return res.data
-  await new Promise(resolve => setTimeout(resolve, 800))
-  const key = `${userId}-${turnoId}`
-  if (MOCK_ENROLLED.has(key)) {
-    throw {
-      response: {
-        status: 409,
-        data: { errors: { general: 'El cliente ya se encuentra inscripto a este turno' } },
-      },
-    }
-  }
-  MOCK_ENROLLED.add(key)
-  return {
-    id: Date.now(),
-    user_id: userId,
+): Promise<void> => {
+  await api.post('/admin/enrollments/subscription', {
     turno_id: turnoId,
-    type: 'subscription',
-    status: 'active',
-    created_at: new Date().toISOString(),
-  }
+    user_id: userId,
+  })
+}
+
+export const inscribirClienteClase = async (
+  claseId: number,
+  userId: number,
+): Promise<void> => {
+  await api.post('/admin/enrollments/single', {
+    clase_ids: [claseId],
+    user_id: userId,
+  })
 }
 
 /**
@@ -203,39 +151,18 @@ export const inscribirCliente = async (
  * Ver docs/pendientes-backend.md § 9.
  * Para activar: descomentar llamada real y eliminar bloque mock.
  */
+export const getAdminWaitlistTurnoIds = async (userId: number): Promise<number[]> => {
+  const res = await api.get(`/admin/enrollments/waitlist/${userId}`)
+  return res.data
+}
+
 export const agregarListaEspera = async (
   turnoId: number,
   userId: number,
 ): Promise<WaitlistEntry> => {
-  // const res = await api.post('/enrollments/admin/waitlist', {
-  //   turno_id: turnoId,
-  //   user_id: userId,
-  // })
-  // return res.data
-  await new Promise(resolve => setTimeout(resolve, 700))
-  const key = `${userId}-${turnoId}`
-  if (MOCK_ENROLLED.has(key)) {
-    throw {
-      response: {
-        status: 409,
-        data: { errors: { general: 'El cliente ya se encuentra inscripto a este turno' } },
-      },
-    }
-  }
-  if (MOCK_WAITLIST.has(key)) {
-    throw {
-      response: {
-        status: 409,
-        data: { errors: { general: 'El cliente ya se encuentra en la lista de espera de este turno' } },
-      },
-    }
-  }
-  MOCK_WAITLIST.add(key)
-  return {
-    id: Date.now(),
-    user_id: userId,
+  const res = await api.post('/admin/enrollments/waitlist', {
     turno_id: turnoId,
-    position: MOCK_WAITLIST.size,
-    created_at: new Date().toISOString(),
-  }
+    user_id: userId,
+  })
+  return res.data
 }
