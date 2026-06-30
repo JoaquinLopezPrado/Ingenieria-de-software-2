@@ -65,6 +65,14 @@ class AbstractClaseRepository(ABC):
     async def list_hoy(self, today: date) -> List[ClaseHoy]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_max_enrolled_future(self, turno_id: int, from_date: date) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_future_capacity(self, turno_id: int, capacity: int, from_date: date) -> int:
+        raise NotImplementedError
+
 
 class ClaseRepository(AbstractClaseRepository):
 
@@ -106,6 +114,31 @@ class ClaseRepository(AbstractClaseRepository):
                 ClaseORM.date > from_date,
             )
             .values(start_time=start_time, end_time=end_time)
+        )
+        return result.rowcount
+
+    async def get_max_enrolled_future(self, turno_id: int, from_date: date) -> int:
+        from app.repositories.capacity import occupied_subq
+        enrolled_col = occupied_subq(ClaseORM.turno_id, ClaseORM.id, ClaseORM.date)
+        result = await self._session.execute(
+            select(func.max(enrolled_col))
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+                ClaseORM.date > from_date,
+            )
+        )
+        return result.scalar_one() or 0
+
+    async def update_future_capacity(self, turno_id: int, capacity: int, from_date: date) -> int:
+        result = await self._session.execute(
+            update(ClaseORM)
+            .where(
+                ClaseORM.turno_id == turno_id,
+                ClaseORM.is_active == True,
+                ClaseORM.date > from_date,
+            )
+            .values(capacity=capacity)
         )
         return result.rowcount
 
