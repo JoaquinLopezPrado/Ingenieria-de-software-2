@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from typing import List
 
@@ -9,8 +10,19 @@ class AdminSubscriptionPreviewRequest(BaseModel):
     user_id: int
 
 
+class ClasePreviewItem(BaseModel):
+    clase_id: int
+    fecha: date
+
+
 class AdminSubscriptionPreviewResponse(BaseModel):
-    amount: Decimal
+    turno_id: int
+    user_id: int
+    precio_por_clase: Decimal
+    clases_con_cupo: List[ClasePreviewItem]
+    clases_sin_cupo: List[ClasePreviewItem]
+    clases_ya_abonadas: List[ClasePreviewItem]
+    total: Decimal
     period_month: int
     period_year: int
 
@@ -36,3 +48,14 @@ class AdminSingleEnrollRequest(BaseModel):
 class AdminSingleEnrollResponse(BaseModel):
     enrollment_id: int
     amount: Decimal
+
+
+class AdminWaitlistRequest(BaseModel):
+    turno_id: int
+    user_id: int
+
+
+class AdminWaitlistResponse(BaseModel):
+    entry_id: int
+    turno_id: int
+    user_id: int

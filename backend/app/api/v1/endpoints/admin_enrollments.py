@@ -7,6 +7,7 @@ from app.repositories.payment_repository import PaymentRepository
 from app.repositories.single_enrollment_repository import SingleEnrollmentRepository
 from app.repositories.subscription_repository import SubscriptionRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.waitlist_repository import WaitlistRepository
 from app.schemas.admin_enrollment import (
     AdminSingleEnrollRequest,
     AdminSingleEnrollResponse,
@@ -14,10 +15,15 @@ from app.schemas.admin_enrollment import (
     AdminSubscriptionEnrollResponse,
     AdminSubscriptionPreviewRequest,
     AdminSubscriptionPreviewResponse,
+    AdminWaitlistRequest,
+    AdminWaitlistResponse,
+    ClasePreviewItem,
 )
+from app.services.email_service import EmailService
 from app.services.payment_service import PaymentService
 from app.services.single_enrollment_service import SingleEnrollmentService
 from app.services.subscription_service import SubscriptionService
+from app.services.waitlist_service import WaitlistService
 
 router = APIRouter()
 
@@ -28,6 +34,14 @@ def _get_subscription_service(db: AsyncSession = Depends(get_db)) -> Subscriptio
 
 def _get_single_service(db: AsyncSession = Depends(get_db)) -> SingleEnrollmentService:
     return SingleEnrollmentService(single_repo=SingleEnrollmentRepository(db))
+
+
+def _get_waitlist_service(db: AsyncSession = Depends(get_db)) -> WaitlistService:
+    return WaitlistService(
+        waitlist_repo=WaitlistRepository(db),
+        subscription_service=SubscriptionService(subscription_repo=SubscriptionRepository(db)),
+        email_service=EmailService(),
+    )
 
 
 def _get_payment_service(db: AsyncSession = Depends(get_db)) -> PaymentService:
@@ -52,7 +66,13 @@ async def preview_subscription_enrollment(
 ):
     plan = await service.preview_subscription(body.turno_id, body.user_id)
     return AdminSubscriptionPreviewResponse(
-        amount=plan.amount,
+        turno_id=body.turno_id,
+        user_id=body.user_id,
+        precio_por_clase=plan.class_price,
+        clases_con_cupo=[ClasePreviewItem(clase_id=cid, fecha=d) for cid, d in plan.clases_con_cupo],
+        clases_sin_cupo=[ClasePreviewItem(clase_id=cid, fecha=d) for cid, d in plan.clases_sin_cupo],
+        clases_ya_abonadas=[ClasePreviewItem(clase_id=cid, fecha=d) for cid, d in plan.clases_ya_abonadas],
+        total=plan.amount,
         period_month=plan.period_month,
         period_year=plan.period_year,
     )
@@ -96,4 +116,32 @@ async def enroll_single_cash(
     return AdminSingleEnrollResponse(
         enrollment_id=enrollment.id,
         amount=enrollment.amount,
+    )
+
+
+@router.get("/waitlist/{user_id}", response_model=list[int], status_code=status.HTTP_200_OK)
+async def get_user_waitlist_turno_ids(
+    user_id: int,
+    _=require_roles("admin", "empleado"),
+    service: WaitlistService = Depends(_get_waitlist_service),
+):
+    entries = await service.get_by_user(user_id=user_id)
+    return [e.turno_id for e in entries]
+
+
+@router.post(
+    "/waitlist",
+    response_model=AdminWaitlistResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_to_waitlist(
+    body: AdminWaitlistRequest,
+    _=require_roles("admin", "empleado"),
+    service: WaitlistService = Depends(_get_waitlist_service),
+):
+    entry = await service.join(turno_id=body.turno_id, user_id=body.user_id)
+    return AdminWaitlistResponse(
+        entry_id=entry.id,
+        turno_id=entry.turno_id,
+        user_id=entry.user_id,
     )
