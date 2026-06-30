@@ -239,7 +239,7 @@ function handleApiError(e: unknown) {
   } else if (status === 403) {
     authError.value = 'forbidden'
   } else if (status === 409) {
-    serverError.value = 'Ya existe un turno con esa actividad, descripción y horario.'
+    serverError.value = extractBackendError(e)
   } else {
     serverError.value = extractBackendError(e)
   }
