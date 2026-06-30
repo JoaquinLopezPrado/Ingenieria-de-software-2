@@ -430,29 +430,18 @@ onMounted(async () => {
                   >
                     Inscribir cliente
                   </button>
-                  <!-- Ya en lista de espera -->
-                  <div
-                    v-else-if="inscripcionStore.getWaitlistEntry(turno.id)"
-                    class="espera-actions"
-                  >
-                    <span class="badge-en-espera">En lista de espera</span>
-                    <button
-                      type="button"
-                      class="btn-quitar-espera"
-                      :disabled="removingEsperaId === inscripcionStore.getWaitlistEntry(turno.id)!.entry_id"
-                      @click="handleQuitarEspera(turno)"
-                    >
-                      {{ removingEsperaId === inscripcionStore.getWaitlistEntry(turno.id)!.entry_id ? '...' : 'Quitar' }}
-                    </button>
-                  </div>
-                  <!-- Sin cupo → Agregar a lista de espera -->
+                  <!-- Sin cupo → Agregar o Quitar de lista de espera -->
                   <button
                     v-else
                     type="button"
-                    class="btn-espera"
-                    @click="handleListaEspera(turno)"
+                    :class="['btn-espera', { 'btn-espera--en-espera': inscripcionStore.getWaitlistEntry(turno.id) }]"
+                    :disabled="removingEsperaId === inscripcionStore.getWaitlistEntry(turno.id)?.entry_id"
+                    @click="inscripcionStore.getWaitlistEntry(turno.id) ? handleQuitarEspera(turno) : handleListaEspera(turno)"
                   >
-                    Agregar a lista de espera
+                    {{ inscripcionStore.getWaitlistEntry(turno.id)
+                      ? (removingEsperaId === inscripcionStore.getWaitlistEntry(turno.id)!.entry_id ? 'Quitando...' : 'Quitar de lista de espera')
+                      : 'Agregar a lista de espera'
+                    }}
                   </button>
                 </td>
               </tr>
@@ -982,45 +971,20 @@ onMounted(async () => {
   border-color: #fdba74;
 }
 
-/* En lista de espera */
-.espera-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+/* Lista de espera: en espera → botón destructivo */
+.btn-espera--en-espera {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
-.badge-en-espera {
-  display: inline-block;
-  padding: 0.35rem 0.65rem;
-  background-color: #f0f9ff;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.btn-quitar-espera {
-  padding: 0.25rem 0.55rem;
-  background: none;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
-  border-radius: 5px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.12s, border-color 0.12s;
-}
-
-.btn-quitar-espera:hover:not(:disabled) {
-  color: #dc2626;
+.btn-espera--en-espera:hover {
+  background-color: #fee2e2;
   border-color: #fca5a5;
 }
 
-.btn-quitar-espera:disabled {
-  opacity: 0.5;
+.btn-espera--en-espera:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
