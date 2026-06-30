@@ -27,6 +27,10 @@ class _EnrollmentPlan:
     period_year: int
     start_date: date
     due_date: date
+    class_price: Decimal
+    clases_con_cupo: list[tuple[int, date]]
+    clases_sin_cupo: list[tuple[int, date]]
+    clases_ya_abonadas: list[tuple[int, date]]
 
 
 class SubscriptionService:
@@ -93,6 +97,14 @@ class SubscriptionService:
         start_date = period_clases[0].date
         due_date = _end_of_month(period_year, period_month)
 
+        clases_sin_cupo = [(c.id, c.date) for c in period_clases if c.id in truly_full_clase_ids]
+        clases_ya_abonadas = [(c.id, c.date) for c in period_clases if c.id in confirmed_covered]
+        clases_con_cupo = [
+            (c.id, c.date)
+            for c in period_clases
+            if c.id not in truly_full_clase_ids and c.id not in confirmed_covered
+        ]
+
         return _EnrollmentPlan(
             amount=amount,
             original_amount=original_amount,
@@ -102,6 +114,10 @@ class SubscriptionService:
             period_year=period_year,
             start_date=start_date,
             due_date=due_date,
+            class_price=class_price,
+            clases_con_cupo=clases_con_cupo,
+            clases_sin_cupo=clases_sin_cupo,
+            clases_ya_abonadas=clases_ya_abonadas,
         )
 
     async def preview_subscription(self, turno_id: int, user_id: int) -> _EnrollmentPlan:
