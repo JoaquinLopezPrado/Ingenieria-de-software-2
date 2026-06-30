@@ -3,7 +3,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
-import { getTurnosParaInscripcion, getAdminWaitlistTurnoIds } from '@/services/inscripcionService'
+import { getTurnosParaInscripcion, getAdminWaitlistEntries, quitarDeListaEspera } from '@/services/inscripcionService'
+import type { AdminWaitlistEntry } from '@/services/inscripcionService'
 import { getFormOptions, extractBackendError, type Turno, type ActivityOption } from '@/services/sessionService'
 import { getClienteById } from '@/services/clientesService'
 import type { Cliente as ClienteService } from '@/services/clientesService'
@@ -200,22 +201,38 @@ function handleListaEspera(turno: Turno) {
   }
 }
 
+const removingEsperaId = ref<number | null>(null)
+
+async function handleQuitarEspera(turno: Turno) {
+  const entry = inscripcionStore.getWaitlistEntry(turno.id)
+  if (!entry || removingEsperaId.value !== null) return
+  removingEsperaId.value = entry.entry_id
+  try {
+    await quitarDeListaEspera(entry.entry_id)
+    inscripcionStore.removeWaitlistEntry(entry.entry_id)
+  } catch {
+    // el botón vuelve a habilitarse para reintentar
+  } finally {
+    removingEsperaId.value = null
+  }
+}
+
 // ─── Carga inicial ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
   const userId = isClienteFlow.value ? clienteId.value : inscripcionStore.clienteSeleccionado?.id ?? null
 
   try {
-    const requests: [ReturnType<typeof getTurnosParaInscripcion>, ReturnType<typeof getFormOptions>, Promise<number[]>] = [
+    const requests = [
       getTurnosParaInscripcion(),
       getFormOptions(),
-      userId !== null ? getAdminWaitlistTurnoIds(userId) : Promise.resolve([]),
-    ]
-    const [turnosRes, formOpts, waitlistIds] = await Promise.all(requests)
+      userId !== null ? getAdminWaitlistEntries(userId) : Promise.resolve([] as AdminWaitlistEntry[]),
+    ] as const
+    const [turnosRes, formOpts, waitlistEntries] = await Promise.all(requests)
     allTurnos.value = turnosRes.items
     allActivities.value = formOpts.activities
     activityMap.value = new Map(formOpts.activities.map((a: ActivityOption) => [a.id, a.name]))
-    inscripcionStore.setWaitlistedTurnoIds(waitlistIds)
+    inscripcionStore.setWaitlistEntries(waitlistEntries)
   } catch (err) {
     errorMessage.value = extractBackendError(err)
   } finally {
@@ -414,12 +431,20 @@ onMounted(async () => {
                     Inscribir cliente
                   </button>
                   <!-- Ya en lista de espera -->
-                  <span
-                    v-else-if="inscripcionStore.waitlistedTurnoIds.includes(turno.id)"
-                    class="badge-en-espera"
+                  <div
+                    v-else-if="inscripcionStore.getWaitlistEntry(turno.id)"
+                    class="espera-actions"
                   >
-                    En lista de espera
-                  </span>
+                    <span class="badge-en-espera">En lista de espera</span>
+                    <button
+                      type="button"
+                      class="btn-quitar-espera"
+                      :disabled="removingEsperaId === inscripcionStore.getWaitlistEntry(turno.id)!.entry_id"
+                      @click="handleQuitarEspera(turno)"
+                    >
+                      {{ removingEsperaId === inscripcionStore.getWaitlistEntry(turno.id)!.entry_id ? '...' : 'Quitar' }}
+                    </button>
+                  </div>
                   <!-- Sin cupo → Agregar a lista de espera -->
                   <button
                     v-else
@@ -958,9 +983,15 @@ onMounted(async () => {
 }
 
 /* En lista de espera */
+.espera-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .badge-en-espera {
   display: inline-block;
-  padding: 0.35rem 0.85rem;
+  padding: 0.35rem 0.65rem;
   background-color: #f0f9ff;
   color: #0369a1;
   border: 1px solid #bae6fd;
@@ -968,6 +999,29 @@ onMounted(async () => {
   font-size: 0.78rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.btn-quitar-espera {
+  padding: 0.25rem 0.55rem;
+  background: none;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.btn-quitar-espera:hover:not(:disabled) {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.btn-quitar-espera:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Footer tabla ── */
