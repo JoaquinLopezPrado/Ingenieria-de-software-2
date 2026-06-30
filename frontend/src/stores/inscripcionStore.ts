@@ -75,8 +75,9 @@ export const useInscripcionStore = defineStore('inscripcion', () => {
   }
 
   function markSubscriptionPendingCancel(subscriptionId: number) {
-    const entry = subscriptionEntries.value.find(e => e.subscription_id === subscriptionId)
-    if (entry) entry.status = 'PENDING_CANCEL'
+    subscriptionEntries.value = subscriptionEntries.value.map(e =>
+      e.subscription_id === subscriptionId ? { ...e, status: 'PENDING_CANCEL' } : e
+    )
   }
 
   function reset() {
