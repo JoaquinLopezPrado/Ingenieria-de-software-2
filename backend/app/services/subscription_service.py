@@ -209,6 +209,17 @@ class SubscriptionService:
         """Cancela suscripciones ACTIVE. Retorna turno_ids liberados."""
         return await self._repo.admin_cancel(subscription_ids=subscription_ids)
 
+    async def admin_unsubscribe(self, subscription_id: int) -> "tuple[date, int]":
+        """Baja programada iniciada por admin, sin verificar propiedad del usuario.
+        Retorna (ends_on, turno_id)."""
+        result = await self._repo.admin_schedule_cancellation(subscription_id=subscription_id)
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró una suscripción activa con ese ID.",
+            )
+        return result
+
     async def generate_charges_for_period(self, period_month: int, period_year: int) -> int:
         """Crea los cargos faltantes del período para TODAS las suscripciones activas (cron)."""
         return await self._ensure_current_charges(period_month=period_month, period_year=period_year)
