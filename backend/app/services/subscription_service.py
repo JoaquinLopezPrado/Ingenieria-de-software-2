@@ -220,6 +220,9 @@ class SubscriptionService:
             )
         return result
 
+    async def get_pending_charges(self) -> list[dict]:
+        return await self._repo.get_pending_charges_admin()
+
     async def generate_charges_for_period(self, period_month: int, period_year: int) -> int:
         """Crea los cargos faltantes del período para TODAS las suscripciones activas (cron)."""
         return await self._ensure_current_charges(period_month=period_month, period_year=period_year)

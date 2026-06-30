@@ -83,6 +83,21 @@ class CancelSubscriptionsRequest(BaseModel):
     subscription_ids: List[int]
 
 
+class AdminPendingChargeResponse(BaseModel):
+    charge_id: int
+    subscription_id: int
+    user_id: int
+    first_name: str
+    last_name: str
+    email: str
+    activity_name: str
+    turno_description: str
+    amount: Decimal
+    period_month: int
+    period_year: int
+    due_date: date | None
+
+
 class GenerateChargesResponse(BaseModel):
     charges_created: int
     period_month: int

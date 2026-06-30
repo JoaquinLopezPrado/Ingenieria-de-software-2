@@ -148,6 +148,11 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_pending_charges_admin(self) -> list[dict]:
+        """Cargos PENDING de suscripciones ACTIVE, con datos del cliente."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def admin_cancel(self, subscription_ids: list[int]) -> list[int]:
         """Cancela suscripciones ACTIVE. Retorna lista de turno_ids liberados."""
         raise NotImplementedError
@@ -738,6 +743,51 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
                 "turno_description": row[2],
                 "activity_name": row[3],
                 "unpaid_count": row[4],
+            }
+            for row in result.all()
+        ]
+
+    async def get_pending_charges_admin(self) -> list[dict]:
+        result = await self._session.execute(
+            select(
+                SubscriptionChargeORM.id,
+                SubscriptionChargeORM.subscription_id,
+                SubscriptionORM.user_id,
+                ClientProfileORM.first_name,
+                ClientProfileORM.last_name,
+                UserORM.email,
+                ActivityORM.name,
+                TurnoORM.description,
+                SubscriptionChargeORM.amount,
+                SubscriptionChargeORM.period_month,
+                SubscriptionChargeORM.period_year,
+                SubscriptionChargeORM.due_date,
+            )
+            .join(SubscriptionORM, SubscriptionORM.id == SubscriptionChargeORM.subscription_id)
+            .join(TurnoORM, TurnoORM.id == SubscriptionORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .join(UserORM, UserORM.id == SubscriptionORM.user_id)
+            .join(ClientProfileORM, ClientProfileORM.user_id == SubscriptionORM.user_id)
+            .where(
+                SubscriptionORM.status == SubscriptionStatus.ACTIVE,
+                SubscriptionChargeORM.status == ChargeStatus.PENDING,
+            )
+            .order_by(SubscriptionChargeORM.period_year, SubscriptionChargeORM.period_month, ClientProfileORM.last_name)
+        )
+        return [
+            {
+                "charge_id": row[0],
+                "subscription_id": row[1],
+                "user_id": row[2],
+                "first_name": row[3],
+                "last_name": row[4],
+                "email": row[5],
+                "activity_name": row[6],
+                "turno_description": row[7],
+                "amount": row[8],
+                "period_month": row[9],
+                "period_year": row[10],
+                "due_date": row[11],
             }
             for row in result.all()
         ]
