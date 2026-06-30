@@ -201,6 +201,19 @@ function handleInscribir(turno: Turno) {
   }
 }
 
+function handleReinscribir(turno: Turno, endsOn: string) {
+  // Calcula el mes siguiente a ends_on como mínimo para la nueva suscripción
+  const d = new Date(endsOn + 'T00:00:00')
+  const nextMonth = d.getMonth() === 11 ? 1 : d.getMonth() + 2
+  const nextYear = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear()
+  inscripcionStore.setTurno(turno)
+  router.push({
+    name: 'clientes-inscripciones-inscribir',
+    params: { clienteId: clienteId.value!, turnoId: turno.id },
+    query: { minMonth: nextMonth, minYear: nextYear },
+  })
+}
+
 function handleListaEspera(turno: Turno) {
   inscripcionStore.setTurno(turno)
   if (isClienteFlow.value) {
@@ -468,13 +481,23 @@ onMounted(async () => {
                       : 'Dar de baja'
                     }}
                   </button>
-                  <!-- Baja ya programada (active + ends_on seteado) → indicador informativo -->
-                  <span
+                  <!-- Baja ya programada (active + ends_on seteado) → badge + botón reinscribir -->
+                  <div
                     v-else-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !!inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on"
-                    class="badge-baja-programada"
+                    class="baja-programada-cell"
                   >
-                    Baja programada · hasta el {{ formatDate(inscripcionStore.getSubscriptionEntry(turno.id)!.ends_on!) }}
-                  </span>
+                    <span class="badge-baja-programada">
+                      Baja programada · hasta el {{ formatDate(inscripcionStore.getSubscriptionEntry(turno.id)!.ends_on!) }}
+                    </span>
+                    <button
+                      v-if="isClienteFlow"
+                      type="button"
+                      class="btn-reinscribir"
+                      @click="handleReinscribir(turno, inscripcionStore.getSubscriptionEntry(turno.id)!.ends_on!)"
+                    >
+                      Re-inscribir
+                    </button>
+                  </div>
                   <!-- Con cupo y sin suscripción → Inscribir cliente -->
                   <button
                     v-else-if="turno.has_remaining_classes"
@@ -1058,6 +1081,13 @@ onMounted(async () => {
 }
 
 /* Baja ya programada → badge informativo */
+.baja-programada-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
 .badge-baja-programada {
   display: inline-flex;
   align-items: center;
@@ -1069,6 +1099,24 @@ onMounted(async () => {
   font-weight: 600;
   padding: 0.35rem 0.75rem;
   white-space: nowrap;
+}
+
+.btn-reinscribir {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #11a691;
+  background: none;
+  border: 1px solid #11a691;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-reinscribir:hover {
+  background: #11a691;
+  color: #fff;
 }
 
 /* Escenario 7 — turno sin cupo */
