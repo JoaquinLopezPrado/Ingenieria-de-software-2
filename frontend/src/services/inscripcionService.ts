@@ -149,6 +149,23 @@ export const getEnrolledSingleClaseIds = async (userId: number): Promise<number[
   return (res.data as { clase_id: number }[]).map(e => e.clase_id)
 }
 
+export interface SubscriptionEntry {
+  subscription_id: number
+  turno_id: number
+  status: string
+}
+
+export const getSubscriptionsByUser = async (userId: number): Promise<SubscriptionEntry[]> => {
+  const res = await api.get(`/subscriptions/user/${userId}`)
+  return (res.data as { subscription_id: number; turno_id: number; status: string }[])
+    .map(e => ({ subscription_id: e.subscription_id, turno_id: e.turno_id, status: e.status }))
+}
+
+export const adminCancelSubscription = async (subscriptionId: number): Promise<string> => {
+  const res = await api.post(`/admin/enrollments/subscription/${subscriptionId}/cancel`)
+  return (res.data as { ends_on: string }).ends_on
+}
+
 export interface AdminWaitlistEntry {
   entry_id: number
   turno_id: number
