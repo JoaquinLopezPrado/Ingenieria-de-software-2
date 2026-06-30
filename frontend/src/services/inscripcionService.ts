@@ -39,13 +39,6 @@ export interface PreviewInscripcionResponse {
   total: number
 }
 
-export interface WaitlistEntry {
-  id: number
-  user_id: number
-  turno_id: number
-  position: number
-  created_at: string
-}
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -151,15 +144,24 @@ export const inscribirClienteClase = async (
  * Ver docs/pendientes-backend.md § 9.
  * Para activar: descomentar llamada real y eliminar bloque mock.
  */
-export const getAdminWaitlistTurnoIds = async (userId: number): Promise<number[]> => {
+export interface AdminWaitlistEntry {
+  entry_id: number
+  turno_id: number
+}
+
+export const getAdminWaitlistEntries = async (userId: number): Promise<AdminWaitlistEntry[]> => {
   const res = await api.get(`/admin/enrollments/waitlist/${userId}`)
   return res.data
+}
+
+export const quitarDeListaEspera = async (entryId: number): Promise<void> => {
+  await api.delete(`/admin/enrollments/waitlist/${entryId}`)
 }
 
 export const agregarListaEspera = async (
   turnoId: number,
   userId: number,
-): Promise<WaitlistEntry> => {
+): Promise<AdminWaitlistEntry> => {
   const res = await api.post('/admin/enrollments/waitlist', {
     turno_id: turnoId,
     user_id: userId,

@@ -4,15 +4,20 @@ import type { Cliente } from '@/services/inscripcionService'
 import type { Turno } from '@/services/sessionService'
 import type { ClaseInscribible } from '@/views/inscripciones/CalendarioClasesInscripcionView.vue'
 
+export interface WaitlistEntry {
+  entry_id: number
+  turno_id: number
+}
+
 export const useInscripcionStore = defineStore('inscripcion', () => {
   const clienteSeleccionado = ref<Cliente | null>(null)
   const turnoSeleccionado = ref<Turno | null>(null)
   const claseSeleccionada = ref<ClaseInscribible | null>(null)
-  const waitlistedTurnoIds = ref<number[]>([])
+  const waitlistEntries = ref<WaitlistEntry[]>([])
 
   function setCliente(cliente: Cliente | null) {
     clienteSeleccionado.value = cliente
-    waitlistedTurnoIds.value = []
+    waitlistEntries.value = []
   }
 
   function setTurno(turno: Turno | null) {
@@ -23,22 +28,35 @@ export const useInscripcionStore = defineStore('inscripcion', () => {
     claseSeleccionada.value = clase
   }
 
-  function markWaitlisted(turnoId: number) {
-    if (!waitlistedTurnoIds.value.includes(turnoId)) {
-      waitlistedTurnoIds.value.push(turnoId)
+  function markWaitlisted(entry_id: number, turno_id: number) {
+    if (!waitlistEntries.value.some(e => e.turno_id === turno_id)) {
+      waitlistEntries.value.push({ entry_id, turno_id })
     }
   }
 
-  function setWaitlistedTurnoIds(ids: number[]) {
-    waitlistedTurnoIds.value = ids
+  function setWaitlistEntries(entries: WaitlistEntry[]) {
+    waitlistEntries.value = entries
+  }
+
+  function removeWaitlistEntry(entry_id: number) {
+    waitlistEntries.value = waitlistEntries.value.filter(e => e.entry_id !== entry_id)
+  }
+
+  function getWaitlistEntry(turno_id: number): WaitlistEntry | undefined {
+    return waitlistEntries.value.find(e => e.turno_id === turno_id)
   }
 
   function reset() {
     clienteSeleccionado.value = null
     turnoSeleccionado.value = null
     claseSeleccionada.value = null
-    waitlistedTurnoIds.value = []
+    waitlistEntries.value = []
   }
 
-  return { clienteSeleccionado, turnoSeleccionado, claseSeleccionada, waitlistedTurnoIds, setCliente, setTurno, setClase, markWaitlisted, setWaitlistedTurnoIds, reset }
+  return {
+    clienteSeleccionado, turnoSeleccionado, claseSeleccionada, waitlistEntries,
+    setCliente, setTurno, setClase,
+    markWaitlisted, setWaitlistEntries, removeWaitlistEntry, getWaitlistEntry,
+    reset,
+  }
 })
