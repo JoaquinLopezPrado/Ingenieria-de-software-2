@@ -3,7 +3,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
-import { createSingleEnrollment, extractBackendError } from '@/services/sessionService'
+import { extractBackendError } from '@/services/sessionService'
+import { inscribirClienteClase } from '@/services/inscripcionService'
 
 const router = useRouter()
 const store = useInscripcionStore()
@@ -56,13 +57,11 @@ function getInitials(first: string, last: string): string {
 // ─── Acciones ─────────────────────────────────────────────────────────────────
 
 async function handleConfirmar() {
-  if (!clase.value || isConfirming.value) return
+  if (!clase.value || !cliente.value || isConfirming.value) return
   confirmError.value = null
   isConfirming.value = true
   try {
-    // ⚠ El endpoint actual no acepta user_id ni payment_type.
-    // Ver docs/pendientes-backend.md § 13.
-    await createSingleEnrollment([clase.value!.id])
+    await inscribirClienteClase(clase.value.id, cliente.value.id)
     isSuccess.value = true
   } catch (err) {
     confirmError.value = extractBackendError(err)
