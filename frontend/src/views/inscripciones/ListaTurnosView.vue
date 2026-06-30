@@ -211,7 +211,7 @@ const bajaError = ref<string | null>(null)
 
 async function handleDarDeBaja(turno: Turno) {
   const entry = inscripcionStore.getSubscriptionEntry(turno.id)
-  if (!entry || entry.status !== 'ACTIVE' || cancellingSubscriptionId.value !== null) return
+  if (!entry || entry.status !== 'active' || entry.ends_on || cancellingSubscriptionId.value !== null) return
   bajaError.value = null
   cancellingSubscriptionId.value = entry.subscription_id
   try {
