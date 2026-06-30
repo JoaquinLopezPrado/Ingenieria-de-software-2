@@ -66,6 +66,7 @@ async function handleConfirmar() {
   try {
     const userId = isClienteFlow.value ? clienteId.value! : store.clienteSeleccionado!.id
     await agregarListaEspera(turno.value.id, userId)
+    store.markWaitlisted(turno.value.id)
     store.setTurno(null)
     isSuccess.value = true
   } catch (err) {

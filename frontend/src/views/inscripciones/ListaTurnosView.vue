@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
-import { getTurnosParaInscripcion } from '@/services/inscripcionService'
+import { getTurnosParaInscripcion, getAdminWaitlistTurnoIds } from '@/services/inscripcionService'
 import { getFormOptions, extractBackendError, type Turno, type ActivityOption } from '@/services/sessionService'
 import { getClienteById } from '@/services/clientesService'
 import type { Cliente as ClienteService } from '@/services/clientesService'
@@ -203,14 +203,19 @@ function handleListaEspera(turno: Turno) {
 // ─── Carga inicial ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
+  const userId = isClienteFlow.value ? clienteId.value : inscripcionStore.clienteSeleccionado?.id ?? null
+
   try {
-    const [turnosRes, formOpts] = await Promise.all([
+    const requests: [ReturnType<typeof getTurnosParaInscripcion>, ReturnType<typeof getFormOptions>, Promise<number[]>] = [
       getTurnosParaInscripcion(),
       getFormOptions(),
-    ])
+      userId !== null ? getAdminWaitlistTurnoIds(userId) : Promise.resolve([]),
+    ]
+    const [turnosRes, formOpts, waitlistIds] = await Promise.all(requests)
     allTurnos.value = turnosRes.items
     allActivities.value = formOpts.activities
     activityMap.value = new Map(formOpts.activities.map((a: ActivityOption) => [a.id, a.name]))
+    inscripcionStore.setWaitlistedTurnoIds(waitlistIds)
   } catch (err) {
     errorMessage.value = extractBackendError(err)
   } finally {
@@ -399,7 +404,7 @@ onMounted(async () => {
                   </span>
                 </td>
                 <td class="cell-accion">
-                  <!-- Escenario 6: turno con cupo → Inscribir cliente -->
+                  <!-- Turno con cupo → Inscribir cliente -->
                   <button
                     v-if="turno.has_remaining_classes"
                     type="button"
@@ -408,7 +413,14 @@ onMounted(async () => {
                   >
                     Inscribir cliente
                   </button>
-                  <!-- Escenario 7: turno sin cupo → Lista de espera -->
+                  <!-- Ya en lista de espera -->
+                  <span
+                    v-else-if="inscripcionStore.waitlistedTurnoIds.includes(turno.id)"
+                    class="badge-en-espera"
+                  >
+                    En lista de espera
+                  </span>
+                  <!-- Sin cupo → Agregar a lista de espera -->
                   <button
                     v-else
                     type="button"
@@ -943,6 +955,19 @@ onMounted(async () => {
 .btn-espera:hover {
   background-color: #ffedd5;
   border-color: #fdba74;
+}
+
+/* En lista de espera */
+.badge-en-espera {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* ── Footer tabla ── */
