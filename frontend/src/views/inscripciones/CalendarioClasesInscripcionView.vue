@@ -19,6 +19,7 @@ export interface ClaseInscribible {
   enrolled: number
   activity_id: number
   activity_name: string
+  turno_description: string
   class_price: number
 }
 
@@ -180,6 +181,7 @@ onMounted(async () => {
                 ...c,
                 activity_id: turno.activity_id,
                 activity_name: activityMap.get(turno.activity_id) ?? `Actividad #${turno.activity_id}`,
+                turno_description: turno.description,
                 class_price: turno.class_price,
               }) as ClaseInscribible)
           )
@@ -318,7 +320,7 @@ onMounted(async () => {
               :disabled="store.enrolledClaseIds.includes(clase.id) || clase.enrolled >= clase.capacity"
               @click="handleClaseClick(clase)"
             >
-              <span class="clase-actividad">{{ clase.activity_name }}</span>
+              <span class="clase-actividad">{{ clase.activity_name }}{{ clase.turno_description ? ` · ${clase.turno_description}` : '' }}</span>
               <span class="clase-horario">{{ clase.start_time }} – {{ clase.end_time }}</span>
               <div class="clase-meta">
                 <span :class="[
