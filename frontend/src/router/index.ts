@@ -288,13 +288,13 @@ const router = createRouter({
       path: '/inscripciones/clases',
       name: 'inscripciones-clases',
       component: () => import('../views/inscripciones/CalendarioClasesInscripcionView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresStaff: true },
     },
     {
       path: '/inscripciones/clases/:claseId/inscribir',
       name: 'inscripciones-inscribir-clase',
       component: () => import('../views/inscripciones/InscribirClaseView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresStaff: true },
     },
   ]
 })
@@ -337,7 +337,7 @@ router.beforeEach(async (to: RouteLocationNormalized, from: RouteLocationNormali
   }
 
   // Rutas marcadas como requiresStaff son accesibles por admin y empleado
-  if (to.meta.requiresStaff && !isAdmin && !isEmployee) {
+  if (to.meta.requiresStaff && !isStaff) {
     return { name: 'list' }
   }
 
