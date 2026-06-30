@@ -207,16 +207,18 @@ function handleListaEspera(turno: Turno) {
 
 const removingEsperaId = ref<number | null>(null)
 const cancellingSubscriptionId = ref<number | null>(null)
+const bajaError = ref<string | null>(null)
 
 async function handleDarDeBaja(turno: Turno) {
   const entry = inscripcionStore.getSubscriptionEntry(turno.id)
   if (!entry || entry.status !== 'ACTIVE' || cancellingSubscriptionId.value !== null) return
+  bajaError.value = null
   cancellingSubscriptionId.value = entry.subscription_id
   try {
     await adminCancelSubscription(entry.subscription_id)
     inscripcionStore.markSubscriptionPendingCancel(entry.subscription_id)
-  } catch {
-    // el botón vuelve a habilitarse para reintentar
+  } catch (err) {
+    bajaError.value = extractBackendError(err)
   } finally {
     cancellingSubscriptionId.value = null
   }
@@ -314,6 +316,12 @@ onMounted(async () => {
           <span class="cliente-name">{{ cliente.first_name }} {{ cliente.last_name }}</span>
           <span class="cliente-doc">{{ cliente.doc_type_name }} {{ cliente.doc_number }}</span>
         </div>
+      </div>
+
+      <!-- ── Error de baja ── -->
+      <div v-if="bajaError" class="inline-error" role="alert">
+        <span>⚠ {{ bajaError }}</span>
+        <button type="button" class="inline-error-close" @click="bajaError = null">✕</button>
       </div>
 
       <!-- ── Panel de filtros ── -->
@@ -655,6 +663,33 @@ onMounted(async () => {
   font-size: 0.82rem;
   color: #065f46;
   font-weight: 500;
+}
+
+/* ── Error inline (ej: fallo en dar de baja) ── */
+
+.inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.inline-error-close {
+  background: none;
+  border: none;
+  color: #991b1b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  padding: 0;
 }
 
 /* ── Panel de filtros ── */
