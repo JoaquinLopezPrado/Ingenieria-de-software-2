@@ -36,19 +36,26 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
 
 interface MesOption { label: string; month: number; year: number }
 
+// Lee los query params opcionales que impone un mes mínimo (flujo re-inscripción desde baja programada)
+const qMinMonth = Number(route.query.minMonth) || null
+const qMinYear  = Number(route.query.minYear)  || null
+
 function buildMesOptions(): MesOption[] {
   const opts: MesOption[] = []
   const now = new Date()
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    opts.push({ label: `${MESES[d.getMonth()]} ${d.getFullYear()}`, month: d.getMonth() + 1, year: d.getFullYear() })
+    const m = d.getMonth() + 1
+    const y = d.getFullYear()
+    if (qMinMonth && qMinYear && (y < qMinYear || (y === qMinYear && m < qMinMonth))) continue
+    opts.push({ label: `${MESES[d.getMonth()]} ${y}`, month: m, year: y })
   }
   return opts
 }
 
 const mesOptions = buildMesOptions()
-// null = auto (primer mes disponible); { month, year } = mes específico
-const selectedMes = ref<MesOption | null>(null)
+// Pre-selecciona el mes mínimo si viene del flujo de re-inscripción; null = auto
+const selectedMes = ref<MesOption | null>(mesOptions[0] && qMinMonth ? mesOptions[0] : null)
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
 
