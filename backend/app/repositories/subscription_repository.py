@@ -19,7 +19,9 @@ from app.domain.subscription import (
 )
 from app.domain.single_enrollment import SingleEnrollmentStatus
 from app.models.activity import Activity as ActivityORM
+from app.models.auth import User as UserORM
 from app.models.clase import Clase as ClaseORM
+from app.models.profile import ClientProfile as ClientProfileORM
 from app.models.single_enrollment import SingleEnrollment as SingleEnrollmentORM, SingleEnrollmentSlot as SingleSlotORM
 from app.models.subscription import Subscription as SubscriptionORM, SubscriptionCharge as SubscriptionChargeORM
 from app.models.turno import Turno as TurnoORM
@@ -124,6 +126,13 @@ class AbstractSubscriptionRepository(ABC):
 
     @abstractmethod
     async def get_active_missing_charge(self, period_month: int, period_year: int, user_id: int | None = None) -> list[tuple[int, int, Decimal]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_active_missing_charge_full(
+        self, period_month: int, period_year: int
+    ) -> "list[tuple[int, int, Decimal, str, str, str, str]]":
+        """Igual que get_active_missing_charge pero incluye email, first_name, activity_name, turno_description."""
         raise NotImplementedError
 
     @abstractmethod
@@ -635,6 +644,42 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             query = query.where(SubscriptionORM.user_id == user_id)
         result = await self._session.execute(query)
         return [(row[0], row[1], row[2]) for row in result.all()]
+
+    async def get_active_missing_charge_full(
+        self, period_month: int, period_year: int
+    ) -> "list[tuple[int, int, Decimal, str, str, str, str]]":
+        period_end = date(period_year, period_month, calendar.monthrange(period_year, period_month)[1])
+        has_charge = (
+            select(SubscriptionChargeORM.id)
+            .where(
+                SubscriptionChargeORM.subscription_id == SubscriptionORM.id,
+                SubscriptionChargeORM.period_month == period_month,
+                SubscriptionChargeORM.period_year == period_year,
+            )
+            .exists()
+        )
+        result = await self._session.execute(
+            select(
+                SubscriptionORM.id,
+                TurnoORM.id,
+                TurnoORM.class_price,
+                UserORM.email,
+                ClientProfileORM.first_name,
+                ActivityORM.name,
+                TurnoORM.description,
+            )
+            .join(TurnoORM, TurnoORM.id == SubscriptionORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .join(UserORM, UserORM.id == SubscriptionORM.user_id)
+            .join(ClientProfileORM, ClientProfileORM.user_id == SubscriptionORM.user_id)
+            .where(
+                SubscriptionORM.status == SubscriptionStatus.ACTIVE,
+                SubscriptionORM.ends_on.is_(None),
+                SubscriptionORM.start_date <= period_end,
+                ~has_charge,
+            )
+        )
+        return [(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in result.all()]
 
     async def count_clases_in_period(self, turno_id: int, period_month: int, period_year: int) -> int:
         result = await self._session.execute(
