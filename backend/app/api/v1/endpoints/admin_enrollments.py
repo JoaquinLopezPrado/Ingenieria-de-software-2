@@ -15,6 +15,7 @@ from app.schemas.admin_enrollment import (
     AdminSubscriptionEnrollResponse,
     AdminSubscriptionPreviewRequest,
     AdminSubscriptionPreviewResponse,
+    AdminWaitlistEntry,
     AdminWaitlistRequest,
     AdminWaitlistResponse,
     ClasePreviewItem,
@@ -119,14 +120,23 @@ async def enroll_single_cash(
     )
 
 
-@router.get("/waitlist/{user_id}", response_model=list[int], status_code=status.HTTP_200_OK)
-async def get_user_waitlist_turno_ids(
+@router.get("/waitlist/{user_id}", response_model=list[AdminWaitlistEntry], status_code=status.HTTP_200_OK)
+async def get_user_waitlist_entries(
     user_id: int,
     _=require_roles("admin", "empleado"),
     service: WaitlistService = Depends(_get_waitlist_service),
 ):
     entries = await service.get_by_user(user_id=user_id)
-    return [e.turno_id for e in entries]
+    return [AdminWaitlistEntry(entry_id=e.entry_id, turno_id=e.turno_id) for e in entries]
+
+
+@router.delete("/waitlist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def admin_remove_from_waitlist(
+    entry_id: int,
+    _=require_roles("admin", "empleado"),
+    service: WaitlistService = Depends(_get_waitlist_service),
+):
+    await service.admin_leave(entry_id=entry_id)
 
 
 @router.post(

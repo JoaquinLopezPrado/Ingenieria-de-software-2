@@ -50,6 +50,11 @@ class AdminSingleEnrollResponse(BaseModel):
     amount: Decimal
 
 
+class AdminWaitlistEntry(BaseModel):
+    entry_id: int
+    turno_id: int
+
+
 class AdminWaitlistRequest(BaseModel):
     turno_id: int
     user_id: int
