@@ -744,3 +744,65 @@ def employee_welcome(first_name: str, set_password_url: str) -> str:
     """
     return _wrap(content)
 
+
+_MESES = [
+    "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
+
+
+def subscription_charge_pending(
+    first_name: str,
+    activity_name: str,
+    turno_description: str,
+    amount: Decimal,
+    period_month: int,
+    period_year: int,
+    due_date: date,
+    payment_url: str,
+) -> str:
+    mes_str = f"{_MESES[period_month]} {period_year}"
+    due_str = f"{due_date.day:02d}/{due_date.month:02d}/{due_date.year}"
+    content = f"""
+      <h2 style="color:#11a691;margin-top:0;">Hola {first_name}, tu cuota de {mes_str} está lista</h2>
+      <p style="color:#444;line-height:1.6;">
+        Ya generamos el cargo del mes de <strong>{mes_str}</strong> para tu suscripción.
+        Podés abonarlo en línea con Mercado Pago o acercarte al gimnasio a pagar en efectivo.
+      </p>
+      <table width="100%" cellpadding="8" cellspacing="0"
+             style="border-collapse:collapse;margin:20px 0;">
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Actividad</td>
+          <td style="color:#222;font-weight:bold;">{activity_name}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Turno</td>
+          <td style="color:#222;">{turno_description}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Período</td>
+          <td style="color:#222;">{mes_str.capitalize()}</td>
+        </tr>
+        <tr>
+          <td style="color:#666;font-size:13px;">Monto</td>
+          <td style="color:#222;font-weight:bold;">$ {amount:,.2f}</td>
+        </tr>
+        <tr style="background:#f0faf8;">
+          <td style="color:#666;font-size:13px;">Vencimiento</td>
+          <td style="color:#e53935;font-weight:bold;">{due_str}</td>
+        </tr>
+      </table>
+      <p style="margin-top:28px;">
+        <a href="{payment_url}"
+           style="background:#11a691;color:#fff;padding:12px 24px;
+                  border-radius:8px;text-decoration:none;font-weight:bold;">
+          Pagar con Mercado Pago
+        </a>
+      </p>
+      <p style="color:#444;font-size:13px;margin-top:20px;line-height:1.6;">
+        <strong>Pago en efectivo:</strong> también podés acercarte al gimnasio en el horario
+        de atención y abonar tu cuota directamente en la recepción.
+      </p>
+    """
+    return _wrap(content)
+

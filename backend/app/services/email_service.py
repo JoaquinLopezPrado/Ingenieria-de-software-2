@@ -21,6 +21,7 @@ from app.services.email_templates import (
     employee_welcome,
     password_reset,
     single_payment_confirmed,
+    subscription_charge_pending,
     subscription_payment_confirmed,
     turno_baja,
     waitlist_promoted,
@@ -250,6 +251,26 @@ class EmailService:
         html = waitlist_promoted(first_name, activity_name, turno_description, float(amount), ttl_minutes)
         asyncio.create_task(
             self._send(to, f"¡Tenés un lugar en {activity_name}! — Centro de Actividades", html)
+        )
+
+    def send_subscription_charge_pending(
+        self,
+        to: str,
+        first_name: str,
+        activity_name: str,
+        turno_description: str,
+        amount: Decimal,
+        period_month: int,
+        period_year: int,
+        due_date: "date",
+        payment_url: str,
+    ) -> None:
+        html = subscription_charge_pending(
+            first_name, activity_name, turno_description,
+            amount, period_month, period_year, due_date, payment_url,
+        )
+        asyncio.create_task(
+            self._send(to, f"Tu cuota de {activity_name} está lista — Centro de Actividades", html)
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:
