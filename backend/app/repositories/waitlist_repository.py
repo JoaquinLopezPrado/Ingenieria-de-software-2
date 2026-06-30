@@ -32,6 +32,10 @@ class AbstractWaitlistRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def admin_leave(self, entry_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_next_waiting(self, turno_id: int) -> WaitlistEntry | None:
         raise NotImplementedError
 
@@ -54,6 +58,21 @@ class WaitlistRepository(AbstractWaitlistRepository):
 
     def __init__(self, session: AsyncSession):
         self._session = session
+
+    async def admin_leave(self, entry_id: int) -> None:
+        result = await self._session.execute(
+            update(WaitlistORM)
+            .where(
+                WaitlistORM.id == entry_id,
+                WaitlistORM.status == WaitlistStatus.WAITING,
+            )
+            .values(status=WaitlistStatus.CANCELLED, cancelled_at=datetime.now(timezone.utc))
+        )
+        if result.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Entrada en lista de espera no encontrada.",
+            )
 
     async def join(self, turno_id: int, user_id: int) -> WaitlistEntry:
         # Verificar que no tenga ya una suscripción activa.

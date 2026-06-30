@@ -30,6 +30,9 @@ class WaitlistService:
     async def leave(self, entry_id: int, user_id: int) -> None:
         await self._repo.leave(entry_id=entry_id, user_id=user_id)
 
+    async def admin_leave(self, entry_id: int) -> None:
+        await self._repo.admin_leave(entry_id=entry_id)
+
     async def get_by_user(self, user_id: int) -> list[MyWaitlistEntry]:
         return await self._repo.get_by_user(user_id=user_id)
 
