@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import { adminGenerateNextMonthCharges, type GenerateChargesResponse } from '@/services/subscriptionService'
-import { extractBackendError } from '@/utils/errors'
+import { extractBackendError } from '@/services/sessionService'
 
 const _MESES = [
   '', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
