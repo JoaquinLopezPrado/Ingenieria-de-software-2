@@ -144,6 +144,17 @@ class TurnoService:
             )
         return await self._clase_repo.list_by_turno(turno_id, include_past=include_past)
 
+    async def preview_upcoming_classes(self, turno_id: int) -> tuple[date, date, int]:
+        """Devuelve (date_from, date_to, count) sin crear clases."""
+        turno = await self._turno_repo.get_by_id(turno_id)
+        if not turno:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
+        last_date = await self._clase_repo.get_last_date(turno_id)
+        start = (last_date + timedelta(days=1)) if last_date else date.today()
+        end = _end_date_months_ahead(start, _MONTHS_AHEAD)
+        dates = _generate_dates_in_range(start, end, turno.days)
+        return start, end, len(dates)
+
     async def generate_upcoming_classes(self, turno_id: int) -> int:
         turno = await self._turno_repo.get_by_id(turno_id)
         if not turno:

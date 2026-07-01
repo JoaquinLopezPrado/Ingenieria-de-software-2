@@ -6,6 +6,7 @@ import {
   getTurnosAll,
   getAllActivities,
   generateClasses,
+  previewGenerateClasses,
   extractBackendError,
   type Turno,
   type ActivityOption,
@@ -167,24 +168,46 @@ function goToPage(page: number | '...') {
   if (typeof page === 'number') currentPage.value = page
 }
 
-// ─── Generación de clases ─────────────────────────────────────────────────────
+// ─── Modal de generación de clases ───────────────────────────────────────────
 
-const generatingTurnoId = ref<number | null>(null)
-const generateResult = ref<{ turnoId: number; generated: number } | null>(null)
+type GenerateModal =
+  | { phase: 'loading'; turnoId: number }
+  | { phase: 'confirm'; turnoId: number; dateFrom: string; dateTo: string; count: number }
+  | { phase: 'generating' }
+  | { phase: 'done'; generated: number }
+  | { phase: 'error'; message: string }
+
+const generateModal = ref<GenerateModal | null>(null)
+
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y!, m! - 1, d!).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 async function handleGenerateClasses(turnoId: number) {
-  generatingTurnoId.value = turnoId
-  generateResult.value = null
+  generateModal.value = { phase: 'loading', turnoId }
+  try {
+    const { date_from, date_to, count } = await previewGenerateClasses(turnoId)
+    generateModal.value = { phase: 'confirm', turnoId, dateFrom: date_from, dateTo: date_to, count }
+  } catch {
+    generateModal.value = { phase: 'error', message: 'No se pudo obtener el preview. Intentá de nuevo.' }
+  }
+}
+
+async function confirmGenerateClasses() {
+  if (!generateModal.value || generateModal.value.phase !== 'confirm') return
+  const turnoId = generateModal.value.turnoId
+  generateModal.value = { phase: 'generating' }
   try {
     const { generated } = await generateClasses(turnoId)
-    generateResult.value = { turnoId, generated }
-    setTimeout(() => { generateResult.value = null }, 4000)
+    generateModal.value = { phase: 'done', generated }
   } catch {
-    generateResult.value = { turnoId, generated: -1 }
-    setTimeout(() => { generateResult.value = null }, 4000)
-  } finally {
-    generatingTurnoId.value = null
+    generateModal.value = { phase: 'error', message: 'Error al generar las clases. Intentá de nuevo.' }
   }
+}
+
+function closeGenerateModal() {
+  generateModal.value = null
 }
 
 // ─── Carga inicial ─────────────────────────────────────────────────────────────
@@ -419,22 +442,12 @@ onMounted(async () => {
                 <button
                   v-if="turno.is_active"
                   class="btn-generate"
-                  :disabled="generatingTurnoId === turno.id"
+                  :disabled="generateModal?.phase === 'loading' || generateModal?.phase === 'generating'"
                   @click="handleGenerateClasses(turno.id)"
                   type="button"
                 >
-                  {{ generatingTurnoId === turno.id ? '...' : '+ Clases' }}
+                  + Clases
                 </button>
-                <span
-                  v-if="generateResult?.turnoId === turno.id"
-                  :class="['generate-result', generateResult.generated >= 0 ? 'ok' : 'err']"
-                >
-                  {{ generateResult.generated >= 0
-                    ? generateResult.generated === 0
-                      ? 'Sin clases nuevas'
-                      : `${generateResult.generated} clases generadas`
-                    : 'Error al generar' }}
-                </span>
               </td>
             </tr>
           </tbody>
@@ -483,6 +496,68 @@ onMounted(async () => {
       </div>
 
     </div>
+
+    <!-- ── Modal generación de clases ── -->
+    <Teleport to="body">
+      <div v-if="generateModal" class="modal-overlay" @click.self="closeGenerateModal">
+        <div class="modal-box" role="dialog" aria-modal="true">
+
+          <!-- Cargando preview -->
+          <template v-if="generateModal.phase === 'loading'">
+            <div class="modal-spinner"></div>
+            <p class="modal-msg">Calculando clases a generar...</p>
+          </template>
+
+          <!-- Confirmación -->
+          <template v-else-if="generateModal.phase === 'confirm'">
+            <h3 class="modal-title">Generar clases</h3>
+            <div class="modal-info-grid">
+              <span class="modal-label">Desde</span>
+              <span class="modal-value">{{ formatDate(generateModal.dateFrom) }}</span>
+              <span class="modal-label">Hasta</span>
+              <span class="modal-value">{{ formatDate(generateModal.dateTo) }}</span>
+              <span class="modal-label">Total</span>
+              <span class="modal-value modal-value--highlight">
+                {{ generateModal.count === 0 ? 'Sin clases nuevas' : `${generateModal.count} clase${generateModal.count !== 1 ? 's' : ''}` }}
+              </span>
+            </div>
+            <div class="modal-actions">
+              <button class="modal-btn modal-btn--cancel" @click="closeGenerateModal" type="button">Cancelar</button>
+              <button
+                class="modal-btn modal-btn--confirm"
+                :disabled="generateModal.count === 0"
+                @click="confirmGenerateClasses"
+                type="button"
+              >Confirmar</button>
+            </div>
+          </template>
+
+          <!-- Generando -->
+          <template v-else-if="generateModal.phase === 'generating'">
+            <div class="modal-spinner"></div>
+            <p class="modal-msg">Generando clases...</p>
+          </template>
+
+          <!-- Resultado -->
+          <template v-else-if="generateModal.phase === 'done'">
+            <div class="modal-icon modal-icon--ok">✓</div>
+            <p class="modal-msg">
+              {{ generateModal.generated === 0 ? 'No había clases nuevas para generar.' : `Se generaron ${generateModal.generated} clase${generateModal.generated !== 1 ? 's' : ''} correctamente.` }}
+            </p>
+            <button class="modal-btn modal-btn--confirm" @click="closeGenerateModal" type="button">Cerrar</button>
+          </template>
+
+          <!-- Error -->
+          <template v-else-if="generateModal.phase === 'error'">
+            <div class="modal-icon modal-icon--err">!</div>
+            <p class="modal-msg">{{ generateModal.message }}</p>
+            <button class="modal-btn modal-btn--cancel" @click="closeGenerateModal" type="button">Cerrar</button>
+          </template>
+
+        </div>
+      </div>
+    </Teleport>
+
   </AdminLayout>
 </template>
 
@@ -1028,4 +1103,143 @@ onMounted(async () => {
     gap: 0.5rem;
   }
 }
+
+/* ── Modal generación de clases ── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  min-width: 320px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.modal-info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  width: 100%;
+  text-align: left;
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.modal-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+}
+
+.modal-value {
+  font-size: 0.9rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.modal-value--highlight {
+  font-weight: 700;
+  color: #0d3027;
+  font-size: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.modal-btn--cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-btn--cancel:hover {
+  background: #e5e7eb;
+}
+
+.modal-btn--confirm {
+  background: #0d3027;
+  color: white;
+}
+
+.modal-btn--confirm:hover:not(:disabled) {
+  background: #18b4a3;
+}
+
+.modal-btn--confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #0d9b8a;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.modal-msg {
+  font-size: 0.92rem;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.modal-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.modal-icon--ok { background: #d1fae5; color: #065f46; }
+.modal-icon--err { background: #fee2e2; color: #991b1b; }
 </style>

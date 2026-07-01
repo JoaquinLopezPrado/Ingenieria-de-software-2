@@ -238,6 +238,11 @@ export const getClasesByTurnoAdmin = async (turnoId: number): Promise<ClaseDetal
   return res.data
 }
 
+export const previewGenerateClasses = async (turnoId: number): Promise<{ date_from: string; date_to: string; count: number }> => {
+  const res = await api.get(`/turnos/${turnoId}/generate-classes/preview`)
+  return res.data
+}
+
 export const generateClasses = async (turnoId: number): Promise<{ generated: number }> => {
   const res = await api.post(`/turnos/${turnoId}/generate-classes`)
   return res.data

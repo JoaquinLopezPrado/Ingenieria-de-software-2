@@ -125,6 +125,12 @@ class ClaseDetalleResponse(BaseModel):
         return _format_time(value)
 
 
+class GenerateClassesPreviewResponse(BaseModel):
+    date_from: date
+    date_to: date
+    count: int
+
+
 class GenerateClassesResponse(BaseModel):
     generated: int
 

@@ -15,6 +15,7 @@ from app.schemas.turno import (
     ClaseDetalleResponse,
     CreateTurnoRequest,
     DeactivationImpactResponse,
+    GenerateClassesPreviewResponse,
     GenerateClassesResponse,
     SetTurnoActiveRequest,
     TurnoPageResponse,
@@ -174,6 +175,20 @@ async def set_turno_active(
     service: TurnoService = Depends(get_turno_service),
 ):
     return await service.set_active(turno_id, body.is_active, current_user.id)
+
+
+@router.get(
+    "/{turno_id}/generate-classes/preview",
+    response_model=GenerateClassesPreviewResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def preview_generate_classes(
+    turno_id: int,
+    _=require_roles("admin"),
+    service: TurnoService = Depends(get_turno_service),
+):
+    date_from, date_to, count = await service.preview_upcoming_classes(turno_id)
+    return GenerateClassesPreviewResponse(date_from=date_from, date_to=date_to, count=count)
 
 
 @router.post(
