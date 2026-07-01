@@ -69,7 +69,7 @@ async def list_all_turnos(
     activity_id: Optional[int] = Query(None),
     has_availability: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
-    _=require_roles("admin"),
+    _=require_roles("admin", "empleado"),
     service: TurnoService = Depends(get_turno_service),
 ):
     items, total, page_size = await service.list_all(activity_id, has_availability, page)
