@@ -178,6 +178,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/clientes/:clienteId/pagos',
+      name: 'cliente-pagos',
+      component: () => import('../views/PagoCliente.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/pagos',
       name: 'pagos',
       component: () => import('../views/PagosView.vue'),

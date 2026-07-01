@@ -263,6 +263,12 @@ const hasData = computed(() =>
                     class="btn-accion btn-ver-ficha"
                   >
                     Ver ficha
+                  </RouterLink>  
+                  <RouterLink
+                    :to="{ name: 'cliente-pagos', params: { clienteId: cliente.id } }"
+                    class="btn-accion btn-ver-pagos"
+                  >
+                    Ver Pagos
                   </RouterLink>
                 </td>
               </tr>
@@ -669,7 +675,18 @@ const hasData = computed(() =>
   border-color: #6ee7b7;
 }
 
-/* ── Footer tabla ── */
+.btn-ver-pagos {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.btn-ver-pagos:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+}
+
+/* ── Footer ── */
 
 .table-footer {
   display: flex;
