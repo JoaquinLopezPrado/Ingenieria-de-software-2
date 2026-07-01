@@ -283,6 +283,12 @@ const hasData = computed(() =>
                     class="btn-accion btn-ver-ficha"
                   >
                     Ver ficha
+                  </RouterLink>  
+                  <RouterLink
+                    :to="{ name: 'cliente-pagos', params: { clienteId: cliente.id } }"
+                    class="btn-accion btn-ver-pagos"
+                  >
+                    Ver Pagos
                   </RouterLink>
                 </td>
               </tr>
