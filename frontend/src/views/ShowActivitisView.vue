@@ -924,11 +924,13 @@ const handleJoinWaitlist = async (turno) => {
     next.set(turno.id, { entry_id: data.entry_id })
     myWaitlistByTurno.value = next
   } catch (err) {
-    if (err.response?.status === 409) {
-      errorMensaje.value = err.response.data?.detail || 'Ya estás en la lista de espera o tenés una suscripción activa.'
-    } else {
-      errorMensaje.value = 'Ocurrió un error. Intentá de nuevo.'
-    }
+    const data = err.response?.data
+    const detail = typeof data === 'string' ? data : (data?.detail ?? data?.errors?.general)
+    errorMensaje.value = detail || (
+      err.response?.status === 409
+        ? 'No podés unirte a esta lista de espera. Verificá que no tengas inscripciones en el mismo horario.'
+        : 'Ocurrió un error. Intentá de nuevo.'
+    )
     avisoLleno.value = turno.id
     setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
   } finally {
