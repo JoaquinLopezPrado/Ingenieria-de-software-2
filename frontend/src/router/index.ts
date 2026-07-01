@@ -288,13 +288,13 @@ const router = createRouter({
       path: '/inscripciones/clases',
       name: 'inscripciones-clases',
       component: () => import('../views/inscripciones/CalendarioClasesInscripcionView.vue'),
-      meta: { requiresAuth: true, requiresStaff: true },
+      meta: { requiresAuth: true, requiresStaff: true, claseFlow: true },
     },
     {
       path: '/inscripciones/clases/:claseId/inscribir',
       name: 'inscripciones-inscribir-clase',
       component: () => import('../views/inscripciones/InscribirClaseView.vue'),
-      meta: { requiresAuth: true, requiresStaff: true },
+      meta: { requiresAuth: true, requiresStaff: true, claseFlow: true },
     },
   ]
 })
@@ -303,12 +303,18 @@ const publicRouteNames = new Set(['login', 'register', 'forgot-password', 'reset
 
 router.beforeEach(async (to: RouteLocationNormalized, from: RouteLocationNormalized) => {
   // Limpiar el flujo de inscripciones al salir del módulo
-  if (from.meta.inscripcionesFlow && !to.meta.inscripcionesFlow) {
+  // No resetear si se navega hacia el flujo de clase individual (comparte el cliente seleccionado)
+  if (from.meta.inscripcionesFlow && !to.meta.inscripcionesFlow && !to.meta.claseFlow) {
     useInscripcionStore().reset()
   }
 
   // Limpiar el flujo cliente-first al salir del módulo
   if (from.meta.clienteInscripcionFlow && !to.meta.clienteInscripcionFlow) {
+    useInscripcionStore().reset()
+  }
+
+  // Limpiar el flujo de clase individual al salir
+  if (from.meta.claseFlow && !to.meta.claseFlow) {
     useInscripcionStore().reset()
   }
 
