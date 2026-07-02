@@ -64,6 +64,7 @@ class ClienteListItem(BaseModel):
     phone: str
     doc_type_name: str
     doc_number: str
+    is_active: bool = True
 
 
 class UpdateClientPhoneRequest(BaseModel):

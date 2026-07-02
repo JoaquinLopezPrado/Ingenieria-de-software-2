@@ -3,7 +3,10 @@ import math
 from fastapi import HTTPException, status
 
 from app.repositories.profile_repository import AbstractProfileRepository
+from app.repositories.single_enrollment_repository import AbstractSingleEnrollmentRepository
+from app.repositories.subscription_repository import AbstractSubscriptionRepository
 from app.repositories.user_repository import AbstractUserRepository
+from app.repositories.waitlist_repository import AbstractWaitlistRepository
 from app.schemas.user import (
     ClienteListItem,
     ClientesPaginadosResponse,
@@ -13,6 +16,7 @@ from app.schemas.user import (
     UserMeResponse,
     UpdateClientPhoneRequest,
 )
+from app.services.email_service import EmailService
 
 
 class UserService:
@@ -21,9 +25,15 @@ class UserService:
         self,
         user_repo: AbstractUserRepository,
         profile_repo: AbstractProfileRepository,
+        subscription_repo: AbstractSubscriptionRepository | None = None,
+        single_enrollment_repo: AbstractSingleEnrollmentRepository | None = None,
+        waitlist_repo: AbstractWaitlistRepository | None = None,
     ):
         self._user_repo = user_repo
         self._profile_repo = profile_repo
+        self._subscription_repo = subscription_repo
+        self._single_enrollment_repo = single_enrollment_repo
+        self._waitlist_repo = waitlist_repo
 
     async def list_clients(
         self,
@@ -43,6 +53,7 @@ class UserService:
                     phone=row.phone,
                     doc_type_name=row.doc_type_name,
                     doc_number=row.doc_number,
+                    is_active=row.is_active,
                 )
                 for row in items
             ],
@@ -67,6 +78,7 @@ class UserService:
             phone=client.phone,
             doc_type_name=client.document_type.name,
             doc_number=client.doc_number,
+            is_active=user.is_active,
         )
 
     async def update_my_phone(
@@ -140,3 +152,33 @@ class UserService:
             client_profile=client_profile,
             employee_profile=employee_profile,
         )
+
+    async def deactivate_client(self, user_id: int) -> None:
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado.")
+        if user.role.name != "cliente":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El usuario no es un cliente.")
+        if not user.is_active:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El cliente ya está desactivado.")
+
+        client = await self._profile_repo.get_client_by_user_id(user_id)
+        first_name = client.first_name if client else "Cliente"
+
+        await self._subscription_repo.cancel_all_for_user(user_id)
+        await self._single_enrollment_repo.cancel_all_future_for_user(user_id)
+        await self._waitlist_repo.cancel_all_for_user(user_id)
+        await self._user_repo.deactivate_client(user_id)
+
+        EmailService().send_client_deactivated(to=user.email, first_name=first_name)
+
+    async def reactivate_client(self, user_id: int) -> None:
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado.")
+        if user.role.name != "cliente":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El usuario no es un cliente.")
+        if user.is_active:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El cliente ya está activo.")
+
+        await self._user_repo.reactivate_client(user_id)
