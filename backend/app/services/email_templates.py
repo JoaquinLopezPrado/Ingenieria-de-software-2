@@ -806,3 +806,21 @@ def subscription_charge_pending(
     """
     return _wrap(content)
 
+
+def cliente_desactivado(first_name: str) -> str:
+    content = f"""
+      <h2 style="color:#dc2626;margin-top:0;">Tu cuenta fue desactivada</h2>
+      <p style="color:#444;line-height:1.6;">
+        Hola, <strong>{first_name}</strong>. Tu cuenta en <strong>Centro de Actividades</strong>
+        fue desactivada por un administrador.
+      </p>
+      <p style="color:#444;line-height:1.6;">
+        Como consecuencia, todas tus suscripciones mensuales activas, clases individuales futuras
+        y entradas en listas de espera fueron canceladas de forma inmediata.
+      </p>
+      <p style="color:#444;line-height:1.6;">
+        Si creés que esto es un error, comunicate con el Centro de Actividades para más información.
+      </p>
+    """
+    return _wrap(content)
+

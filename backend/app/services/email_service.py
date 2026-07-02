@@ -16,6 +16,7 @@ from app.services.email_templates import (
     clase_cancelada_individual_completo,
     clase_cancelada_individual_senia,
     clase_cancelada_suscripcion,
+    cliente_desactivado,
     deposit_confirmed,
     deposit_refunded,
     employee_welcome,
@@ -271,6 +272,11 @@ class EmailService:
         )
         asyncio.create_task(
             self._send(to, f"Tu cuota de {activity_name} está lista — Centro de Actividades", html)
+        )
+
+    def send_client_deactivated(self, to: str, first_name: str) -> None:
+        asyncio.create_task(
+            self._send(to, "Tu cuenta fue desactivada — Centro de Actividades", cliente_desactivado(first_name))
         )
 
     async def _send(self, to: str, subject: str, html: str) -> None:
