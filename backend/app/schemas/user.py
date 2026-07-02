@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
@@ -65,6 +65,15 @@ class ClienteListItem(BaseModel):
     doc_type_name: str
     doc_number: str
     is_active: bool = True
+
+
+class PagoItem(BaseModel):
+    tipo: Literal["suscripcion", "clase_individual"]
+    fecha: Optional[date]
+    actividad: str
+    monto: float
+    estado: str
+    periodo: Optional[str] = None
 
 
 class UpdateClientPhoneRequest(BaseModel):

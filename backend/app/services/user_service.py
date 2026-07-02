@@ -1,4 +1,5 @@
 import math
+from datetime import date
 
 from fastapi import HTTPException, status
 
@@ -13,6 +14,7 @@ from app.schemas.user import (
     ClientProfileMeResponse,
     DocumentTypeResponse,
     EmployeeProfileMeResponse,
+    PagoItem,
     UserMeResponse,
     UpdateClientPhoneRequest,
 )
@@ -182,3 +184,52 @@ class UserService:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El cliente ya está activo.")
 
         await self._user_repo.reactivate_client(user_id)
+
+    async def get_pagos(self, user_id: int) -> list[PagoItem]:
+        user = await self._user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado.")
+
+        _MESES = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        _CHARGE_ESTADO = {
+            "pending": "Pendiente", "paid": "Pagado",
+            "overdue": "Vencido", "waived": "Eximido",
+        }
+        _ENROLLMENT_ESTADO = {
+            "pending": "Pendiente", "confirmed": "Confirmado",
+            "cancelled": "Cancelado", "deposit_paid": "Seña pagada",
+            "deposit_forfeited": "Seña perdida", "refunded": "Reembolsado",
+        }
+
+        charges = await self._subscription_repo.list_charges_for_user(user_id)
+        enrollments = await self._single_enrollment_repo.list_for_pagos(user_id)
+
+        items: list[PagoItem] = []
+
+        for c in charges:
+            raw_status = c["status"].value if hasattr(c["status"], "value") else str(c["status"])
+            fecha = c["paid_at"].date() if c["paid_at"] else c["due_date"]
+            items.append(PagoItem(
+                tipo="suscripcion",
+                fecha=fecha,
+                actividad=f"{c['activity_name']} — {c['turno_description']}",
+                monto=c["amount"],
+                estado=_CHARGE_ESTADO.get(raw_status, raw_status),
+                periodo=f"{_MESES[c['period_month']]} {c['period_year']}",
+            ))
+
+        for e in enrollments:
+            raw_status = e["status"].value if hasattr(e["status"], "value") else str(e["status"])
+            fecha = e["clase_date"] if e["clase_date"] else None
+            items.append(PagoItem(
+                tipo="clase_individual",
+                fecha=fecha,
+                actividad=f"{e['activity_name']} — {e['turno_description']}",
+                monto=e["amount"],
+                estado=_ENROLLMENT_ESTADO.get(raw_status, raw_status),
+                periodo=None,
+            ))
+
+        items.sort(key=lambda x: x.fecha or date.min, reverse=True)
+        return items

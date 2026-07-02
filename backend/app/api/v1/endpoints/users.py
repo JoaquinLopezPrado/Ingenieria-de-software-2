@@ -12,7 +12,7 @@ from app.repositories.subscription_repository import SubscriptionRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.waitlist_repository import WaitlistRepository
 from app.schemas.attendance import AsistenciaResponse
-from app.schemas.user import ClienteListItem, ClientesPaginadosResponse, UserMeResponse, UpdateClientPhoneRequest
+from app.schemas.user import ClienteListItem, ClientesPaginadosResponse, PagoItem, UserMeResponse, UpdateClientPhoneRequest
 from app.services.attendance_service import AttendanceService
 from app.services.user_service import UserService
 
@@ -87,6 +87,15 @@ async def reactivate_client(
     service: UserService = Depends(get_user_service),
 ):
     await service.reactivate_client(user_id)
+
+
+@router.get("/{user_id}/pagos", response_model=list[PagoItem])
+async def get_client_pagos(
+    user_id: int,
+    _=require_roles("admin", "empleado"),
+    service: UserService = Depends(get_user_service),
+):
+    return await service.get_pagos(user_id)
 
 
 @router.get("/{user_id}", response_model=ClienteListItem)
