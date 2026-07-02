@@ -20,6 +20,7 @@ class ClienteRow:
     phone: str
     doc_type_name: str
     doc_number: str
+    is_active: bool
 
 
 @dataclass
@@ -104,6 +105,14 @@ class AbstractUserRepository(ABC):
     async def deactivate_employee(self, employee_id: int) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def deactivate_client(self, user_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def reactivate_client(self, user_id: int) -> None:
+        raise NotImplementedError
+
 
 class UserRepository(AbstractUserRepository):
 
@@ -150,6 +159,7 @@ class UserRepository(AbstractUserRepository):
                 phone=profile.phone,
                 doc_type_name=doc_type.name,
                 doc_number=profile.doc_number,
+                is_active=user.is_active,
             )
             for user, profile, doc_type in rows
         ]
@@ -349,6 +359,21 @@ class UserRepository(AbstractUserRepository):
             .where(UserORM.id == employee_id)
             .values(is_active=False)
         )
+
+    async def deactivate_client(self, user_id: int) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == user_id)
+            .values(is_active=False, token_version=UserORM.token_version + 1)
+        )
+
+    async def reactivate_client(self, user_id: int) -> None:
+        result = await self._session.execute(
+            select(UserORM).where(UserORM.id == user_id)
+        )
+        orm_user = result.scalar_one_or_none()
+        if orm_user:
+            orm_user.is_active = True
 
     def _role_to_domain(self, orm_role: RoleORM) -> Role:
         return Role(
