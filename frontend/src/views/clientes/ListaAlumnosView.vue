@@ -259,16 +259,16 @@ const hasData = computed(() =>
                     Inscribir a clase
                   </button>
                   <RouterLink
-                    :to="{ name: 'ficha-cliente', params: { clienteId: cliente.id } }"
-                    class="btn-accion btn-ver-ficha"
-                  >
-                    Ver ficha
-                  </RouterLink>  
-                  <RouterLink
                     :to="{ name: 'cliente-pagos', params: { clienteId: cliente.id } }"
                     class="btn-accion btn-ver-pagos"
                   >
                     Ver Pagos
+                  </RouterLink>
+                  <RouterLink
+                    :to="{ name: 'ficha-cliente', params: { clienteId: cliente.id } }"
+                    class="btn-accion btn-ver-ficha"
+                  >
+                    Ver ficha
                   </RouterLink>
                 </td>
               </tr>
