@@ -10,7 +10,6 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const loading = ref(false)
-const apiError = ref('')
 const registroExitoso = ref(route.query.registered === 'true')
 const googleErrorMessages: Record<string, string> = {
   google_not_registered: 'No encontramos una cuenta registrada con ese correo de Google. Registrate primero.',
@@ -18,7 +17,13 @@ const googleErrorMessages: Record<string, string> = {
   google_already_linked: 'Esa cuenta de Google ya está vinculada a un usuario existente. Intentá iniciar sesión.',
   google_error: 'Ocurrió un error al iniciar sesión con Google. Intentá de nuevo.',
 }
-const googleError = ref(googleErrorMessages[route.query.error as string] ?? '')
+const DEACTIVATED_MSG = 'Tu cuenta está desactivada. Comunicate con el Centro de Actividades para más información.'
+const errorKey = route.query.error as string
+const googleError = ref(errorKey && errorKey !== 'account_deactivated' ? (googleErrorMessages[errorKey] ?? '') : '')
+const apiError = ref(errorKey === 'account_deactivated' ? DEACTIVATED_MSG : '')
+if (errorKey) {
+  router.replace({ path: route.path, query: {} })
+}
 
 // 2FA step
 const needs2FA = ref(false)

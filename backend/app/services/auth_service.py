@@ -98,8 +98,8 @@ class AuthService:
             )
         if not user.is_active:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="El email o la contraseña ingresados son incorrectos.",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tu cuenta está desactivada. Comunicate con el Centro de Actividades para más información.",
             )
         if user.is_2fa_enabled:
             return {"requires_2fa": True, "pre_auth_token": create_pre_auth_token(user.id)}
@@ -186,6 +186,11 @@ class AuthService:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="GOOGLE_ALREADY_LINKED",
+                )
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Tu cuenta está desactivada. Comunicate con el Centro de Actividades.",
                 )
             access_token, refresh_token = await self._issue_tokens(user)
             return {"type": "login", "access_token": access_token, "refresh_token": refresh_token}
