@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { getClienteById, type Cliente } from '@/services/clientesService'
+import { getClienteById, deactivateCliente, reactivateCliente, type Cliente } from '@/services/clientesService'
 import { extractBackendError } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 import { useInscripcionStore } from '@/stores/inscripcionStore'
@@ -19,6 +19,53 @@ const isAdmin = computed(() => isAdminUser(authStore.user))
 const cliente = ref<Cliente | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+// ─── Dar de baja ─────────────────────────────────────────────────────────────
+
+const confirmingDeactivate = ref(false)
+const deactivateLoading = ref(false)
+const deactivateError = ref<string | null>(null)
+
+function askDeactivate() {
+  deactivateError.value = null
+  confirmingDeactivate.value = true
+}
+
+function cancelDeactivate() {
+  confirmingDeactivate.value = false
+}
+
+async function confirmDeactivate() {
+  deactivateLoading.value = true
+  deactivateError.value = null
+  try {
+    await deactivateCliente(clienteId)
+    if (cliente.value) cliente.value.is_active = false
+    confirmingDeactivate.value = false
+  } catch (err) {
+    deactivateError.value = extractBackendError(err) ?? 'Ocurrió un error. Intentá de nuevo.'
+  } finally {
+    deactivateLoading.value = false
+  }
+}
+
+// ─── Reactivar ───────────────────────────────────────────────────────────────
+
+const reactivateLoading = ref(false)
+const reactivateError = ref<string | null>(null)
+
+async function confirmReactivate() {
+  reactivateLoading.value = true
+  reactivateError.value = null
+  try {
+    await reactivateCliente(clienteId)
+    if (cliente.value) cliente.value.is_active = true
+  } catch (err) {
+    reactivateError.value = extractBackendError(err) ?? 'Ocurrió un error. Intentá de nuevo.'
+  } finally {
+    reactivateLoading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -129,9 +176,55 @@ function inscribirAClase() {
 
           <!-- Solo administrador -->
           <div v-if="isAdmin" class="danger-zone">
-            <button type="button" class="action-btn action-danger" disabled>
-              Dar de Baja
-            </button>
+            <div v-if="cliente.is_active">
+              <button
+                v-if="!confirmingDeactivate"
+                type="button"
+                class="action-btn action-danger"
+                @click="askDeactivate"
+              >
+                Dar de Baja
+              </button>
+
+              <div v-else class="confirm-box">
+                <p class="confirm-text">
+                  ¿Confirmás la baja de <strong>{{ cliente.first_name }} {{ cliente.last_name }}</strong>?
+                  Se cancelarán todas sus suscripciones y clases futuras de forma inmediata.
+                </p>
+                <p v-if="deactivateError" class="confirm-error">{{ deactivateError }}</p>
+                <div class="confirm-actions">
+                  <button
+                    type="button"
+                    class="action-btn action-danger"
+                    :disabled="deactivateLoading"
+                    @click="confirmDeactivate"
+                  >
+                    {{ deactivateLoading ? 'Procesando...' : 'Sí, dar de baja' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="action-btn action-secondary"
+                    :disabled="deactivateLoading"
+                    @click="cancelDeactivate"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="reactivate-zone">
+              <p class="inactive-badge">Cliente desactivado</p>
+              <p v-if="reactivateError" class="confirm-error">{{ reactivateError }}</p>
+              <button
+                type="button"
+                class="action-btn action-reactivate"
+                :disabled="reactivateLoading"
+                @click="confirmReactivate"
+              >
+                {{ reactivateLoading ? 'Procesando...' : 'Reactivar cliente' }}
+              </button>
+            </div>
           </div>
         </div>
       </template>
@@ -358,6 +451,63 @@ function inscribirAClase() {
 }
 
 .action-danger[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Confirmar baja ── */
+
+.confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.confirm-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.confirm-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #dc2626;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* ── Reactivar ── */
+
+.reactivate-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.inactive-badge {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.action-reactivate {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.action-reactivate:not([disabled]):hover {
+  background-color: #dcfce7;
+  border-color: #86efac;
+}
+
+.action-reactivate[disabled] {
   opacity: 0.5;
   cursor: not-allowed;
 }

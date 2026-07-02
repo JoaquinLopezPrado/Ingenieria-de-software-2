@@ -10,6 +10,7 @@ export interface Cliente {
   phone: string
   doc_type_name: string
   doc_number: string
+  is_active: boolean
 }
 
 export interface ClienteSubscripcion {
@@ -78,4 +79,12 @@ export const getSubscripcionesByCliente = async (userId: number): Promise<Client
 export const getSingleEnrollmentsByCliente = async (userId: number): Promise<ClienteSingleEnrollment[]> => {
   const res = await api.get(`/single-enrollments/user/${userId}`)
   return res.data
+}
+
+export const deactivateCliente = async (userId: number): Promise<void> => {
+  await api.patch(`/users/${userId}/deactivate`)
+}
+
+export const reactivateCliente = async (userId: number): Promise<void> => {
+  await api.patch(`/users/${userId}/reactivate`)
 }
