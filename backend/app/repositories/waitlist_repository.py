@@ -53,6 +53,11 @@ class AbstractWaitlistRepository(ABC):
         """Retorna (activity_name, turno_description) del turno."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def cancel_all_for_user(self, user_id: int) -> None:
+        """Cancela todas las entradas WAITING del usuario en listas de espera."""
+        raise NotImplementedError
+
 
 class WaitlistRepository(AbstractWaitlistRepository):
 
@@ -197,6 +202,16 @@ class WaitlistRepository(AbstractWaitlistRepository):
         if row is None:
             return ("", "")
         return (row[0], row[1])
+
+    async def cancel_all_for_user(self, user_id: int) -> None:
+        await self._session.execute(
+            update(WaitlistORM)
+            .where(
+                WaitlistORM.user_id == user_id,
+                WaitlistORM.status == WaitlistStatus.WAITING,
+            )
+            .values(status=WaitlistStatus.CANCELLED, cancelled_at=datetime.now(timezone.utc))
+        )
 
     @staticmethod
     def _to_domain(orm: WaitlistORM) -> WaitlistEntry:

@@ -165,6 +165,11 @@ class AbstractSubscriptionRepository(ABC):
     async def count_occupying_for_turno(self, turno_id: int) -> int:
         raise NotImplementedError
 
+    @abstractmethod
+    async def cancel_all_for_user(self, user_id: int) -> list[int]:
+        """Cancela todas las suscripciones activas/pendientes del usuario. Retorna turno_ids liberados."""
+        raise NotImplementedError
+
 
 class SubscriptionRepository(AbstractSubscriptionRepository):
 
@@ -849,6 +854,34 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             )
         )
         return result.scalar_one()
+
+    async def cancel_all_for_user(self, user_id: int) -> list[int]:
+        now = datetime.now(timezone.utc)
+        rows = (await self._session.execute(
+            select(SubscriptionORM.id, SubscriptionORM.turno_id)
+            .where(
+                SubscriptionORM.user_id == user_id,
+                SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
+            )
+        )).all()
+        if not rows:
+            return []
+        sub_ids = [r[0] for r in rows]
+        freed_turno_ids = [r[1] for r in rows]
+        await self._session.execute(
+            update(SubscriptionORM)
+            .where(SubscriptionORM.id.in_(sub_ids))
+            .values(status=SubscriptionStatus.CANCELLED, cancelled_at=now)
+        )
+        await self._session.execute(
+            update(SubscriptionChargeORM)
+            .where(
+                SubscriptionChargeORM.subscription_id.in_(sub_ids),
+                SubscriptionChargeORM.status.in_([ChargeStatus.PENDING, ChargeStatus.OVERDUE]),
+            )
+            .values(status=ChargeStatus.WAIVED)
+        )
+        return freed_turno_ids
 
     # ------------------------------------------------------------------ #
     # Helpers                                                             #
