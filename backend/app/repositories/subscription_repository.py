@@ -170,6 +170,10 @@ class AbstractSubscriptionRepository(ABC):
         """Cancela todas las suscripciones activas/pendientes del usuario. Retorna turno_ids liberados."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def list_charges_for_user(self, user_id: int) -> list[dict]:
+        raise NotImplementedError
+
 
 class SubscriptionRepository(AbstractSubscriptionRepository):
 
@@ -882,6 +886,39 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             .values(status=ChargeStatus.WAIVED)
         )
         return freed_turno_ids
+
+    async def list_charges_for_user(self, user_id: int) -> list[dict]:
+        rows = (await self._session.execute(
+            select(
+                SubscriptionChargeORM.id,
+                SubscriptionChargeORM.period_month,
+                SubscriptionChargeORM.period_year,
+                SubscriptionChargeORM.amount,
+                SubscriptionChargeORM.status,
+                SubscriptionChargeORM.paid_at,
+                SubscriptionChargeORM.due_date,
+                ActivityORM.name.label("activity_name"),
+                TurnoORM.description.label("turno_description"),
+            )
+            .join(SubscriptionORM, SubscriptionORM.id == SubscriptionChargeORM.subscription_id)
+            .join(TurnoORM, TurnoORM.id == SubscriptionORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .where(SubscriptionORM.user_id == user_id)
+        )).all()
+        return [
+            {
+                "id": r.id,
+                "period_month": r.period_month,
+                "period_year": r.period_year,
+                "amount": float(r.amount),
+                "status": r.status,
+                "paid_at": r.paid_at,
+                "due_date": r.due_date,
+                "activity_name": r.activity_name,
+                "turno_description": r.turno_description,
+            }
+            for r in rows
+        ]
 
     # ------------------------------------------------------------------ #
     # Helpers                                                             #

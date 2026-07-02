@@ -87,6 +87,10 @@ class AbstractSingleEnrollmentRepository(ABC):
         """Cancela todas las inscripciones sueltas activas con clases futuras. Retorna cantidad cancelada."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def list_for_pagos(self, user_id: int) -> list[dict]:
+        raise NotImplementedError
+
 
 class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
 
@@ -422,6 +426,41 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
             .values(status=SingleEnrollmentStatus.CANCELLED)
         )
         return len(future_ids)
+
+    async def list_for_pagos(self, user_id: int) -> list[dict]:
+        rows = (await self._session.execute(
+            select(
+                SingleEnrollmentORM.id,
+                SingleEnrollmentORM.amount,
+                SingleEnrollmentORM.status,
+                func.min(ClaseORM.date).label("clase_date"),
+                ActivityORM.name.label("activity_name"),
+                TurnoORM.description.label("turno_description"),
+            )
+            .join(TurnoORM, TurnoORM.id == SingleEnrollmentORM.turno_id)
+            .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+            .outerjoin(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
+            .outerjoin(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)
+            .where(SingleEnrollmentORM.user_id == user_id)
+            .group_by(
+                SingleEnrollmentORM.id,
+                SingleEnrollmentORM.amount,
+                SingleEnrollmentORM.status,
+                ActivityORM.name,
+                TurnoORM.description,
+            )
+        )).all()
+        return [
+            {
+                "id": r.id,
+                "amount": float(r.amount),
+                "status": r.status,
+                "clase_date": r.clase_date,
+                "activity_name": r.activity_name,
+                "turno_description": r.turno_description,
+            }
+            for r in rows
+        ]
 
     # ------------------------------------------------------------------ #
     # Helpers                                                             #
