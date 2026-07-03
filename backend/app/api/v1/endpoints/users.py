@@ -6,14 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.docs.user_responses import ME_RESPONSES
 from app.core.dependencies import get_current_user_id, get_db, require_roles
 from app.repositories.attendance_repository import AttendanceRepository
+from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.single_enrollment_repository import SingleEnrollmentRepository
 from app.repositories.subscription_repository import SubscriptionRepository
+from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.waitlist_repository import WaitlistRepository
+from app.schemas.admin_client import CreateClientByStaffRequest
 from app.schemas.attendance import AsistenciaResponse
 from app.schemas.user import ClienteListItem, ClientesPaginadosResponse, PagoItem, UserMeResponse, UpdateClientPhoneRequest
 from app.services.attendance_service import AttendanceService
+from app.services.auth_service import AuthService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -33,6 +37,15 @@ def get_attendance_service(db: AsyncSession = Depends(get_db)) -> AttendanceServ
     return AttendanceService(attendance_repo=AttendanceRepository(db))
 
 
+def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    return AuthService(
+        user_repo=UserRepository(db),
+        profile_repo=ProfileRepository(db),
+        token_repo=TokenRepository(db),
+        reset_repo=PasswordResetRepository(db),
+    )
+
+
 @router.get("/me", response_model=UserMeResponse, responses=ME_RESPONSES)
 async def me(
     user_id: int = Depends(get_current_user_id),
@@ -48,6 +61,18 @@ async def update_my_phone(
     service: UserService = Depends(get_user_service),
 ):
     return await service.update_my_phone(user_id=user_id, data=data)
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_client(
+    data: CreateClientByStaffRequest,
+    _=require_roles("admin", "empleado"),
+    service: AuthService = Depends(get_auth_service),
+):
+    """Alta de cliente por admin/empleado. A diferencia del autoregistro
+    público, permite cargar un menor de edad si se marca 'Presento Permiso'."""
+    await service.register_client_by_staff(data)
+    return {"message": "Cliente registrado correctamente."}
 
 
 @router.get("", response_model=ClientesPaginadosResponse)

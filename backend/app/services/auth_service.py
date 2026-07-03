@@ -13,6 +13,7 @@ from app.repositories.password_reset_repository import AbstractPasswordResetRepo
 from app.repositories.profile_repository import AbstractProfileRepository
 from app.repositories.token_repository import AbstractTokenRepository
 from app.repositories.user_repository import AbstractUserRepository
+from app.schemas.admin_client import CreateClientByStaffRequest
 from app.schemas.auth import ChangePasswordRequest, ForgotPasswordRequest, GoogleCompleteRequest, LoginCredentials, RefreshTokenRequest, RegisterClientRequest, ResetPasswordRequest
 from app.services.email_service import EmailService
 from app.utils.security import (
@@ -46,6 +47,15 @@ class AuthService:
         self._email_service = EmailService()
 
     async def register_client(self, data: RegisterClientRequest) -> User:
+        return await self._create_client(data, presento_permiso=False)
+
+    async def register_client_by_staff(self, data: CreateClientByStaffRequest) -> User:
+        """Alta de cliente hecha por un admin/empleado. A diferencia de
+        register_client, permite menores de edad si data.presento_permiso es True
+        (ya validado en el schema)."""
+        return await self._create_client(data, presento_permiso=data.presento_permiso)
+
+    async def _create_client(self, data: RegisterClientRequest, presento_permiso: bool) -> User:
         await self._ensure_email_is_unique(data.email)
         await self._ensure_doc_number_is_unique(data.doc_number)
 
@@ -82,6 +92,7 @@ class AuthService:
             doc_type_id=document_type.id,
             doc_number=data.doc_number,
             gender=data.gender,
+            presento_permiso=presento_permiso,
         )
         await self._profile_repo.save_client(profile_orm)
 
