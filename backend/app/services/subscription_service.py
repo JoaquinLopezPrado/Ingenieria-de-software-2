@@ -161,6 +161,11 @@ class SubscriptionService:
         Si se especifica min_month/min_year, solo evalúa ese mes exacto y devuelve
         (0, 0, None) si está lleno o no tiene clases (no avanza al mes siguiente).
         Sin restricción, busca el primer mes disponible desde hoy en adelante.
+
+        Devuelve TODAS las clases del mes (no solo desde la primera con cupo): las
+        que estén llenas se descuentan más adelante en _plan_enrollment
+        (discount_full_classes), sin importar si la clase llena es la primera del
+        mes o una del medio.
         """
         target = (min_year, min_month) if min_month and min_year else None
         for month, year, clases in self._periods(future_clases):
@@ -169,11 +174,11 @@ class SubscriptionService:
                     continue
                 if (year, month) > target:
                     return 0, 0, None
-            for i, clase in enumerate(clases):
+            for clase in clases:
                 combined = await self._repo.count_combined_on(turno.id, clase.id, clase.date)
                 adjustment = 1 if clase.id in user_single_ids else 0
                 if combined - adjustment < turno.capacity:
-                    return month, year, clases[i:]
+                    return month, year, clases
             if target:
                 return 0, 0, None
         return 0, 0, None
