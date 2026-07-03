@@ -67,3 +67,14 @@ class EmployeeService:
 
     async def deactivate_employee(self, employee_id: int) -> None:
         await self._repo.deactivate_employee(employee_id)
+
+    async def reactivate_employee(self, employee_id: int) -> None:
+        user = await self._repo.get_by_id(employee_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Empleado no encontrado.")
+        if user.role.name != "empleado":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El usuario no es un empleado.")
+        if user.is_active:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El empleado ya está activo.")
+
+        await self._repo.reactivate_employee(employee_id)

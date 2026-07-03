@@ -62,3 +62,13 @@ async def deactivate_employee(
 ):
     await service.deactivate_employee(employee_id)
     return {"message": "Empleado desactivado."}
+
+
+@router.patch("/{employee_id}/reactivate", status_code=status.HTTP_200_OK)
+async def reactivate_employee(
+    employee_id: int,
+    _=require_roles("admin"),
+    service: EmployeeService = Depends(get_employee_service),
+):
+    await service.reactivate_employee(employee_id)
+    return {"message": "Empleado reactivado."}
