@@ -106,6 +106,10 @@ class AbstractUserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def reactivate_employee(self, employee_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def deactivate_client(self, user_id: int) -> None:
         raise NotImplementedError
 
@@ -358,6 +362,13 @@ class UserRepository(AbstractUserRepository):
             update(UserORM)
             .where(UserORM.id == employee_id)
             .values(is_active=False)
+        )
+
+    async def reactivate_employee(self, employee_id: int) -> None:
+        await self._session.execute(
+            update(UserORM)
+            .where(UserORM.id == employee_id)
+            .values(is_active=True)
         )
 
     async def deactivate_client(self, user_id: int) -> None:
