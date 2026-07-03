@@ -6,6 +6,7 @@ import {
   createEmpleado,
   updateEmpleado,
   deactivateEmpleado,
+  reactivateEmpleado,
   type Empleado,
 } from '@/services/empleadosService'
 import { extractBackendError } from '@/services/sessionService'
@@ -106,6 +107,23 @@ async function confirmDeactivate() {
   }
 }
 
+// ─── Reactivar ────────────────────────────────────────────────────────────────
+
+const reactivateLoadingId = ref<number | null>(null)
+
+async function handleReactivate(id: number) {
+  reactivateLoadingId.value = id
+  try {
+    await reactivateEmpleado(id)
+    const emp = empleados.value.find(e => e.id === id)
+    if (emp) emp.is_active = true
+  } catch (err) {
+    pageError.value = extractBackendError(err) ?? 'No se pudo reactivar el empleado.'
+  } finally {
+    reactivateLoadingId.value = null
+  }
+}
+
 // ─── Carga inicial ────────────────────────────────────────────────────────────
 
 onMounted(async () => {
@@ -169,6 +187,14 @@ onMounted(async () => {
                     @click="askDeactivate(emp.id)"
                   >
                     Desactivar
+                  </button>
+                  <button
+                    v-else
+                    class="action-btn react-btn"
+                    :disabled="reactivateLoadingId === emp.id"
+                    @click="handleReactivate(emp.id)"
+                  >
+                    {{ reactivateLoadingId === emp.id ? 'Reactivando...' : 'Reactivar' }}
                   </button>
                 </td>
               </tr>
@@ -238,7 +264,7 @@ onMounted(async () => {
         <div class="modal modal-sm">
           <h2 class="modal-title">Desactivar empleado</h2>
           <p class="confirm-text">
-            El empleado ya no podrá ingresar al sistema. Sus datos se conservan y la acción se puede revertir desde la base de datos.
+            El empleado ya no podrá ingresar al sistema. Sus datos se conservan y podés reactivarlo cuando quieras desde esta misma pantalla.
           </p>
           <div class="modal-actions">
             <button type="button" class="cancel-btn" @click="cancelDeactivate">Cancelar</button>
@@ -325,6 +351,7 @@ onMounted(async () => {
 .emp-table tbody tr:last-child td { border-bottom: none; }
 .emp-table tbody tr:hover td { background: #f9fafb; }
 .emp-table tbody tr.inactive td { opacity: 0.55; }
+.emp-table tbody tr.inactive td.actions-cell { opacity: 1; }
 
 .name-cell { font-weight: 600; color: #111827; }
 .email-cell { color: #6b7280; font-size: 0.88rem; }
@@ -355,6 +382,9 @@ onMounted(async () => {
 .edit-btn:hover { opacity: 0.8; }
 .deact-btn { background: #fee2e2; color: #dc2626; }
 .deact-btn:hover { opacity: 0.8; }
+.react-btn { background: #dcfce7; color: #15803d; }
+.react-btn:hover:not(:disabled) { opacity: 0.8; }
+.react-btn:disabled { cursor: not-allowed; }
 
 /* ─── Modal ─────────────────────────────────────────────────────────────── */
 

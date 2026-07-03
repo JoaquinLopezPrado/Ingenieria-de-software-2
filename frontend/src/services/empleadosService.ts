@@ -40,3 +40,7 @@ export const updateEmpleado = async (id: number, payload: UpdateEmpleadoPayload)
 export const deactivateEmpleado = async (id: number): Promise<void> => {
   await api.patch(`/employees/${id}/deactivate`)
 }
+
+export const reactivateEmpleado = async (id: number): Promise<void> => {
+  await api.patch(`/employees/${id}/reactivate`)
+}
