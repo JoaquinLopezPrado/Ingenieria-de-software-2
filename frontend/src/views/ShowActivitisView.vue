@@ -134,6 +134,21 @@
             </div>
           </div>
 
+          <div class="price-row">
+            <div class="price-item">
+              <span class="price-label">Por clase</span>
+              <span class="price-value">{{ formatMoney(turno.classPrice) }}</span>
+            </div>
+            <div class="price-divider"></div>
+            <div class="price-item">
+              <span class="price-label">Abono mensual</span>
+              <span class="price-value price-value--accent">{{ formatMoney(precioMensual(turno)) }}</span>
+              <span class="price-hint">
+                {{ clasesDelMes(turno).length }} clase{{ clasesDelMes(turno).length !== 1 ? 's' : '' }} este mes
+              </span>
+            </div>
+          </div>
+
           <div v-if="turno.hasRemainingClasses">
             <div class="cap-row">
               <span
@@ -566,6 +581,7 @@ const mapTurno = (turno, nameMap) => ({
   total: turno.capacity,
   ocup: turno.enrolled ?? 0,
   nivel: turno.level || 'Todos los niveles',
+  classPrice: Number(turno.class_price) || 0,
   descripcion: turno.description ?? '',
   sala: turno.room_number ?? turno.room ?? 'Sin sala',
   hasRemainingClasses: turno.has_remaining_classes ?? true,
@@ -646,19 +662,33 @@ const cupoOcupado = (t) => { const c = claseSel(t); return c ? c.occupied : t.oc
 const cupoLibre = (t) => Math.max(cupoTotal(t) - cupoOcupado(t), 0)
 const sinCupo = (t) => cupoLibre(t) <= 0
 
+// Clases del turno que caen en el mes de la fecha seleccionada (el mes en el que
+// arrancaría el abono si el cliente se suscribe ahora).
+const clasesDelMes = (t) => {
+  const selDate = new Date(`${selectedDate.value}T00:00:00`)
+  const mes = selDate.getMonth()
+  const anio = selDate.getFullYear()
+  return (classesByTurno.value.get(t.id) ?? []).filter(c => {
+    const d = new Date(`${c.rawDate}T00:00:00`)
+    return d.getMonth() === mes && d.getFullYear() === anio
+  })
+}
+
 // Para suscripción mensual: sin cupo solo si TODAS las clases del mes están llenas.
 // Un abonado saliente con baja programada libera el mes siguiente, por eso hay que
 // mirar el mes completo, no solo la fecha seleccionada.
 const sinCupoEnMes = (t) => {
-  const selDate = new Date(`${selectedDate.value}T00:00:00`)
-  const mes = selDate.getMonth()
-  const anio = selDate.getFullYear()
-  const clasesDelMes = (classesByTurno.value.get(t.id) ?? []).filter(c => {
-    const d = new Date(`${c.rawDate}T00:00:00`)
-    return d.getMonth() === mes && d.getFullYear() === anio
-  })
-  if (!clasesDelMes.length) return true
-  return clasesDelMes.every(c => c.availableSpots <= 0)
+  const clases = clasesDelMes(t)
+  if (!clases.length) return true
+  return clases.every(c => c.availableSpots <= 0)
+}
+
+// Precio del abono para el mes de la fecha seleccionada (precio por clase × clases
+// de ese mes). Es el mismo cálculo que usa el backend antes de descuentos.
+const precioMensual = (t) => t.classPrice * clasesDelMes(t).length
+
+function formatMoney(n) {
+  return `$${Math.round(n).toLocaleString('es-AR')}`
 }
 
 const pocosAbonosEnMes = (t) => {
@@ -1133,7 +1163,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* CARD */
@@ -1171,6 +1201,7 @@ h1 {
   font-weight: 500;
   line-height: 1.5;
   text-align: center;
+  margin-top: auto;
 }
 
 .inscripto-badge {
@@ -1342,6 +1373,56 @@ h1 {
   gap: 10px;
 }
 
+/* PRECIOS */
+.price-row {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 137, 123, 0.06);
+  border: 1px solid rgba(0, 137, 123, 0.12);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.price-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  min-width: 0;
+}
+
+.price-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0 12px;
+  background: rgba(0, 137, 123, 0.15);
+}
+
+.price-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #78909c;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.price-value {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #37474f;
+  letter-spacing: -0.2px;
+}
+
+.price-value--accent {
+  color: #00695c;
+}
+
+.price-hint {
+  font-size: 9px;
+  font-weight: 600;
+  color: #90a4ae;
+}
+
 .inst-icon {
   width: 38px;
   height: 38px;
@@ -1396,7 +1477,8 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .accion-btn {
