@@ -168,10 +168,6 @@ function inscribirAClase() {
             >
               Ver historial de asistencias
             </RouterLink>
-
-            <button type="button" class="action-btn action-secondary" disabled>
-              Editar datos
-            </button>
           </div>
 
           <!-- Solo administrador -->
