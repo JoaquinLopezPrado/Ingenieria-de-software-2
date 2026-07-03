@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Enum
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, Date, Enum
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.mixins import IDMixin, TimestampMixin
@@ -26,6 +26,10 @@ class ClientProfile(IDMixin, TimestampMixin, Base):
     doc_number = Column(String, unique=True, index=True, nullable=False)
 
     gender = Column(Enum(Gender, name="gender_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
+
+    # Solo relevante cuando el alta la hace un admin/empleado a un cliente menor de
+    # edad: deja registro de que se presentó el permiso correspondiente.
+    presento_permiso = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User", back_populates="client_profile")
 

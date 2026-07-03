@@ -119,6 +119,7 @@ class ProfileRepository(AbstractProfileRepository):
             document_type=self._document_type_to_domain(orm_profile.document_type),
             doc_number=orm_profile.doc_number,
             gender=Gender(orm_profile.gender),
+            presento_permiso=orm_profile.presento_permiso,
         )
 
     def _employee_to_domain(self, orm_profile: EmployeeProfileORM) -> EmployeeProfile:

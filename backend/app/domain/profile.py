@@ -26,6 +26,7 @@ class ClientProfile:
         document_type: DocumentType,
         doc_number: str,
         gender: Gender,
+        presento_permiso: bool = False,
     ):
         self.id = id
         self.user_id = user_id
@@ -36,6 +37,7 @@ class ClientProfile:
         self.document_type = document_type
         self.doc_number = doc_number
         self.gender = gender
+        self.presento_permiso = presento_permiso
 
 
 class EmployeeProfile:
