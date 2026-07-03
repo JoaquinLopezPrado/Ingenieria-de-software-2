@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import PasswordInput from './PasswordInput.vue'
 
 const props = withDefaults(
@@ -9,6 +9,7 @@ const props = withDefaults(
     showPasswordRequirements?: boolean
     showGoogleRegister?: boolean
     submitLabel?: string
+    allowMinorWithPermission?: boolean
   }>(),
   {
     loading: false,
@@ -16,6 +17,7 @@ const props = withDefaults(
     showPasswordRequirements: false,
     showGoogleRegister: true,
     submitLabel: 'Registrarse',
+    allowMinorWithPermission: false,
   },
 )
 
@@ -32,6 +34,19 @@ const formData = ref({
   gender: 'masculino',
   doc_type_name: 'DNI',
   doc_number: '',
+})
+
+const presentoPermiso = ref(false)
+
+const esMenorDeEdad = computed(() => {
+  if (!formData.value.birth_date) return false
+  const [y, m, d] = formData.value.birth_date.split('-').map(Number)
+  if (!y || !m || !d) return false
+  const hoy = new Date()
+  let edad = hoy.getFullYear() - y
+  const antesDelCumple = (hoy.getMonth() + 1 < m) || (hoy.getMonth() + 1 === m && hoy.getDate() < d)
+  if (antesDelCumple) edad--
+  return edad < 18
 })
 
 const fieldErrors = ref<Record<string, string>>({})
@@ -62,6 +77,8 @@ watch(
   () => clearError('confirmPassword'),
 )
 
+watch([() => formData.value.birth_date, presentoPermiso], () => clearError('presento_permiso'))
+
 const handleSubmit = () => {
   const e: Record<string, string> = {}
 
@@ -85,6 +102,8 @@ const handleSubmit = () => {
 
   if (!formData.value.birth_date) {
     e.birth_date = 'La fecha de nacimiento es obligatoria.'
+  } else if (props.allowMinorWithPermission && esMenorDeEdad.value && !presentoPermiso.value) {
+    e.presento_permiso = 'Para dar de alta a un cliente menor de edad, marcá "Presento Permiso".'
   }
 
   if (!formData.value.phone.trim()) {
@@ -108,7 +127,10 @@ const handleSubmit = () => {
   if (Object.values(e).some((v) => v)) return
 
   const { confirmPassword, ...dataToSubmit } = formData.value
-  emit('submit', dataToSubmit)
+  emit('submit', props.allowMinorWithPermission
+    ? { ...dataToSubmit, presento_permiso: presentoPermiso.value }
+    : dataToSubmit,
+  )
 }
 </script>
 
@@ -236,6 +258,22 @@ const handleSubmit = () => {
 
         <span v-if="fieldErrors.birth_date" class="field-error">
           {{ fieldErrors.birth_date }}
+        </span>
+
+        <label
+          v-if="allowMinorWithPermission && esMenorDeEdad"
+          class="permiso-checkbox"
+          :class="{ 'label-error': fieldErrors.presento_permiso }"
+        >
+          <input
+            v-model="presentoPermiso"
+            type="checkbox"
+            @change="clearError('presento_permiso')"
+          />
+          Presento Permiso
+        </label>
+        <span v-if="fieldErrors.presento_permiso" class="field-error">
+          {{ fieldErrors.presento_permiso }}
         </span>
       </div>
 
@@ -394,6 +432,28 @@ const handleSubmit = () => {
   font-size: 12px;
   color: #e53935;
   margin-left: 4px;
+}
+
+.permiso-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.permiso-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #11998e;
+}
+
+.permiso-checkbox.label-error {
+  color: #e53935;
 }
 
 .password-requirements {

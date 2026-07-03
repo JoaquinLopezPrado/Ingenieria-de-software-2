@@ -3,11 +3,10 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
-import { useAuthStore } from '@/stores/authStore'
+import { createCliente } from '@/services/clientesService'
 import { extractBackendError } from '@/services/sessionService'
 
 const router = useRouter()
-const authStore = useAuthStore()
 
 const loading = ref(false)
 const apiError = ref('')
@@ -20,7 +19,7 @@ async function handleRegister(userData: any) {
   successMessage.value = ''
 
   try {
-    await authStore.register(userData)
+    await createCliente(userData)
 
     successMessage.value = 'Cliente registrado correctamente.'
 
@@ -62,6 +61,7 @@ function volverAlListado() {
           :api-error="apiError"
           :show-password-requirements="showPasswordRequirements"
           :show-google-register="false"
+          :allow-minor-with-permission="true"
           submit-label="Registrar cliente"
           @submit="handleRegister"
         />

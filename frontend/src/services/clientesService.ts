@@ -59,6 +59,10 @@ export interface ClientesPaginados {
 
 // ─── Funciones ────────────────────────────────────────────────────────────────
 
+export const createCliente = async (data: Record<string, unknown>): Promise<void> => {
+  await api.post('/users', data)
+}
+
 export const listClientes = async (
   params: ListClientesParams = {},
 ): Promise<ClientesPaginados> => {
