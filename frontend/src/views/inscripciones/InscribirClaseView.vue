@@ -12,18 +12,6 @@ const store = useInscripcionStore()
 const clase = computed(() => store.claseSeleccionada)
 const cliente = computed(() => store.clienteSeleccionado)
 
-// ─── Tipo de pago ─────────────────────────────────────────────────────────────
-
-type TipoPago = 'total' | 'sena'
-const tipoPago = ref<TipoPago>('total')
-
-const montoDisplay = computed(() => {
-  if (!clase.value) return 0
-  return tipoPago.value === 'sena'
-    ? Math.round(clase.value.class_price * 0.3)
-    : clase.value.class_price
-})
-
 const cupoDisponible = computed(() =>
   clase.value ? clase.value.capacity - clase.value.enrolled : 0
 )
@@ -162,39 +150,13 @@ function handleVolver() {
             </div>
           </div>
 
-          <!-- Tipo de pago -->
+          <!-- Pago -->
           <div class="info-card">
-            <h2 class="card-title">Tipo de pago</h2>
-
-            <div class="pago-options">
-              <label :class="['pago-option', { 'pago-option--active': tipoPago === 'total' }]">
-                <input type="radio" v-model="tipoPago" value="total" class="pago-radio" />
-                <div class="pago-content">
-                  <span class="pago-label">Pagar total (100 %)</span>
-                  <span class="pago-amount">{{ formatMoney(clase.class_price) }}</span>
-                </div>
-              </label>
-
-              <label :class="['pago-option', { 'pago-option--active': tipoPago === 'sena' }]">
-                <input type="radio" v-model="tipoPago" value="sena" class="pago-radio" />
-                <div class="pago-content">
-                  <span class="pago-label">Pagar seña (30 %)</span>
-                  <span class="pago-amount">{{ formatMoney(Math.round(clase.class_price * 0.3)) }}</span>
-                </div>
-              </label>
-            </div>
+            <h2 class="card-title">Pago</h2>
 
             <div class="monto-total">
-              <span class="monto-label">Monto a cobrar</span>
-              <span class="monto-value">{{ formatMoney(montoDisplay) }}</span>
-            </div>
-
-            <div class="pago-pending-note">
-              <span class="pending-icon" aria-hidden="true">ℹ</span>
-              <span>
-                El tipo de pago es informativo. El backend aún no distingue seña/total
-                — ver <em>pendientes-backend.md § 13.2</em>.
-              </span>
+              <span class="monto-label">Monto a cobrar (efectivo)</span>
+              <span class="monto-value">{{ formatMoney(clase.class_price) }}</span>
             </div>
 
             <!-- Error de confirmación -->
@@ -452,62 +414,6 @@ function handleVolver() {
   font-weight: 400;
 }
 
-/* ─── Tipo de pago ── */
-
-.pago-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 1.25rem;
-}
-
-.pago-option {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s;
-}
-
-.pago-option:hover {
-  border-color: #11998e;
-  background: #f0fdf9;
-}
-
-.pago-option--active {
-  border-color: #11998e;
-  background: #f0fdf9;
-}
-
-.pago-radio {
-  accent-color: #11998e;
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-}
-
-.pago-content {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.pago-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-.pago-amount {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0d3027;
-}
-
 /* ─── Monto total ── */
 
 .monto-total {
@@ -533,37 +439,6 @@ function handleVolver() {
   font-size: 1.15rem;
   font-weight: 800;
   color: #064e3b;
-}
-
-/* ─── Nota pendiente ── */
-
-.pago-pending-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.65rem 0.85rem;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  color: #92400e;
-  line-height: 1.5;
-  margin-bottom: 1.25rem;
-}
-
-.pending-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  background: #d97706;
-  color: white;
-  border-radius: 50%;
-  font-size: 0.65rem;
-  font-weight: 800;
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 
 /* ─── Error banner ── */
