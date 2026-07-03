@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 from app.schemas.profile import ClientProfileResponse, EmployeeProfileResponse
 
@@ -78,6 +78,13 @@ class PagoItem(BaseModel):
 
 class UpdateClientPhoneRequest(BaseModel):
     phone: str
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not v.isdigit():
+            raise ValueError("El teléfono debe contener solo números.")
+        return v
 
 
 class ClientesPaginadosResponse(BaseModel):

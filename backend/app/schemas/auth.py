@@ -76,6 +76,13 @@ class RegisterClientRequest(BaseModel):
             raise ValueError("El tipo de documento debe ser 'DNI' o 'PASAPORTE'.")
         return v
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not v.isdigit():
+            raise ValueError("El teléfono debe contener solo números.")
+        return v
+
     @field_validator("birth_date")
     @classmethod
     def validate_age(cls, v: date) -> date:
@@ -169,6 +176,13 @@ class GoogleCompleteRequest(BaseModel):
     def validate_doc_type_name(cls, v: str) -> str:
         if v not in ("DNI", "PASAPORTE"):
             raise ValueError("El tipo de documento debe ser 'DNI' o 'PASAPORTE'.")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not v.isdigit():
+            raise ValueError("El teléfono debe contener solo números.")
         return v
 
     @field_validator("birth_date")

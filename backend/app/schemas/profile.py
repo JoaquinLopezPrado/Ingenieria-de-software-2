@@ -13,15 +13,22 @@ class ClientProfileBase(BaseModel):
 
 # Esquema para CREAR el perfil (Acá van las validaciones estrictas)
 class ClientProfileCreate(ClientProfileBase):
-    
+
     @field_validator('birth_date')
     @classmethod
     def check_age(cls, v: date):
         today = date.today()
         age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
-        
+
         if age < 18:
             raise ValueError('El cliente debe ser mayor de 18 años para registrarse.')
+        return v
+
+    @field_validator('phone')
+    @classmethod
+    def check_phone(cls, v: str):
+        if not v.isdigit():
+            raise ValueError('El teléfono debe contener solo números.')
         return v
 
 # Esquema para DEVOLVER el perfil (Acá habilitamos la lectura desde SQLAlchemy)
