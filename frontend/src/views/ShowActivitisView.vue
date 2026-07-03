@@ -84,21 +84,20 @@
         >
 
           <div
-            v-if="inscriptoEnFecha(turno)"
-            class="inscripto-badge"
-          >
-            SUSCRIPTO ✓
-          </div>
-          <div
-            v-else-if="turnosConSeniaPagada.has(turno.id)"
+            v-if="!inscriptoEnFecha(turno) && turnosConSeniaPagada.has(turno.id)"
             class="senia-badge"
           >
             SEÑADA
           </div>
+          <!-- Si está suscripto mensualmente, ese estado pesa más y reemplaza el
+               aviso de "Clase agendada" (evita mostrar ambos a la vez). -->
           <div
-            v-if="turnosConClaseConfirmadaEnFecha.has(turno.id)"
-            class="lazo-clase"
-          ><span class="lazo-star">✦</span></div>
+            v-if="inscriptoEnFecha(turno) || turnosConClaseConfirmadaEnFecha.has(turno.id)"
+            class="agendada-banner"
+          >
+            <span aria-hidden="true">✓</span>
+            {{ inscriptoEnFecha(turno) ? 'Estás Suscripto' : 'Clase agendada' }}
+          </div>
           <!-- CARD TOP: nombre + hora | agotado badge -->
           <div class="card-top">
             <div>
@@ -115,8 +114,16 @@
                 >{{ DAY_LABELS[day] ?? day }}</span>
               </div>
             </div>
-            <span v-if="turno.hasRemainingClasses && sinCupoEnMes(turno)" class="agotado-badge">
-              AGOTADO
+            <!-- Solo para quienes todavía no tienen nada en este turno para esta fecha
+                 (a esos les aparece la opción de anotarse a lista de espera). -->
+            <span
+              v-if="turno.hasRemainingClasses
+                && !inscriptoEnFecha(turno)
+                && !turnosConClaseConfirmadaEnFecha.has(turno.id)
+                && sinCupo(turno)"
+              class="agotado-badge"
+            >
+              {{ sinCupoEnMes(turno) ? 'CUPO MENSUAL AGOTADO' : 'CUPO DE CLASE AGOTADO' }}
             </span>
           </div>
 
@@ -1204,20 +1211,6 @@ h1 {
   margin-top: auto;
 }
 
-.inscripto-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: #00897b;
-  color: white;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 6px 14px;
-  border-radius: 0 24px 0 16px;
-  letter-spacing: 0.05em;
-}
-
-
 .senia-badge {
   position: absolute;
   top: 0;
@@ -1292,28 +1285,19 @@ h1 {
   letter-spacing: 0.03em;
 }
 
-.lazo-clase {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 52px;
-  height: 52px;
-  background: #00897b;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+.agendada-banner {
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 7px 0 0 7px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: -24px -24px 0 -24px;
+  padding: 9px 0;
+  background: #00897b;
   color: white;
-  pointer-events: none;
-}
-
-.lazo-star {
-  display: inline-block;
-  font-size: 16px;
-  transform: rotate(20deg);
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.85), 0 1px 3px rgba(0, 0, 0, 0.2);
-  line-height: 1;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border-radius: 27px 27px 0 0;
 }
 
 .periodo-chip {
@@ -1329,15 +1313,16 @@ h1 {
 }
 
 .agotado-badge {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
-  padding: 5px 11px;
-  border-radius: 999px;
+  padding: 5px 10px;
+  border-radius: 12px;
   background: #FFEBEE;
   color: #C62828;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
+  letter-spacing: 0.04em;
+  text-align: right;
   flex-shrink: 0;
+  max-width: 110px;
   border: 1px solid #FFCDD2;
 }
 
