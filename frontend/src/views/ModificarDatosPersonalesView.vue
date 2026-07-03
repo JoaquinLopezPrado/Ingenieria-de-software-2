@@ -54,6 +54,11 @@ async function guardarCambios() {
     return
   }
 
+  if (!/^\d+$/.test(cleanPhone)) {
+    errorMessage.value = 'El teléfono debe contener solo números.'
+    return
+  }
+
   isSaving.value = true
 
   try {
@@ -143,6 +148,7 @@ function volver() {
               v-model="phone"
               class="form-input"
               type="text"
+              inputmode="numeric"
               placeholder="Ingresá tu teléfono"
               autocomplete="tel"
             />

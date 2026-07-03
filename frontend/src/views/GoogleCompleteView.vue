@@ -52,6 +52,7 @@ const handleSubmit = async () => {
   const e: Record<string, string> = {}
   if (!formData.value.doc_number.trim()) e.doc_number = 'El número de documento es obligatorio.'
   if (!formData.value.phone.trim()) e.phone = 'El teléfono es obligatorio.'
+  else if (!/^\d+$/.test(formData.value.phone.trim())) e.phone = 'El teléfono debe contener solo números.'
   if (!formData.value.birth_date) e.birth_date = 'La fecha de nacimiento es obligatoria.'
   fieldErrors.value = e
   if (Object.values(e).some(v => v)) return
@@ -111,7 +112,7 @@ const handleSubmit = async () => {
 
         <div class="form-group">
           <label class="custom-label" :class="{ 'label-error': fieldErrors.phone }">Teléfono</label>
-          <input v-model="formData.phone" type="text" class="input-field" :class="{ 'input-error': fieldErrors.phone }" placeholder="1123456789" :disabled="loading" @input="clearError('phone')" />
+          <input v-model="formData.phone" type="text" inputmode="numeric" class="input-field" :class="{ 'input-error': fieldErrors.phone }" placeholder="1123456789" :disabled="loading" @input="clearError('phone')" />
           <span v-if="fieldErrors.phone" class="field-error">{{ fieldErrors.phone }}</span>
         </div>
 

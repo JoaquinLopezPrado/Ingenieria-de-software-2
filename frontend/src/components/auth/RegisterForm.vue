@@ -89,6 +89,8 @@ const handleSubmit = () => {
 
   if (!formData.value.phone.trim()) {
     e.phone = 'El teléfono es obligatorio.'
+  } else if (!/^\d+$/.test(formData.value.phone.trim())) {
+    e.phone = 'El teléfono debe contener solo números.'
   }
 
   if (!formData.value.password) {
@@ -264,6 +266,7 @@ const handleSubmit = () => {
       <input
         v-model="formData.phone"
         type="text"
+        inputmode="numeric"
         class="input-field"
         :class="{ 'input-error': fieldErrors.phone }"
         placeholder="1123456789"

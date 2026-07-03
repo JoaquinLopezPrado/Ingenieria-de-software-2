@@ -51,9 +51,15 @@ function closeModal() {
 
 async function submitForm() {
   formError.value = null
+
+  const phone = form.value.phone.trim() || undefined
+  if (phone && !/^\d+$/.test(phone)) {
+    formError.value = 'El teléfono debe contener solo números.'
+    return
+  }
+
   formLoading.value = true
   try {
-    const phone = form.value.phone.trim() || undefined
     if (editingEmpleado.value) {
       const updated = await updateEmpleado(editingEmpleado.value.id, {
         first_name: form.value.first_name.trim(),
@@ -240,7 +246,7 @@ onMounted(async () => {
 
             <div class="field">
               <label class="field-label">Teléfono <span class="optional">(opcional)</span></label>
-              <input v-model="form.phone" type="text" class="field-input" placeholder="+54 9 11 1234-5678" />
+              <input v-model="form.phone" type="text" inputmode="numeric" class="field-input" placeholder="1123456789" />
             </div>
 
             <div v-if="formError" class="form-error">{{ formError }}</div>
