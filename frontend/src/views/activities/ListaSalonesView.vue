@@ -73,6 +73,7 @@ function openEditModal(salon: Salon) {
 
 function closeModal() {
   isModalVisible.value = false
+  formError.value = ''
 }
 
 async function refreshSalones() {
@@ -129,13 +130,6 @@ onMounted(async () => {
         </button>
       </div>
 
-      <transition name="fade">
-        <div v-if="formError" class="alert alert-error" role="alert">
-          <span class="alert-icon error-icon">!</span>
-          <span>{{ formError }}</span>
-          <button class="alert-close" @click="formError = ''" aria-label="Cerrar">×</button>
-        </div>
-      </transition>
 
       <div v-if="!isAdmin || loadError === '__forbidden__'" class="state-card state-forbidden">
         <div class="state-icon">⛔</div>
@@ -179,19 +173,10 @@ onMounted(async () => {
               />
             </div>
 
-            <div class="filter-group">
-              <label class="filter-label" for="filter-status">Estado</label>
-              <select id="filter-status" v-model="filterStatus" class="filter-select">
-                <option value="">Todos</option>
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-              </select>
-            </div>
-
             <button
-              v-if="filterName || filterStatus"
+              v-if="filterName"
               class="btn-clear"
-              @click="filterName = ''; filterStatus = ''"
+              @click="filterName = ''"
             >
               Limpiar filtros
             </button>
@@ -209,7 +194,6 @@ onMounted(async () => {
                 <tr>
                   <th>Nombre</th>
                   <th>Capacidad física</th>
-                  <th>Estado</th>
                   <th class="th-actions">Acciones</th>
                 </tr>
               </thead>
@@ -217,11 +201,6 @@ onMounted(async () => {
                 <tr v-for="salon in filtered" :key="salon.id">
                   <td class="td-name">{{ salon.name }}</td>
                   <td>{{ salon.capacity }}</td>
-                  <td>
-                    <span :class="['status-badge', salon.is_active ? 'badge-active' : 'badge-inactive']">
-                      {{ salon.is_active ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
                   <td class="td-actions">
                     <button class="btn-edit" @click="openEditModal(salon)" title="Editar salón">
                       Editar
@@ -239,6 +218,7 @@ onMounted(async () => {
         :visible="isModalVisible"
         :loading="isSaving"
         :salon="editingSalon"
+        :server-error="formError"
         @close="closeModal"
         @submit="handleSubmit"
       />
@@ -403,19 +383,18 @@ onMounted(async () => {
   align-items: flex-end;
   gap: 1rem;
   margin-bottom: 1rem;
-  flex-wrap: wrap;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 1rem 1.25rem;
+  max-width: 540px;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  flex: 1;
-  min-width: 160px;
+  width: 220px;
 }
 
 .filter-label {
@@ -449,6 +428,7 @@ onMounted(async () => {
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  max-width: 540px;
 }
 
 .salones-table {
