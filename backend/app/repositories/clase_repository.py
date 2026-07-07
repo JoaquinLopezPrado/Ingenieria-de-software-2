@@ -199,13 +199,10 @@ class ClaseRepository(AbstractClaseRepository):
                 detail="La nueva fecha no puede ser anterior a hoy.",
             )
         enrolled = await self._count_enrolled(clase.turno_id, clase_id, clase.date)
-        if capacity < enrolled:
+        if enrolled > 0:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"El cupo no puede ser menor a la cantidad de inscriptos "
-                    f"({enrolled}) en esta clase."
-                ),
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se puede modificar una clase que ya tiene inscriptos.",
             )
         clase.date = new_date
         clase.start_time = start_time
