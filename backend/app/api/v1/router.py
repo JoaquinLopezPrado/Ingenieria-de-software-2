@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     employees,
     payments,
     reports,
+    salones,
     single_enrollments,
     subscriptions,
     turnos,
@@ -29,4 +30,5 @@ api_router.include_router(attendances.router, prefix="/attendances", tags=["atte
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(clases.router, prefix="/clases", tags=["clases"])
 api_router.include_router(employees.router, prefix="/employees", tags=["employees"])
+api_router.include_router(salones.router, prefix="/salones", tags=["salones"])
 api_router.include_router(admin_enrollments.router, prefix="/admin/enrollments", tags=["admin-enrollments"])
