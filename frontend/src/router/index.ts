@@ -10,6 +10,7 @@ import GrillaTurnosView from '@/views/activities/GrillaTurnosView.vue'
 import EditTurnoView from '@/views/activities/EditTurnoView.vue'
 import ListaActividadesView from '@/views/activities/ListaActividadesView.vue'
 import EditActividadView from '@/views/activities/EditActividadView.vue'
+import ListaSalonesView from '@/views/activities/ListaSalonesView.vue'
 import AlumnoInscripcionesView from '@/views/clientes/AlumnoInscripcionesView.vue'
 
 const router = createRouter({
@@ -99,6 +100,12 @@ const router = createRouter({
       path: '/activities/turnos',
       name: 'turnos-grilla',
       component: GrillaTurnosView,
+      meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
+    },
+    {
+      path: '/activities/salones',
+      name: 'lista-salones',
+      component: ListaSalonesView,
       meta: { requiresAuth: true, requiresAdmin: true, adminLayout: true },
     },
     {

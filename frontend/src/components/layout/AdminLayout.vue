@@ -74,6 +74,9 @@ const confirmLogout = async () => {
           <RouterLink to="/activities/turnos" class="nav-item" active-class="active">
             <span class="nav-icon">◷</span> Grilla de Turnos
           </RouterLink>
+          <RouterLink to="/activities/salones" class="nav-item" active-class="active">
+            <span class="nav-icon">🏢</span> Salones
+          </RouterLink>
           <RouterLink to="/scanner" class="nav-item" active-class="active">
             <span class="nav-icon">▣</span> Escáner QR
           </RouterLink>
