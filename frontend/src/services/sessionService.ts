@@ -20,6 +20,7 @@ import api from './api'
  */
 export interface SessionFormData {
   activity_id: number
+  salon_id: number
   description: string
   instructor: string
   days: string[]        // valores de visualización: "Lunes", "Miércoles", etc.
@@ -29,6 +30,23 @@ export interface SessionFormData {
   class_price: number
   start_date: string    // "YYYY-MM-DD"
   is_active: boolean
+}
+
+export interface Salon {
+  id: number
+  name: string
+  capacity: number
+  is_active: boolean
+}
+
+export interface CreateSalonPayload {
+  name: string
+  capacity: number
+}
+
+export interface UpdateSalonPayload {
+  name: string
+  capacity: number
 }
 
 export interface ActivityOption {
@@ -60,6 +78,7 @@ export interface CreateTurnoPayload {
 export interface Turno {
   id: number
   activity_id: number
+  salon_id: number | null
   description: string
   instructor: string
   days: string[]      // valores del backend: "lunes", "martes", etc.
@@ -115,11 +134,51 @@ const DAY_TO_BACKEND: Record<string, string> = {
  * Response shape: ActivityResponse[] → { id, name, instructor, is_active }
  * Solo se exponen en el select las actividades con is_active = true.
  */
-export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }> => {
-  const res = await api.get('/activities')
+export const getFormOptions = async (): Promise<{ activities: ActivityOption[]; salones: Salon[] }> => {
+  const [activitiesRes, salones] = await Promise.all([
+    api.get('/activities'),
+    getSalones(),
+  ])
   return {
-    activities: res.data.filter((a: ActivityOption) => a.is_active)
+    activities: activitiesRes.data.filter((a: ActivityOption) => a.is_active),
+    salones,
   }
+}
+
+/**
+ * Carga los salones activos desde GET /api/v1/salones.
+ * Requiere rol admin o empleado.
+ */
+export const getSalones = async (): Promise<Salon[]> => {
+  const res = await api.get('/salones')
+  return res.data
+}
+
+/**
+ * Obtiene todos los salones (activos e inactivos) desde GET /api/v1/salones/all.
+ * Solo accesible para admins.
+ */
+export const getSalonesAll = async (): Promise<Salon[]> => {
+  const res = await api.get('/salones/all')
+  return res.data
+}
+
+/**
+ * Crea un nuevo salón con POST /api/v1/salones.
+ * Requiere rol admin.
+ */
+export const createSalon = async (payload: CreateSalonPayload): Promise<Salon> => {
+  const res = await api.post('/salones', payload)
+  return res.data
+}
+
+/**
+ * Actualiza un salón existente con PATCH /api/v1/salones/{id}.
+ * Requiere rol admin.
+ */
+export const updateSalon = async (salonId: number, payload: UpdateSalonPayload): Promise<Salon> => {
+  const res = await api.patch(`/salones/${salonId}`, payload)
+  return res.data
 }
 
 /**
@@ -143,6 +202,7 @@ export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }
 export const createSession = async (formData: SessionFormData): Promise<{ message: string }> => {
   const payload = {
     activity_id: formData.activity_id,
+    salon_id: formData.salon_id,
     description: formData.description,
     start_time: formData.startTime,
     end_time: formData.endTime,
@@ -323,6 +383,7 @@ export const getDeactivationImpact = async (id: number): Promise<DeactivationImp
 }
 
 export interface UpdateTurnoPayload {
+  salon_id?:    number
   description?: string
   days?:        string[]
   start_time?:  string
@@ -347,6 +408,7 @@ export const updateTurno = async (
 
 /** Payload completo para editar un turno (PUT /api/v1/turnos/{id}). */
 export interface EditTurnoPayload {
+  salon_id:    number
   description: string
   instructor:  string
   start_time:  string
