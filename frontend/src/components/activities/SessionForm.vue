@@ -14,7 +14,7 @@
  * Ver docs/integracion-backend.md 
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { getFormOptions, type ActivityOption, type SessionFormData } from '@/services/sessionService'
+import { getFormOptions, type ActivityOption, type Salon, type SessionFormData } from '@/services/sessionService'
 
 defineProps<{ isLoading: boolean }>()
 
@@ -42,12 +42,14 @@ const TIME_SLOTS: string[] = (() => {
 // ─── Opciones del formulario (actividades) ────────────────────────────────────
 
 const availableActivities = ref<ActivityOption[]>([])
+const availableSalones = ref<Salon[]>([])
 const loadError = ref('')
 
 onMounted(async () => {
   try {
     const options = await getFormOptions()
     availableActivities.value = options.activities
+    availableSalones.value = options.salones
   } catch (e: any) {
     const status = e?.response?.status
     if (status === 401 || status === 403) {
@@ -66,6 +68,7 @@ const todayISO = new Date().toISOString().slice(0, 10)
 
 const form = ref({
   activity_id:  null as number | null,
+  salon_id:     null as number | null,
   description:  '',
   instructor:   '', // solo lectura, se muestra según la actividad elegida
   days:         [] as string[],
@@ -110,6 +113,9 @@ const validate = (): boolean => {
   if (!form.value.activity_id)
     errors.value.activity = 'Seleccioná una actividad.'
 
+  if (!form.value.salon_id)
+    errors.value.salon = 'Seleccioná un salón.'
+
   if (!form.value.instructor?.trim())
     errors.value.instructor = 'Ingresá el nombre del instructor.'
 
@@ -146,6 +152,7 @@ const validate = (): boolean => {
 
 const isDirty = computed(() =>
   form.value.activity_id !== null ||
+  form.value.salon_id !== null ||
   form.value.description !== '' ||
   form.value.days.length > 0 ||
   form.value.startTime !== '' ||
@@ -162,6 +169,7 @@ const handleSubmit = () => {
   if (!validate()) return
   emit('submit-session', {
     activity_id:  form.value.activity_id!,
+    salon_id:     form.value.salon_id!,
     description:  form.value.description.trim(),
     instructor:   form.value.instructor?.trim() ?? '',
     days:         form.value.days,
@@ -208,6 +216,18 @@ const handleSubmit = () => {
           >
           <span v-if="errors.instructor" class="field-error">{{ errors.instructor }}</span>
         </div>
+      </div>
+
+      <!-- ── Salón ── -->
+      <div class="input-group">
+        <label>Salón</label>
+        <select v-model="form.salon_id" :class="{ 'input-error': errors.salon }">
+          <option :value="null" disabled>Seleccioná un salón...</option>
+          <option v-for="salon in availableSalones" :key="salon.id" :value="salon.id">
+            {{ salon.name }} (capacidad {{ salon.capacity }})
+          </option>
+        </select>
+        <span v-if="errors.salon" class="field-error">{{ errors.salon }}</span>
       </div>
 
       <!-- ── Descripción ── -->

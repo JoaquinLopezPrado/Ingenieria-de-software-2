@@ -28,6 +28,7 @@ import {
   getTurnoDeactivationImpact,
   extractBackendError,
   type Turno,
+  type Salon,
   type EditTurnoPayload,
   type UpdateTurnoPreview,
   type TurnoDeactivationImpact,
@@ -83,6 +84,7 @@ function normalizeTime(t: string): string {
 
 const turno        = ref<Turno | null>(null)
 const activityName = ref('')
+const availableSalones = ref<Salon[]>([])
 const isLoading    = ref(true)
 const isSaving     = ref(false)
 const isPreviewing = ref(false)
@@ -104,6 +106,7 @@ const isDeactivating    = ref(false)
 
 // Formulario: mismos campos que SessionForm, sin start_date (no aplica al editar)
 const form = ref({
+  salon_id:    null as number | null,
   description: '',
   instructor:  '',
   days:        [] as string[],
@@ -138,10 +141,11 @@ onMounted(async () => {
     return
   }
   try {
-    const [turnosRes, { activities }] = await Promise.all([
+    const [turnosRes, { activities, salones }] = await Promise.all([
       getTurnosAll({ page_size: 500 }),
       getFormOptions(),
     ])
+    availableSalones.value = salones
 
     const found = turnosRes.items.find(t => t.id === turnoId)
     if (!found) {
@@ -156,6 +160,7 @@ onMounted(async () => {
 
     // Pre-cargar el formulario con los valores actuales del turno
     form.value = {
+      salon_id:    found.salon_id,
       description: found.description,
       instructor:  found.instructor,
       days:        found.days.map(d => BACKEND_TO_DISPLAY[d] ?? d),
@@ -185,6 +190,9 @@ onMounted(async () => {
 
 function validate(): boolean {
   errors.value = {}
+
+  if (!form.value.salon_id)
+    errors.value.salon = 'Seleccioná un salón.'
 
   if (!form.value.description.trim())
     errors.value.description = 'Ingresá una descripción para el turno.'
@@ -221,6 +229,7 @@ function validate(): boolean {
 
 function buildPayload(): EditTurnoPayload {
   return {
+    salon_id:    form.value.salon_id!,
     description: form.value.description.trim(),
     instructor:  form.value.instructor.trim(),
     days:        form.value.days.map(d => DISPLAY_TO_BACKEND[d] ?? d.toLowerCase()),
@@ -426,6 +435,18 @@ async function confirmDeactivate() {
 
             </div>
 
+            <!-- ── Salón ── -->
+            <div class="input-group">
+              <label>Salón</label>
+              <select v-model="form.salon_id" :class="{ 'input-error': errors.salon }">
+                <option :value="null" disabled>Seleccioná un salón...</option>
+                <option v-for="salon in availableSalones" :key="salon.id" :value="salon.id">
+                  {{ salon.name }} (capacidad {{ salon.capacity }})
+                </option>
+              </select>
+              <span v-if="errors.salon" class="field-error">{{ errors.salon }}</span>
+            </div>
+
             <!-- ── Descripción ── -->
             <div class="input-group">
               <label>Descripción del turno</label>
@@ -433,7 +454,7 @@ async function confirmDeactivate() {
                 type="text"
                 v-model="form.description"
                 maxlength="200"
-                placeholder="Ej: Turno tarde, salon 1"
+                placeholder="Ej: Turno tarde"
                 :class="{ 'input-error': errors.description }"
               />
               <span v-if="errors.description" class="field-error">{{ errors.description }}</span>

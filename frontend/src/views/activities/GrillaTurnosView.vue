@@ -5,11 +5,13 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import {
   getTurnosAll,
   getAllActivities,
+  getSalonesAll,
   generateClasses,
   previewGenerateClasses,
   extractBackendError,
   type Turno,
   type ActivityOption,
+  type Salon,
 } from '@/services/sessionService'
 
 // ─── Estado principal ──────────────────────────────────────────────────────────
@@ -17,6 +19,7 @@ import {
 const allTurnos = ref<Turno[]>([])
 const allActivities = ref<ActivityOption[]>([])
 const activityMap = ref<Map<number, string>>(new Map())
+const salonMap = ref<Map<number, Salon>>(new Map())
 const isLoading = ref(true)
 const errorMessage = ref('')
 const errorType = ref<'auth' | 'forbidden' | 'generic' | null>(null)
@@ -150,6 +153,9 @@ watch([filterActivity, filterDays, filterInstructor, filterAvailability], () => 
 const activityName = (id: number) =>
   activityMap.value.get(id) ?? `Actividad #${id}`
 
+const salonName = (id: number | null) =>
+  id === null ? '—' : (salonMap.value.get(id)?.name ?? `Salón #${id}`)
+
 function toggleDay(day: string) {
   const idx = filterDays.value.indexOf(day)
   if (idx === -1) filterDays.value.push(day)
@@ -214,13 +220,15 @@ function closeGenerateModal() {
 
 onMounted(async () => {
   try {
-    const [turnosRes, activities] = await Promise.all([
+    const [turnosRes, activities, salones] = await Promise.all([
       getTurnosAll({ page_size: 500 }),
       getAllActivities(),
+      getSalonesAll(),
     ])
     allTurnos.value = turnosRes.items
     allActivities.value = activities
     activityMap.value = new Map(activities.map(a => [a.id, a.name]))
+    salonMap.value = new Map(salones.map(s => [s.id, s]))
   } catch (error: unknown) {
     const axiosError = error as { response?: { status?: number }; request?: unknown }
     const status = axiosError?.response?.status
@@ -386,6 +394,7 @@ onMounted(async () => {
           <thead>
             <tr>
               <th>Actividad</th>
+              <th>Salón</th>
               <th>Descripción</th>
               <th>Días</th>
               <th>Horario</th>
@@ -398,6 +407,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="turno in paginatedTurnos" :key="turno.id">
               <td class="cell-activity">{{ activityName(turno.activity_id) }}</td>
+              <td class="cell-salon">{{ salonName(turno.salon_id) }}</td>
               <td class="cell-desc">{{ turno.description || '—' }}</td>
               <td class="cell-days">
                 <span
