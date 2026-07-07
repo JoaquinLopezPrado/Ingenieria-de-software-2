@@ -12,6 +12,7 @@ from app.repositories.activity_repository import AbstractActivityRepository
 from app.repositories.clase_cancellation_repository import ClaseCancellationRepository
 from app.repositories.clase_repository import AbstractClaseRepository
 from app.repositories.config_repository import AbstractConfigRepository
+from app.repositories.salon_repository import AbstractSalonRepository
 from app.repositories.subscription_repository import SubscriptionRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
 from app.schemas.clases import CancelClaseRequest
@@ -67,13 +68,47 @@ class TurnoService:
         clase_repo: AbstractClaseRepository,
         activity_repo: AbstractActivityRepository,
         config_repo: AbstractConfigRepository,
+        salon_repo: Optional[AbstractSalonRepository] = None,
         session: Optional[AsyncSession] = None,
     ):
         self._turno_repo = turno_repo
         self._clase_repo = clase_repo
         self._activity_repo = activity_repo
         self._config_repo = config_repo
+        self._salon_repo = salon_repo
         self._session = session
+
+    async def _validate_salon(
+        self, salon_id: int, capacity: int, days: List[DiaSemana],
+        start_time: time, end_time: time, exclude_turno_id: Optional[int] = None,
+    ):
+        """Valida que el salón exista, tenga capacidad física suficiente y no se
+        pise en horario con otro turno activo que ya lo tenga asignado."""
+        salon = await self._salon_repo.get_active_by_id(salon_id)
+        if not salon:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Salón no encontrado.",
+            )
+        if capacity > salon.capacity:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"El cupo del turno ({capacity}) supera la capacidad física "
+                    f"del salón «{salon.name}» ({salon.capacity})."
+                ),
+            )
+        conflict = await self._turno_repo.find_salon_conflict(
+            salon_id, days, start_time, end_time, exclude_turno_id=exclude_turno_id
+        )
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"El salón «{salon.name}» ya está ocupado por el turno "
+                    f"«{conflict.description}» en un horario que se superpone."
+                ),
+            )
 
     async def list(
         self,
@@ -98,6 +133,7 @@ class TurnoService:
     async def create(
         self,
         activity_id: int,
+        salon_id: int,
         description: str,
         instructor: str,
         start_time: time,
@@ -115,6 +151,8 @@ class TurnoService:
                 detail="Actividad no encontrada.",
             )
 
+        await self._validate_salon(salon_id, capacity, days, start_time, end_time)
+
         existing = await self._turno_repo.get_by_activity_description_time(
             activity_id, description, start_time, end_time
         )
@@ -125,7 +163,8 @@ class TurnoService:
             )
 
         turno = await self._turno_repo.create(
-            activity_id, description, instructor, start_time, end_time, capacity, class_price, days, is_active
+            activity_id, description, instructor, start_time, end_time, capacity, class_price, days, is_active,
+            salon_id=salon_id,
         )
 
         end_date = _end_date_months_ahead(start_date, _MONTHS_AHEAD)
@@ -181,6 +220,10 @@ class TurnoService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
 
         await self._check_no_conflict(turno, req)
+        await self._validate_salon(
+            req.salon_id, req.capacity, req.days, req.start_time, req.end_time,
+            exclude_turno_id=turno_id,
+        )
 
         today = datetime.now(_ART).date()
         horario_cambia = req.start_time != turno.start_time or req.end_time != turno.end_time
@@ -200,10 +243,10 @@ class TurnoService:
                     ),
                 )
 
-        # 1. Campos del turno (nuevo horario, capacidad, precio, etc.)
+        # 1. Campos del turno (nuevo horario, capacidad, precio, salón, etc.)
         await self._turno_repo.update_fields(
             turno_id, req.description, req.instructor, req.start_time,
-            req.end_time, req.capacity, req.class_price,
+            req.end_time, req.capacity, req.class_price, salon_id=req.salon_id,
         )
         # 2. Días del turno
         if quitados or agregados:
@@ -290,7 +333,23 @@ class TurnoService:
             await cancellation_service.cancel_turno_baja(turno_id, clase_ids, _TURNO_BAJA_REASON, admin_id)
             await SubscriptionRepository(self._session).cancel_all_for_turno(turno_id)
         elif not turno.is_active:
-            # Reactivación: reabrir hacia adelante. Se descancelan solo las clases futuras
+            # Activación (alta inicial o reactivación tras baja): recién ahora el turno
+            # va a dictarse de verdad, así que se valida que el salón siga libre en ese
+            # horario (pudo haberse ocupado con otro turno mientras este estaba inactivo).
+            if turno.salon_id is not None:
+                conflict = await self._turno_repo.find_salon_conflict(
+                    turno.salon_id, turno.days, turno.start_time, turno.end_time,
+                    exclude_turno_id=turno_id,
+                )
+                if conflict:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"No se puede activar: el salón ya está ocupado por el turno "
+                            f"«{conflict.description}» en un horario que se superpone."
+                        ),
+                    )
+            # Reactivación: reabre hacia adelante. Se descancelan solo las clases futuras
             # que canceló la baja (las pasadas quedan como histórico, y las canceladas a
             # mano por otra razón se respetan). No se tocan créditos ni suscripciones: los
             # afectados ya recibieron su crédito y no se re-inscriben automáticamente.

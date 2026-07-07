@@ -25,6 +25,7 @@ def _format_time(value: time) -> str:
 
 class CreateTurnoRequest(BaseModel):
     activity_id: int
+    salon_id: int
     description: str = Field(min_length=1, max_length=200)
     instructor: str = Field(min_length=1, max_length=200)
     start_time: time
@@ -55,6 +56,7 @@ class CreateTurnoRequest(BaseModel):
 
 
 class UpdateTurnoRequest(BaseModel):
+    salon_id: int
     description: str = Field(min_length=1, max_length=200)
     instructor: str = Field(min_length=1, max_length=200)
     start_time: time
@@ -148,6 +150,7 @@ class TurnoResponse(BaseModel):
 
     id: int
     activity_id: int
+    salon_id: Optional[int] = None
     description: str
     instructor: str
     start_time: time

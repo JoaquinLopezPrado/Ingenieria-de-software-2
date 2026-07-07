@@ -10,6 +10,9 @@ class Turno(IDMixin, TimestampMixin, Base):
     __tablename__ = "turnos"
 
     activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
+    # Nullable a nivel de base para no romper turnos existentes creados antes de
+    # modelar Salon; a partir de ahora es obligatorio en el schema de alta/edición.
+    salon_id = Column(Integer, ForeignKey("salones.id"), nullable=True)
     description = Column(String, nullable=False)
     instructor = Column(String, nullable=False)
     start_time = Column(Time(timezone=False), nullable=False)
@@ -19,6 +22,7 @@ class Turno(IDMixin, TimestampMixin, Base):
     is_active = Column(Boolean, default=False, nullable=False)
 
     activity = relationship("Activity", back_populates="turnos")
+    salon = relationship("Salon", back_populates="turnos")
     days = relationship("TurnoDia", back_populates="turno", cascade="all, delete-orphan")
     clases = relationship("Clase", back_populates="turno", cascade="all, delete-orphan")
     subscriptions = relationship("Subscription", back_populates="turno")

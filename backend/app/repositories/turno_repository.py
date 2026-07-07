@@ -48,6 +48,7 @@ class AbstractTurnoRepository(ABC):
         class_price: Decimal,
         days: List[DiaSemana],
         is_active: bool = False,
+        salon_id: Optional[int] = None,
     ) -> Turno:
         raise NotImplementedError
 
@@ -61,7 +62,19 @@ class AbstractTurnoRepository(ABC):
         end_time: time,
         capacity: int,
         class_price: Decimal,
+        salon_id: Optional[int] = None,
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_salon_conflict(
+        self,
+        salon_id: int,
+        days: List[DiaSemana],
+        start_time: time,
+        end_time: time,
+        exclude_turno_id: Optional[int] = None,
+    ) -> Optional[Turno]:
         raise NotImplementedError
 
     @abstractmethod
@@ -197,9 +210,11 @@ class TurnoRepository(AbstractTurnoRepository):
         class_price: Decimal,
         days: List[DiaSemana],
         is_active: bool = False,
+        salon_id: Optional[int] = None,
     ) -> Turno:
         orm = TurnoORM(
             activity_id=activity_id,
+            salon_id=salon_id,
             description=description,
             instructor=instructor,
             start_time=start_time,
@@ -227,6 +242,7 @@ class TurnoRepository(AbstractTurnoRepository):
         end_time: time,
         capacity: int,
         class_price: Decimal,
+        salon_id: Optional[int] = None,
     ) -> None:
         result = await self._session.execute(
             select(TurnoORM).where(TurnoORM.id == turno_id)
@@ -238,7 +254,39 @@ class TurnoRepository(AbstractTurnoRepository):
         orm.end_time = end_time
         orm.capacity = capacity
         orm.class_price = class_price
+        if salon_id is not None:
+            orm.salon_id = salon_id
         await self._session.flush()
+
+    async def find_salon_conflict(
+        self,
+        salon_id: int,
+        days: List[DiaSemana],
+        start_time: time,
+        end_time: time,
+        exclude_turno_id: Optional[int] = None,
+    ) -> Optional[Turno]:
+        """Primer turno activo que ya ocupa ese salón en algún día/horario que se
+        superpone (mismo criterio de solape estricto que el resto del sistema:
+        turnos adyacentes que se tocan en el borde no cuentan)."""
+        query = (
+            select(TurnoORM)
+            .join(TurnoDiaORM, TurnoDiaORM.turno_id == TurnoORM.id)
+            .options(selectinload(TurnoORM.days))
+            .where(
+                TurnoORM.salon_id == salon_id,
+                TurnoORM.is_active == True,
+                TurnoDiaORM.dia.in_(days),
+                TurnoORM.start_time < end_time,
+                start_time < TurnoORM.end_time,
+            )
+        )
+        if exclude_turno_id is not None:
+            query = query.where(TurnoORM.id != exclude_turno_id)
+
+        result = await self._session.execute(query.limit(1))
+        orm = result.scalars().first()
+        return self._to_domain(orm) if orm else None
 
     async def set_days(self, turno_id: int, days: List[DiaSemana]) -> None:
         await self._session.execute(
@@ -266,6 +314,7 @@ class TurnoRepository(AbstractTurnoRepository):
         return Turno(
             id=orm.id,
             activity_id=orm.activity_id,
+            salon_id=orm.salon_id,
             description=orm.description,
             instructor=orm.instructor,
             start_time=orm.start_time,

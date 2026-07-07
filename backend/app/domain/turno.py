@@ -27,12 +27,14 @@ class Turno:
         class_price: Decimal,
         is_active: bool,
         days: List[DiaSemana],
+        salon_id: "int | None" = None,
         enrolled: int = 0,
         has_remaining_classes: bool = True,
         has_future_classes: bool = True,
     ):
         self.id = id
         self.activity_id = activity_id
+        self.salon_id = salon_id
         self.description = description
         self.instructor = instructor
         self.start_time = start_time

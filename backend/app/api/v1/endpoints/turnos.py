@@ -10,6 +10,7 @@ from app.domain.user import User
 from app.repositories.activity_repository import ActivityRepository
 from app.repositories.clase_repository import ClaseRepository
 from app.repositories.config_repository import ConfigRepository
+from app.repositories.salon_repository import SalonRepository
 from app.repositories.turno_repository import TurnoRepository
 from app.schemas.turno import (
     ClaseDetalleResponse,
@@ -34,6 +35,7 @@ def get_turno_service(db: AsyncSession = Depends(get_db)) -> TurnoService:
         clase_repo=ClaseRepository(db),
         activity_repo=ActivityRepository(db),
         config_repo=ConfigRepository(db),
+        salon_repo=SalonRepository(db),
         session=db,
     )
 
@@ -110,6 +112,7 @@ async def create_turno(
 ):
     return await service.create(
         activity_id=body.activity_id,
+        salon_id=body.salon_id,
         description=body.description,
         instructor=body.instructor,
         start_time=body.start_time,
