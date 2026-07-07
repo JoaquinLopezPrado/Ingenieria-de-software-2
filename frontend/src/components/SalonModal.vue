@@ -11,6 +11,7 @@ const props = defineProps<{
   visible: boolean
   loading?: boolean
   salon?: Salon | null
+  serverError?: string
 }>()
 
 const emit = defineEmits<{
@@ -50,8 +51,8 @@ const handleSubmit = () => {
     return
   }
 
-  if (name.length > 100) {
-    error.value = 'El nombre no puede superar 100 caracteres.'
+  if (name.length > 20) {
+    error.value = 'El nombre no puede superar 20 caracteres.'
     return
   }
 
@@ -104,8 +105,8 @@ const closeModal = () => {
           />
         </div>
 
-        <div v-if="error" class="error-message">
-          {{ error }}
+        <div v-if="error || serverError" class="error-message">
+          {{ error || serverError }}
         </div>
 
         <div class="actions">
