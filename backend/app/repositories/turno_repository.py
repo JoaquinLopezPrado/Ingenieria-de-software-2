@@ -160,7 +160,7 @@ class TurnoRepository(AbstractTurnoRepository):
 
         rows = (await self._session.execute(
             base
-            .options(selectinload(TurnoORM.days))
+            .options(selectinload(TurnoORM.days), selectinload(TurnoORM.salon))
             .add_columns(enrolled_subq.label("enrolled"))
             .add_columns(remaining_subq.label("remaining"))
             .add_columns(future_subq.label("future_count"))
@@ -176,7 +176,7 @@ class TurnoRepository(AbstractTurnoRepository):
     async def get_by_id(self, turno_id: int) -> Optional[Turno]:
         result = await self._session.execute(
             select(TurnoORM)
-            .options(selectinload(TurnoORM.days))
+            .options(selectinload(TurnoORM.days), selectinload(TurnoORM.salon))
             .where(TurnoORM.id == turno_id)
         )
         orm = result.scalar_one_or_none()
@@ -187,7 +187,7 @@ class TurnoRepository(AbstractTurnoRepository):
     ) -> Optional[Turno]:
         result = await self._session.execute(
             select(TurnoORM)
-            .options(selectinload(TurnoORM.days))
+            .options(selectinload(TurnoORM.days), selectinload(TurnoORM.salon))
             .where(
                 TurnoORM.activity_id == activity_id,
                 TurnoORM.description == description,
@@ -230,7 +230,7 @@ class TurnoRepository(AbstractTurnoRepository):
             self._session.add(TurnoDiaORM(turno_id=orm.id, dia=dia))
 
         await self._session.flush()
-        await self._session.refresh(orm, ["days"])
+        await self._session.refresh(orm, ["days", "salon"])
         return self._to_domain(orm)
 
     async def update_fields(
@@ -272,7 +272,7 @@ class TurnoRepository(AbstractTurnoRepository):
         query = (
             select(TurnoORM)
             .join(TurnoDiaORM, TurnoDiaORM.turno_id == TurnoORM.id)
-            .options(selectinload(TurnoORM.days))
+            .options(selectinload(TurnoORM.days), selectinload(TurnoORM.salon))
             .where(
                 TurnoORM.salon_id == salon_id,
                 TurnoORM.is_active == True,
@@ -315,6 +315,7 @@ class TurnoRepository(AbstractTurnoRepository):
             id=orm.id,
             activity_id=orm.activity_id,
             salon_id=orm.salon_id,
+            salon_name=orm.salon.name if orm.salon else None,
             description=orm.description,
             instructor=orm.instructor,
             start_time=orm.start_time,

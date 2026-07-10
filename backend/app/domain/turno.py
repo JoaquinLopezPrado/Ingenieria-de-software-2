@@ -28,6 +28,7 @@ class Turno:
         is_active: bool,
         days: List[DiaSemana],
         salon_id: "int | None" = None,
+        salon_name: "str | None" = None,
         enrolled: int = 0,
         has_remaining_classes: bool = True,
         has_future_classes: bool = True,
@@ -35,6 +36,7 @@ class Turno:
         self.id = id
         self.activity_id = activity_id
         self.salon_id = salon_id
+        self.salon_name = salon_name
         self.description = description
         self.instructor = instructor
         self.start_time = start_time

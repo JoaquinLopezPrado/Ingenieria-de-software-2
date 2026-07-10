@@ -151,6 +151,7 @@ class TurnoResponse(BaseModel):
     id: int
     activity_id: int
     salon_id: Optional[int] = None
+    salon_name: Optional[str] = None
     description: str
     instructor: str
     start_time: time
