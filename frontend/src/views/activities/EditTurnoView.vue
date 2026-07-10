@@ -276,7 +276,14 @@ async function handleSubmit() {
 
   isPreviewing.value = true
   try {
-    preview.value = await previewTurnoUpdate(turnoId, buildPayload())
+    const result = await previewTurnoUpdate(turnoId, buildPayload())
+    if (result.cupo_insuficiente) {
+      // El backend rechazaría este guardado igual; se avisa acá para no abrir
+      // un modal de "sin impacto" que después falla al confirmar.
+      serverError.value = `No se puede reducir el cupo a ${form.value.maxCapacity}: hay clases futuras con ${result.max_inscriptos_futuros} inscriptos.`
+      return
+    }
+    preview.value = result
     showConfirm.value = true
   } catch (e: unknown) {
     handleApiError(e)

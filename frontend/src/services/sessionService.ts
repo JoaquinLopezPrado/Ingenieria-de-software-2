@@ -425,6 +425,8 @@ export interface UpdateTurnoPreview {
   creditos_a_generar:   number
   clases_a_generar:     number
   usuarios_a_notificar: number
+  cupo_insuficiente:      boolean
+  max_inscriptos_futuros: number
 }
 
 /**

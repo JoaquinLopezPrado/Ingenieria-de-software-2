@@ -93,6 +93,8 @@ class UpdateTurnoPreviewResponse(BaseModel):
     creditos_a_generar: int
     clases_a_generar: int
     usuarios_a_notificar: int
+    cupo_insuficiente: bool
+    max_inscriptos_futuros: int
 
 
 class SetTurnoActiveRequest(BaseModel):

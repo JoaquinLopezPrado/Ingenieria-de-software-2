@@ -308,6 +308,13 @@ class TurnoService:
             recipients = await ClaseCancellationRepository(self._session).get_schedule_change_recipients(turno_id, today)
             usuarios_a_notificar = len(recipients)
 
+        # Mismo chequeo que hace update() al aplicar: si el cupo nuevo queda por
+        # debajo de los inscriptos de alguna clase futura, el guardado se va a
+        # rechazar. Se calcula acá también para que el preview no diga "sin
+        # impacto" y el admin se entere recién al confirmar.
+        max_inscriptos_futuros = await self._clase_repo.get_max_enrolled_future(turno_id, today)
+        cupo_insuficiente = req.capacity < max_inscriptos_futuros
+
         return UpdateTurnoPreviewResponse(
             horario_cambia=horario_cambia,
             dias_agregados=sorted(agregados, key=lambda d: _DIA_A_WEEKDAY[d]),
@@ -317,6 +324,8 @@ class TurnoService:
             creditos_a_generar=creditos,
             clases_a_generar=clases_a_generar,
             usuarios_a_notificar=usuarios_a_notificar,
+            cupo_insuficiente=cupo_insuficiente,
+            max_inscriptos_futuros=max_inscriptos_futuros,
         )
 
     async def set_active(self, turno_id: int, is_active: bool, admin_id: int) -> Turno:
