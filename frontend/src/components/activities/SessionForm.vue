@@ -14,7 +14,7 @@
  * Ver docs/integracion-backend.md 
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { getFormOptions, type ActivityOption, type Salon, type SessionFormData } from '@/services/sessionService'
+import { getFormOptions, getSalones, type ActivityOption, type Salon, type SessionFormData } from '@/services/sessionService'
 
 defineProps<{ isLoading: boolean }>()
 
@@ -47,9 +47,9 @@ const loadError = ref('')
 
 onMounted(async () => {
   try {
-    const options = await getFormOptions()
+    const [options, salones] = await Promise.all([getFormOptions(), getSalones()])
     availableActivities.value = options.activities
-    availableSalones.value = options.salones
+    availableSalones.value = salones
   } catch (e: any) {
     const status = e?.response?.status
     if (status === 401 || status === 403) {

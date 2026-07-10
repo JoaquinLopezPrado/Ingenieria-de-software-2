@@ -134,14 +134,10 @@ const DAY_TO_BACKEND: Record<string, string> = {
  * Response shape: ActivityResponse[] → { id, name, instructor, is_active }
  * Solo se exponen en el select las actividades con is_active = true.
  */
-export const getFormOptions = async (): Promise<{ activities: ActivityOption[]; salones: Salon[] }> => {
-  const [activitiesRes, salones] = await Promise.all([
-    api.get('/activities'),
-    getSalones(),
-  ])
+export const getFormOptions = async (): Promise<{ activities: ActivityOption[] }> => {
+  const res = await api.get('/activities')
   return {
-    activities: activitiesRes.data.filter((a: ActivityOption) => a.is_active),
-    salones,
+    activities: res.data.filter((a: ActivityOption) => a.is_active),
   }
 }
 

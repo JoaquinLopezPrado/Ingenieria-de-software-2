@@ -22,6 +22,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import {
   getTurnosAll,
   getFormOptions,
+  getSalones,
   updateTurno,
   editTurno,
   previewTurnoUpdate,
@@ -141,9 +142,10 @@ onMounted(async () => {
     return
   }
   try {
-    const [turnosRes, { activities, salones }] = await Promise.all([
+    const [turnosRes, { activities }, salones] = await Promise.all([
       getTurnosAll({ page_size: 500 }),
       getFormOptions(),
+      getSalones(),
     ])
     availableSalones.value = salones
 
