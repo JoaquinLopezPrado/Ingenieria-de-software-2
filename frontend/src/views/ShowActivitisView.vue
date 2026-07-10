@@ -141,6 +141,20 @@
             </div>
           </div>
 
+          <div class="instructor-row">
+            <div class="inst-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 21s-6.5-5.686-6.5-10a6.5 6.5 0 1 1 13 0c0 4.314-6.5 10-6.5 10Z"/>
+                <circle cx="12" cy="11" r="2.3"/>
+              </svg>
+            </div>
+
+            <div>
+              <div class="inst-label">Salón</div>
+              <div class="inst-name">{{ turno.sala }}</div>
+            </div>
+          </div>
+
           <div class="price-row">
             <div class="price-item">
               <span class="price-label">Por clase</span>
@@ -590,7 +604,7 @@ const mapTurno = (turno, nameMap) => ({
   nivel: turno.level || 'Todos los niveles',
   classPrice: Number(turno.class_price) || 0,
   descripcion: turno.description ?? '',
-  sala: turno.room_number ?? turno.room ?? 'Sin sala',
+  sala: turno.salon_name ?? 'Sin salón asignado',
   hasRemainingClasses: turno.has_remaining_classes ?? true,
   hasFutureClasses: turno.has_future_classes ?? true,
 })

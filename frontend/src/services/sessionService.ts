@@ -79,6 +79,7 @@ export interface Turno {
   id: number
   activity_id: number
   salon_id: number | null
+  salon_name: string | null
   description: string
   instructor: string
   days: string[]      // valores del backend: "lunes", "martes", etc.
