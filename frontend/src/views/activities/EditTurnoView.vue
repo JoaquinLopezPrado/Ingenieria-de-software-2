@@ -127,12 +127,23 @@ const endTimeSlots = computed(() =>
     : TIME_SLOTS
 )
 
+const selectedSalon = computed(() =>
+  availableSalones.value.find(s => s.id === form.value.salon_id) ?? null
+)
+
 // ─── Watch ────────────────────────────────────────────────────────────────────
 
 watch(() => form.value.startTime, newStart => {
   if (form.value.endTime && form.value.endTime <= newStart)
     form.value.endTime = ''
 })
+
+// Autocompleta el cupo con la capacidad del nuevo salón cuando el admin lo cambia
+// a mano (evento nativo, no dispara con la precarga inicial del formulario). El
+// admin puede bajarlo después; nunca puede superar la capacidad del salón.
+function onSalonChange() {
+  if (selectedSalon.value) form.value.maxCapacity = selectedSalon.value.capacity
+}
 
 // ─── Carga inicial ────────────────────────────────────────────────────────────
 
@@ -219,6 +230,8 @@ function validate(): boolean {
   const cap = Number(form.value.maxCapacity)
   if (!form.value.maxCapacity || !Number.isInteger(cap) || cap <= 0)
     errors.value.maxCapacity = 'El cupo máximo debe ser un número entero mayor a 0.'
+  else if (selectedSalon.value && cap > selectedSalon.value.capacity)
+    errors.value.maxCapacity = `El cupo no puede superar la capacidad del salón (${selectedSalon.value.capacity}).`
 
   const price = Number(form.value.class_price)
   if (!form.value.class_price || isNaN(price) || price <= 0)
@@ -440,7 +453,7 @@ async function confirmDeactivate() {
             <!-- ── Salón ── -->
             <div class="input-group">
               <label>Salón</label>
-              <select v-model="form.salon_id" :class="{ 'input-error': errors.salon }">
+              <select v-model="form.salon_id" @change="onSalonChange" :class="{ 'input-error': errors.salon }">
                 <option :value="null" disabled>Seleccioná un salón...</option>
                 <option v-for="salon in availableSalones" :key="salon.id" :value="salon.id">
                   {{ salon.name }} (capacidad {{ salon.capacity }})
@@ -511,11 +524,15 @@ async function confirmDeactivate() {
                   type="number"
                   v-model.number="form.maxCapacity"
                   min="1"
+                  :max="selectedSalon?.capacity"
                   step="1"
                   placeholder="Ej: 20"
                   :class="{ 'input-error': errors.maxCapacity }"
                 />
                 <span v-if="errors.maxCapacity" class="field-error">{{ errors.maxCapacity }}</span>
+                <p v-if="selectedSalon" class="field-hint">
+                  Capacidad del salón: <strong>{{ selectedSalon.capacity }}</strong>
+                </p>
                 <p v-if="inscriptos > 0" class="field-hint">
                   Inscriptos actuales: <strong>{{ inscriptos }}</strong> — el cupo no puede ser menor.
                 </p>

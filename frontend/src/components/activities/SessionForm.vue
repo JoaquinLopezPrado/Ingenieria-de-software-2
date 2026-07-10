@@ -103,6 +103,17 @@ watch(() => form.value.activity_id, (id) => {
   if (found) form.value.instructor = found.instructor ?? ''
 })
 
+const selectedSalon = computed(() =>
+  availableSalones.value.find(s => s.id === form.value.salon_id) ?? null
+)
+
+// Pre-llena el cupo con la capacidad física del salón; el admin puede bajarlo luego
+// (nunca subirlo por encima, el backend lo rechaza).
+watch(() => form.value.salon_id, (id) => {
+  const found = availableSalones.value.find(s => s.id === id)
+  if (found) form.value.maxCapacity = found.capacity
+})
+
 // ─── Validación ───────────────────────────────────────────────────────────────
 
 const errors = ref<Record<string, string>>({})
@@ -142,6 +153,8 @@ const validate = (): boolean => {
   const cap = form.value.maxCapacity
   if (cap === null || !Number.isInteger(Number(cap)) || Number(cap) <= 0)
     errors.value.maxCapacity = 'El cupo máximo debe ser un número entero mayor a 0.'
+  else if (selectedSalon.value && cap > selectedSalon.value.capacity)
+    errors.value.maxCapacity = `El cupo no puede superar la capacidad del salón (${selectedSalon.value.capacity}).`
 
   const class_price = form.value.class_price
   if (class_price === null || isNaN(Number(class_price)) || Number(class_price) <= 0)
@@ -298,10 +311,12 @@ const handleSubmit = () => {
             type="number"
             v-model.number="form.maxCapacity"
             min="1"
+            :max="selectedSalon?.capacity"
             step="1"
             placeholder="Ej: 15"
             :class="{ 'input-error': errors.maxCapacity }"
           >
+          <span v-if="selectedSalon" class="field-hint">Capacidad del salón: {{ selectedSalon.capacity }}</span>
           <span v-if="errors.maxCapacity" class="field-error">{{ errors.maxCapacity }}</span>
         </div>
       </div>
@@ -459,6 +474,13 @@ select:focus {
   font-size: 0.78rem;
   color: #dc2626;
   font-weight: 500;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: #78909c;
 }
 
 /* ── Solo lectura ── */
