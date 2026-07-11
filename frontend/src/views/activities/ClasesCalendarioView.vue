@@ -226,6 +226,13 @@ function validarEdicion(): boolean {
   else if (editFecha.value < today) errors.fecha = 'La nueva fecha no puede ser anterior a hoy.'
 
   if (!editInicio.value) errors.inicio = 'Seleccioná la hora de inicio.'
+  else if (editFecha.value === today) {
+    const ahora = new Date()
+    const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`
+    if (editInicio.value < horaActual)
+      errors.inicio = 'No se puede programar la clase en un horario que ya pasó.'
+  }
+
   if (!editFin.value) errors.fin = 'Seleccioná la hora de fin.'
   if (editInicio.value && editFin.value && editFin.value <= editInicio.value)
     errors.fin = 'La hora de fin debe ser posterior a la hora de inicio.'

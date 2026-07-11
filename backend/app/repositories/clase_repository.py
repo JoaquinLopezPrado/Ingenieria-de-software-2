@@ -188,7 +188,8 @@ class ClaseRepository(AbstractClaseRepository):
                 status_code=status.HTTP_409_CONFLICT,
                 detail="No se puede modificar una clase cancelada.",
             )
-        today = datetime.now(timezone(timedelta(hours=-3))).date()
+        now_art = datetime.now(timezone(timedelta(hours=-3)))
+        today = now_art.date()
         if clase.date < today:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -198,6 +199,11 @@ class ClaseRepository(AbstractClaseRepository):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="La nueva fecha no puede ser anterior a hoy.",
+            )
+        if new_date == today and start_time < now_art.time():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No se puede programar la clase en un horario que ya pasó.",
             )
         duplicate = await self._session.execute(
             select(ClaseORM.id).where(
