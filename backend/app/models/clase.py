@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Time, text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -22,3 +22,10 @@ class Clase(IDMixin, TimestampMixin, Base):
     turno = relationship("Turno", back_populates="clases")
     single_slots = relationship("SingleEnrollmentSlot", back_populates="clase")
     cancelled_by = relationship("User", foreign_keys=[cancelled_by_id])
+
+    __table_args__ = (
+        Index(
+            "uq_clases_turno_date_active", "turno_id", "date",
+            unique=True, postgresql_where=text("is_active = TRUE"),
+        ),
+    )

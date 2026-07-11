@@ -78,4 +78,4 @@ async def update_clase_horario(
 ) -> dict:
     service = ClaseService(db)
     await service.change_schedule(clase_id, req, current_user.id)
-    return {"message": "Horario de la clase actualizado. Los alumnos fueron notificados."}
+    return {"message": "Horario actualizado."}

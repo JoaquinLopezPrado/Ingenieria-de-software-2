@@ -6,6 +6,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy import and_, case, func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.domain.clase import Clase, ClaseDetalle, ClaseHoy
 from app.models.activity import Activity as ActivityORM
@@ -197,6 +198,30 @@ class ClaseRepository(AbstractClaseRepository):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="La nueva fecha no puede ser anterior a hoy.",
+            )
+        duplicate = await self._session.execute(
+            select(ClaseORM.id).where(
+                ClaseORM.turno_id == clase.turno_id,
+                ClaseORM.date == new_date,
+                ClaseORM.is_active == True,
+                ClaseORM.id != clase_id,
+            )
+        )
+        if duplicate.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe otra clase de este turno programada para esa fecha.",
+            )
+        turno = (await self._session.execute(
+            select(TurnoORM).options(selectinload(TurnoORM.salon)).where(TurnoORM.id == clase.turno_id)
+        )).scalar_one()
+        if turno.salon is not None and capacity > turno.salon.capacity:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"El cupo de la clase ({capacity}) supera la capacidad física "
+                    f"del salón «{turno.salon.name}» ({turno.salon.capacity})."
+                ),
             )
         enrolled = await self._count_enrolled(clase.turno_id, clase_id, clase.date)
         if enrolled > 0:
