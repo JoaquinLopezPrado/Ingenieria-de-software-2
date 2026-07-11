@@ -102,11 +102,13 @@ class TurnoService:
             salon_id, days, start_time, end_time, exclude_turno_id=exclude_turno_id
         )
         if conflict:
+            conflict_activity = await self._activity_repo.get_by_id(conflict.activity_id)
+            conflict_activity_name = conflict_activity.name if conflict_activity else "Actividad desconocida"
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
                     f"El salón «{salon.name}» ya está ocupado por el turno "
-                    f"«{conflict.description}» en un horario que se superpone."
+                    f"«{conflict_activity_name} – {conflict.description}» en un horario que se superpone."
                 ),
             )
 
