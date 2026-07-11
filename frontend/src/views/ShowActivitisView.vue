@@ -1018,8 +1018,10 @@ const handleInscripcionSingle = async (turno) => {
   try {
     // Verificar créditos disponibles antes de crear el enrollment
     let creditToOffer = null
+    let creditCount = 0
     try {
       const { data: credits } = await enrollmentService.getCredits()
+      creditCount = credits.length
       if (credits.length > 0) creditToOffer = credits[0]
     } catch {}
 
@@ -1037,7 +1039,7 @@ const handleInscripcionSingle = async (turno) => {
           credit_offer:  'true',
           credit_id:     String(creditToOffer.id),
           credit_amount: String(creditToOffer.amount),
-          credit_count:  String(credits.length),
+          credit_count:  String(creditCount),
           clase_id:      String(clase.id),
           actividad:     turno.actividad,
           dia:           `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,
