@@ -185,14 +185,17 @@ async function confirmarCancelacion() {
 }
 
 // ─── Modal editar horario ──────────────────────────────────────────────────────
+// El botón "Editar clase" no se muestra si la clase tiene inscriptos (ver template),
+// así que este modal nunca se abre con enrolled > 0: no hace falta contemplar ese caso acá.
 
 const claseAEditar  = ref<ClaseDetalle | null>(null)
 const editFecha     = ref('')
 const editInicio    = ref('')
 const editFin       = ref('')
-const editCupo      = ref(0)
+const editCupo      = ref<number | null>(0)
 const guardando     = ref(false)
 const editError     = ref('')
+const editFieldErrors = ref<Record<string, string>>({})
 
 // El input time exige "HH:MM"; el backend devuelve "H:MM" (ej "9:30").
 function toInputTime(t: string): string {
@@ -207,26 +210,35 @@ function abrirModalEditar(c: ClaseDetalle) {
   editFin.value      = toInputTime(c.end_time)
   editCupo.value     = c.capacity
   editError.value    = ''
+  editFieldErrors.value = {}
 }
 
 function cerrarModalEditar() {
   claseAEditar.value = null
 }
 
-// El cupo nunca puede quedar por debajo de los ya inscriptos (ni en 0/negativo).
-const cupoMinimo = computed(() => Math.max(1, claseAEditar.value?.enrolled ?? 1))
+// Mismos mensajes que usa el backend para los casos que son puro cálculo (fecha
+// pasada, hora fin <= inicio), así el texto no se desalinea entre las dos capas.
+function validarEdicion(): boolean {
+  const errors: Record<string, string> = {}
 
-const edicionValida = computed(() =>
-  !!editFecha.value &&
-  !!editInicio.value &&
-  !!editFin.value &&
-  editFin.value > editInicio.value &&
-  editCupo.value >= cupoMinimo.value &&
-  editFecha.value >= today
-)
+  if (!editFecha.value) errors.fecha = 'Ingresá la fecha.'
+  else if (editFecha.value < today) errors.fecha = 'La nueva fecha no puede ser anterior a hoy.'
+
+  if (!editInicio.value) errors.inicio = 'Seleccioná la hora de inicio.'
+  if (!editFin.value) errors.fin = 'Seleccioná la hora de fin.'
+  if (editInicio.value && editFin.value && editFin.value <= editInicio.value)
+    errors.fin = 'La hora de fin debe ser posterior a la hora de inicio.'
+
+  if (editCupo.value === null || !Number.isInteger(editCupo.value) || editCupo.value <= 0)
+    errors.cupo = 'El cupo debe ser un número entero mayor a 0.'
+
+  editFieldErrors.value = errors
+  return Object.keys(errors).length === 0
+}
 
 async function confirmarEdicion() {
-  if (!claseAEditar.value || !edicionValida.value) return
+  if (!claseAEditar.value || !validarEdicion()) return
   guardando.value = true
   editError.value = ''
   try {
@@ -234,10 +246,10 @@ async function confirmarEdicion() {
       date:       editFecha.value,
       start_time: editInicio.value,
       end_time:   editFin.value,
-      capacity:   editCupo.value,
+      capacity:   editCupo.value!,
     })
     clases.value = await getClasesByTurnoAdmin(turnoId)
-    toastMsg.value = 'Horario actualizado. Los alumnos fueron notificados por email.'
+    toastMsg.value = 'Horario actualizado.'
     setTimeout(() => { toastMsg.value = '' }, 5000)
     cerrarModalEditar()
   } catch (e) {
@@ -391,7 +403,7 @@ onMounted(async () => {
                   Ver inscriptos
                 </RouterLink>
                 <button
-                  v-if="claseStatus(clase) === 'programada' || claseStatus(clase) === 'hoy'"
+                  v-if="(claseStatus(clase) === 'programada' || claseStatus(clase) === 'hoy') && clase.enrolled === 0"
                   type="button"
                   class="btn-action btn-editar"
                   @click="abrirModalEditar(clase)"
@@ -495,35 +507,28 @@ onMounted(async () => {
           <div class="edit-field">
             <label class="motivo-label">Fecha <span class="required">*</span></label>
             <input v-model="editFecha" type="date" :min="today" class="edit-input" />
+            <p v-if="editFieldErrors.fecha" class="modal-error">{{ editFieldErrors.fecha }}</p>
           </div>
 
           <div class="edit-row">
             <div class="edit-field">
               <label class="motivo-label">Inicio <span class="required">*</span></label>
               <input v-model="editInicio" type="time" class="edit-input" />
+              <p v-if="editFieldErrors.inicio" class="modal-error">{{ editFieldErrors.inicio }}</p>
             </div>
             <div class="edit-field">
               <label class="motivo-label">Fin <span class="required">*</span></label>
               <input v-model="editFin" type="time" class="edit-input" />
+              <p v-if="editFieldErrors.fin" class="modal-error">{{ editFieldErrors.fin }}</p>
             </div>
           </div>
 
           <div class="edit-field">
             <label class="motivo-label">Cupo <span class="required">*</span></label>
-            <input v-model.number="editCupo" type="number" :min="cupoMinimo" class="edit-input" />
-            <p v-if="claseAEditar && claseAEditar.enrolled > 0" class="edit-hint">
-              {{ claseAEditar.enrolled }} inscripto{{ claseAEditar.enrolled !== 1 ? 's' : '' }} en esta clase.
-            </p>
+            <input v-model.number="editCupo" type="number" min="1" class="edit-input" />
+            <p v-if="editFieldErrors.cupo" class="modal-error">{{ editFieldErrors.cupo }}</p>
           </div>
 
-          <p
-            v-if="editFin && editInicio && editFin <= editInicio"
-            class="modal-error"
-          >La hora de fin debe ser posterior a la de inicio.</p>
-          <p
-            v-if="editCupo < cupoMinimo"
-            class="modal-error"
-          >El cupo no puede ser menor a {{ cupoMinimo }} (inscriptos actuales).</p>
           <p v-if="editError" class="modal-error">{{ editError }}</p>
 
           <div class="modal-actions">
@@ -533,7 +538,7 @@ onMounted(async () => {
             <button
               type="button"
               class="modal-btn-save"
-              :disabled="!edicionValida || guardando"
+              :disabled="guardando"
               @click="confirmarEdicion"
             >
               {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
@@ -1115,12 +1120,6 @@ onMounted(async () => {
   outline: none;
   border-color: #11998e;
   box-shadow: 0 0 0 3px rgba(17,153,142,0.12);
-}
-
-.edit-hint {
-  margin: 6px 0 0;
-  font-size: 0.74rem;
-  color: #6b7280;
 }
 
 /* ── Toast ── */
