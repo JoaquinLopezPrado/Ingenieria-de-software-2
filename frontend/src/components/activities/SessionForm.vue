@@ -133,6 +133,9 @@ const validate = (): boolean => {
   if (!form.value.description.trim())
     errors.value.description = 'Ingresá una descripción para el turno.'
 
+  if (!form.value.start_date)
+    errors.value.start_date = 'Ingresá la fecha de inicio.'
+
   if (form.value.days.length === 0)
     errors.value.days = 'Seleccioná al menos un día de la semana.'
 
