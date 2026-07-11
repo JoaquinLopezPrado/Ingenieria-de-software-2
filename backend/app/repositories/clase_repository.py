@@ -221,6 +221,31 @@ class ClaseRepository(AbstractClaseRepository):
         turno = (await self._session.execute(
             select(TurnoORM).options(selectinload(TurnoORM.salon)).where(TurnoORM.id == clase.turno_id)
         )).scalar_one()
+        if turno.salon_id is not None:
+            salon_row = (await self._session.execute(
+                select(ActivityORM.name, TurnoORM.description)
+                .select_from(ClaseORM)
+                .join(TurnoORM, TurnoORM.id == ClaseORM.turno_id)
+                .join(ActivityORM, ActivityORM.id == TurnoORM.activity_id)
+                .where(
+                    TurnoORM.salon_id == turno.salon_id,
+                    ClaseORM.date == new_date,
+                    ClaseORM.is_active == True,
+                    ClaseORM.id != clase_id,
+                    ClaseORM.start_time < end_time,
+                    start_time < ClaseORM.end_time,
+                )
+                .limit(1)
+            )).first()
+            if salon_row is not None:
+                conflict_activity_name, conflict_turno_description = salon_row
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"El salón «{turno.salon.name}» ya está ocupado por «{conflict_activity_name} – "
+                        f"{conflict_turno_description}» en un horario que se superpone."
+                    ),
+                )
         if turno.salon is not None and capacity > turno.salon.capacity:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
