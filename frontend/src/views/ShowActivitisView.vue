@@ -1037,6 +1037,7 @@ const handleInscripcionSingle = async (turno) => {
           credit_offer:  'true',
           credit_id:     String(creditToOffer.id),
           credit_amount: String(creditToOffer.amount),
+          credit_count:  String(credits.length),
           clase_id:      String(clase.id),
           actividad:     turno.actividad,
           dia:           `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${displayDate}`,

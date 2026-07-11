@@ -10,7 +10,7 @@
       </div>
  
       <h1 v-if="creditConfirmed">¡Inscripción confirmada!</h1>
-      <h1 v-else-if="creditOffer">Tenés un crédito disponible</h1>
+      <h1 v-else-if="creditOffer">{{ creditMessage }}</h1>
       <h1 v-else>¡Se reservo tu lugar hasta finalizar el pago!</h1>
       <p class="subtitle">Te esperamos.</p>
  
@@ -152,7 +152,7 @@
         <div class="credit-banner-info">
           <span class="credit-icon">🎟</span>
           <div>
-            <strong>Crédito disponible: ${{ fmt(route.query.credit_amount) }}</strong>
+            <strong>{{ creditMessage }}</strong>
             <span class="credit-detail">Aplicalo y no pagues nada por esta clase</span>
           </div>
         </div>
@@ -270,6 +270,10 @@ const diasArray = computed(() =>
 
 const creditOffer     = computed(() => route.query.credit_offer === 'true')
 const creditConfirmed = ref(false)
+const creditCount     = computed(() => Number(route.query.credit_count) || 1)
+const creditMessage   = computed(() =>
+  `Tenés ${creditCount.value} crédito${creditCount.value !== 1 ? 's' : ''} disponible${creditCount.value !== 1 ? 's' : ''}`
+)
 
 const pagando  = ref(false)
 const expirado = ref(false)
