@@ -29,7 +29,10 @@ class Turno(IDMixin, TimestampMixin, Base):
     single_enrollments = relationship("SingleEnrollment", back_populates="turno")
 
     __table_args__ = (
-        UniqueConstraint("activity_id", "description", "start_time", "end_time", name="uq_turno_actividad_descripcion_horario"),
+        UniqueConstraint(
+            "activity_id", "description", "start_time", "end_time", "salon_id",
+            name="uq_turno_actividad_descripcion_horario",
+        ),
     )
 
 

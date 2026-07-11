@@ -39,6 +39,7 @@ from app.models.auth import Role, User
 from app.models.clase import Clase
 from app.models.payment import Payment
 from app.models.profile import ClientProfile, DocumentType, EmployeeProfile
+from app.models.salon import Salon
 from app.models.single_enrollment import SingleEnrollment, SingleEnrollmentSlot
 from app.models.subscription import Subscription, SubscriptionCharge
 from app.models.waitlist import SubscriptionWaitlist
@@ -169,12 +170,13 @@ async def run() -> None:
                 select(User).join(Role, Role.id == User.role_id).where(Role.name == "admin")
             )).scalars().first()
             activities = {a.name: a for a in (await session.execute(select(Activity))).scalars()}
+            salon = (await session.execute(select(Salon).where(Salon.is_active == True))).scalars().first()
 
             yoga = activities.get("Yoga")
             funcional = activities.get("Funcional")
             pilates = activities.get("Pilates")
-            if not (yoga and funcional and pilates and admin):
-                print("[demo] faltan actividades/admin base; corré primero los seeds normales.")
+            if not (yoga and funcional and pilates and admin and salon):
+                print("[demo] faltan actividades/salón/admin base; corré primero los seeds normales.")
                 return
 
             # Personal del centro: 1 admin + 2 empleados extra (independiente de los
@@ -186,7 +188,7 @@ async def run() -> None:
             print("[demo] personal creado: admin2@demo.com, empleado2@demo.com, empleado3@demo.com")
 
             if await TurnoRepository(session).get_by_activity_description_time(
-                yoga.id, "Mañana (DEMO)", time(9, 0), time(10, 0)
+                yoga.id, "Mañana (DEMO)", time(9, 0), time(10, 0), salon.id
             ):
                 print("[demo] los turnos DEMO ya existen; nada que hacer.")
                 return

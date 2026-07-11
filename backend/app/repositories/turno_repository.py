@@ -21,7 +21,7 @@ class AbstractTurnoRepository(ABC):
 
     @abstractmethod
     async def get_by_activity_description_time(
-        self, activity_id: int, description: str, start_time: time, end_time: time
+        self, activity_id: int, description: str, start_time: time, end_time: time, salon_id: int
     ) -> Optional[Turno]:
         raise NotImplementedError
 
@@ -183,7 +183,7 @@ class TurnoRepository(AbstractTurnoRepository):
         return self._to_domain(orm) if orm else None
 
     async def get_by_activity_description_time(
-        self, activity_id: int, description: str, start_time: time, end_time: time
+        self, activity_id: int, description: str, start_time: time, end_time: time, salon_id: int
     ) -> Optional[Turno]:
         result = await self._session.execute(
             select(TurnoORM)
@@ -193,6 +193,7 @@ class TurnoRepository(AbstractTurnoRepository):
                 TurnoORM.description == description,
                 TurnoORM.start_time == start_time,
                 TurnoORM.end_time == end_time,
+                TurnoORM.salon_id == salon_id,
                 TurnoORM.is_active == True,
             )
         )

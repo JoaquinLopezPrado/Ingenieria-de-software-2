@@ -154,12 +154,12 @@ class TurnoService:
         await self._validate_salon(salon_id, capacity, days, start_time, end_time)
 
         existing = await self._turno_repo.get_by_activity_description_time(
-            activity_id, description, start_time, end_time
+            activity_id, description, start_time, end_time, salon_id
         )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un turno activo con esa actividad, descripción y horario.",
+                detail="Ya existe un turno activo con esa actividad, descripción, horario y salón.",
             )
 
         turno = await self._turno_repo.create(
@@ -396,15 +396,16 @@ class TurnoService:
             req.description == turno.description
             and req.start_time == turno.start_time
             and req.end_time == turno.end_time
+            and req.salon_id == turno.salon_id
         ):
             return
         existing = await self._turno_repo.get_by_activity_description_time(
-            turno.activity_id, req.description, req.start_time, req.end_time
+            turno.activity_id, req.description, req.start_time, req.end_time, req.salon_id
         )
         if existing and existing.id != turno.id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un turno activo con esa actividad, descripción y horario.",
+                detail="Ya existe un turno activo con esa actividad, descripción, horario y salón.",
             )
 
     async def _cancel_clases_on_days(
