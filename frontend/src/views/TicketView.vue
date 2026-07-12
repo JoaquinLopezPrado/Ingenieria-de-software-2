@@ -377,6 +377,16 @@ const pagarSenia = async () => {
   }
 }
 
+// El cupo pudo agotarse entre que se ofreció el crédito (sin re-chequear cupo)
+// y este click. Mismo criterio que ShowActivitisView.vue: si el backend avisa
+// solape, se muestra tal cual; cualquier otro 409 es "no hay cupo" en criollo.
+function singleEnrollmentErrorMessage(e, fallback) {
+  const detalle = e?.response?.data?.errors?.general
+  if (e?.response?.status === 409 && /solap/i.test(detalle ?? '')) return detalle
+  if (e?.response?.status === 409) return 'No hay cupo disponible para esta clase.'
+  return fallback
+}
+
 const usarCredito = async () => {
   pagando.value = true
   try {
@@ -406,7 +416,7 @@ const usarCredito = async () => {
       })
     }
   } catch (e) {
-    errorMsg.value = e?.response?.data?.errors?.general || 'No se pudo aplicar el crédito. Intentá de nuevo.'
+    errorMsg.value = singleEnrollmentErrorMessage(e, 'No se pudo aplicar el crédito. Intentá de nuevo.')
   } finally {
     pagando.value = false
   }
@@ -433,7 +443,7 @@ const pagarSinCredito = async () => {
       },
     })
   } catch (e) {
-    errorMsg.value = e?.response?.data?.errors?.general || 'No se pudo crear la inscripción. Intentá de nuevo.'
+    errorMsg.value = singleEnrollmentErrorMessage(e, 'No se pudo crear la inscripción. Intentá de nuevo.')
     pagando.value = false
   }
 }
