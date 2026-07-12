@@ -1071,7 +1071,11 @@ const handleInscripcionSingle = async (turno) => {
       },
     })
   } catch (err) {
-    if (err.response?.status === 409) {
+    const detalle = err.response?.data?.errors?.general
+    if (err.response?.status === 409 && /solap/i.test(detalle ?? '')) {
+      // Solape (no es falta de cupo): mostrar el mensaje real.
+      errorMensaje.value = detalle
+    } else if (err.response?.status === 409) {
       errorMensaje.value = 'No hay cupo disponible para esta clase.'
     } else {
       errorMensaje.value = 'Ocurrió un error. Intentá de nuevo.'
