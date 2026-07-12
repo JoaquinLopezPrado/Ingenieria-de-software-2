@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -85,6 +85,12 @@ class AbstractSingleEnrollmentRepository(ABC):
     @abstractmethod
     async def cancel_all_future_for_user(self, user_id: int) -> int:
         """Cancela todas las inscripciones sueltas activas con clases futuras. Retorna cantidad cancelada."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def cancel_all_for_turno(self, turno_id: int, from_date: date) -> int:
+        """Cancela las inscripciones sueltas activas con alguna clase futura en ese turno.
+        Retorna cantidad cancelada."""
         raise NotImplementedError
 
     @abstractmethod
@@ -405,8 +411,7 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
         return result.rowcount > 0
 
     async def cancel_all_future_for_user(self, user_id: int) -> int:
-        from datetime import date as date_type
-        today = date_type.today()
+        today = date.today()
         future_ids = (await self._session.execute(
             select(SingleEnrollmentORM.id)
             .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
@@ -415,6 +420,32 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
                 SingleEnrollmentORM.user_id == user_id,
                 SingleEnrollmentORM.status.in_(_ACTIVE),
                 ClaseORM.date >= today,
+            )
+            .distinct()
+        )).scalars().all()
+        if not future_ids:
+            return 0
+        await self._session.execute(
+            update(SingleEnrollmentORM)
+            .where(SingleEnrollmentORM.id.in_(future_ids))
+            .values(status=SingleEnrollmentStatus.CANCELLED)
+        )
+        return len(future_ids)
+
+    async def cancel_all_for_turno(self, turno_id: int, from_date: date) -> int:
+        """Cancela las inscripciones sueltas (activas) con alguna clase futura en el
+        turno dado. Se usa en la baja total del turno: sin esto, la clase queda
+        cancelada pero la inscripción sigue "confirmed" y, si el turno se reactiva,
+        `reactivate_turno_baja_clases` reabre la clase y la inscripción vuelve a
+        ocupar el lugar como si nunca se hubiera dado de baja."""
+        future_ids = (await self._session.execute(
+            select(SingleEnrollmentORM.id)
+            .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
+            .join(ClaseORM, ClaseORM.id == SingleSlotORM.clase_id)
+            .where(
+                SingleEnrollmentORM.turno_id == turno_id,
+                SingleEnrollmentORM.status.in_(_ACTIVE),
+                ClaseORM.date > from_date,
             )
             .distinct()
         )).scalars().all()

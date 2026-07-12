@@ -13,6 +13,7 @@ from app.repositories.clase_cancellation_repository import ClaseCancellationRepo
 from app.repositories.clase_repository import AbstractClaseRepository
 from app.repositories.config_repository import AbstractConfigRepository
 from app.repositories.salon_repository import AbstractSalonRepository
+from app.repositories.single_enrollment_repository import SingleEnrollmentRepository
 from app.repositories.subscription_repository import SubscriptionRepository
 from app.repositories.turno_repository import AbstractTurnoRepository
 from app.schemas.clases import CancelClaseRequest
@@ -348,12 +349,16 @@ class TurnoService:
         today = datetime.now(_ART).date()
         if not is_active:
             # Baja total: cancelar clases futuras (créditos + emails) y dar de baja
-            # las suscripciones que ocupan el turno (condonando sus cargos impagos).
+            # las suscripciones e inscripciones sueltas que ocupan el turno (condonando
+            # cargos impagos). Cancelar también las sueltas evita que, si el turno se
+            # reactiva más adelante, `reactivate_turno_baja_clases` reabra la clase y la
+            # inscripción (nunca tocada por `cancel_clase`) vuelva a contar como ocupada.
             cancellation_service = ClaseCancellationService(self._session)
             clase_ids = [cid for cid, _ in await self._clase_repo.list_future_active(turno_id, today)]
             # Un solo mail-resumen por afectado (no uno por clase). Crédito solo por lo pagado.
             await cancellation_service.cancel_turno_baja(turno_id, clase_ids, _TURNO_BAJA_REASON, admin_id)
             await SubscriptionRepository(self._session).cancel_all_for_turno(turno_id)
+            await SingleEnrollmentRepository(self._session).cancel_all_for_turno(turno_id, today)
         elif not turno.is_active:
             # Activación (alta inicial o reactivación tras baja): recién ahora el turno
             # va a dictarse de verdad, así que se valida que el salón siga libre en ese
