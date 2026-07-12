@@ -9,9 +9,9 @@
  *   4. Precio por clase inválido (≤ 0) → error inline
  *   5. Sin días seleccionados → error inline
  *   6. Campo obligatorio vacío → error inline
- *   7. Turno con inscriptos → se permite editar; antes de aplicar se muestra el
- *      impacto (clases a cancelar, créditos a generar, usuarios a notificar) y
- *      se confirma. El backend genera créditos y notifica por email.
+ *   7. Turno con inscriptos → edición bloqueada por completo (formulario
+ *      deshabilitado, sin botón "Guardar cambios"). Para cambiar algo hay que
+ *      esperar a que se vacíe o dar de baja el turno y crear uno nuevo.
  *
  * Guard: solo admin. Turno inactivo → banner informativo + edición permitida.
  * El campo "actividad" nunca puede modificarse.
@@ -271,6 +271,7 @@ function handleApiError(e: unknown) {
 
 // Paso 1: validar y pedir el impacto al backend antes de aplicar.
 async function handleSubmit() {
+  if (turno.value?.has_inscriptos) return
   serverError.value = ''
   if (!validate()) return
 
@@ -414,6 +415,12 @@ async function confirmDeactivate() {
           <span>Este turno está <strong>inactivo</strong> y no es visible para los clientes. Podés editarlo o reactivarlo.</span>
         </div>
 
+        <!-- Banner turno con inscriptos: bloquea toda edición -->
+        <div v-if="turno && turno.has_inscriptos" class="alert alert-error">
+          <span class="alert-icon error-icon">🔒</span>
+          <span>Este turno tiene <strong>inscriptos</strong> y no puede modificarse. Para hacer cambios, dalo de baja y creá un turno nuevo.</span>
+        </div>
+
         <!-- Banner éxito -->
         <Transition name="fade">
           <div v-if="successMsg" class="alert alert-success" role="status">
@@ -433,6 +440,7 @@ async function confirmDeactivate() {
 
         <div class="form-card">
           <form @submit.prevent="handleSubmit" novalidate>
+            <fieldset class="fieldset-reset" :disabled="turno?.has_inscriptos">
 
             <!-- ── Actividad (solo lectura) + Instructor ── -->
             <div class="form-grid-2">
@@ -561,6 +569,8 @@ async function confirmDeactivate() {
               <span v-if="errors.class_price" class="field-error">{{ errors.class_price }}</span>
             </div>
 
+            </fieldset>
+
             <!-- ── Acciones ── -->
             <div class="form-actions">
               <button
@@ -589,7 +599,12 @@ async function confirmDeactivate() {
               >
                 {{ isDeactivating ? 'Calculando...' : 'Dar de baja' }}
               </button>
-              <button type="submit" class="btn-submit" :disabled="isSaving || isActivating || isPreviewing || isDeactivating">
+              <button
+                v-if="!turno?.has_inscriptos"
+                type="submit"
+                class="btn-submit"
+                :disabled="isSaving || isActivating || isPreviewing || isDeactivating"
+              >
                 {{ isPreviewing ? 'Calculando...' : 'Guardar cambios' }}
               </button>
             </div>
@@ -831,6 +846,11 @@ async function confirmDeactivate() {
 
 .input-group { margin-bottom: 1.5rem; }
 .monto-group { max-width: 260px; }
+
+.fieldset-reset { border: none; margin: 0; padding: 0; min-width: 0; }
+.fieldset-reset:disabled .day-pill { opacity: 0.6; cursor: not-allowed; }
+.fieldset-reset:disabled input,
+.fieldset-reset:disabled select { cursor: not-allowed; opacity: 0.7; }
 
 label {
   display: block;

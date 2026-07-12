@@ -428,11 +428,19 @@ onMounted(async () => {
               </td>
               <td class="cell-actions">
                 <RouterLink
+                  v-if="!turno.has_inscriptos"
                   :to="`/activities/turnos/${turno.id}/edit`"
                   class="btn-edit"
                 >
                   Editar
                 </RouterLink>
+                <span
+                  v-else
+                  class="btn-edit btn-edit--disabled"
+                  title="Este turno tiene inscriptos y no se puede modificar. Dalo de baja y creá uno nuevo para cambiarlo."
+                >
+                  Editar
+                </span>
                 <RouterLink
                   :to="{
                     name: 'clases-calendario',
@@ -960,6 +968,13 @@ onMounted(async () => {
 .btn-edit:hover {
   background-color: #dbeafe;
   border-color: #93c5fd;
+}
+
+.btn-edit--disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
 }
 
 .btn-generate {

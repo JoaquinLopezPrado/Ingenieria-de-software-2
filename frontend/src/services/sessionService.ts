@@ -91,6 +91,7 @@ export interface Turno {
   enrolled: number
   has_remaining_classes: boolean
   has_future_classes: boolean
+  has_inscriptos: boolean
 }
 
 export interface TurnoPageResponse {
