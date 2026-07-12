@@ -158,19 +158,33 @@ class TurnoRepository(AbstractTurnoRepository):
             .scalar_subquery()
         )
 
+        # ¿Hay alguna clase futura con al menos un ocupante (abonado o suelta)?
+        # Determina si el turno puede editarse (ver TurnoService.update).
+        has_inscriptos_subq = (
+            exists()
+            .where(
+                ClaseORM.turno_id == TurnoORM.id,
+                ClaseORM.is_active == True,
+                future_date_filter,
+                occupied > 0,
+            )
+            .correlate(TurnoORM)
+        )
+
         rows = (await self._session.execute(
             base
             .options(selectinload(TurnoORM.days), selectinload(TurnoORM.salon))
             .add_columns(enrolled_subq.label("enrolled"))
             .add_columns(remaining_subq.label("remaining"))
             .add_columns(future_subq.label("future_count"))
+            .add_columns(has_inscriptos_subq.label("has_inscriptos"))
             .offset((page - 1) * page_size)
             .limit(page_size)
         )).all()
 
         return [
-            self._to_domain(orm, enrolled, remaining > 0, future_count > 0)
-            for orm, enrolled, remaining, future_count in rows
+            self._to_domain(orm, enrolled, remaining > 0, future_count > 0, has_inscriptos)
+            for orm, enrolled, remaining, future_count, has_inscriptos in rows
         ], total
 
     async def get_by_id(self, turno_id: int) -> Optional[Turno]:
@@ -311,6 +325,7 @@ class TurnoRepository(AbstractTurnoRepository):
         enrolled: int = 0,
         has_remaining_classes: bool = True,
         has_future_classes: bool = True,
+        has_inscriptos: bool = False,
     ) -> Turno:
         return Turno(
             id=orm.id,
@@ -328,4 +343,5 @@ class TurnoRepository(AbstractTurnoRepository):
             enrolled=enrolled,
             has_remaining_classes=has_remaining_classes,
             has_future_classes=has_future_classes,
+            has_inscriptos=has_inscriptos,
         )

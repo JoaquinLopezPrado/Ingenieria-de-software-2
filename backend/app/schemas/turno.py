@@ -165,6 +165,7 @@ class TurnoResponse(BaseModel):
     enrolled: int
     has_remaining_classes: bool
     has_future_classes: bool
+    has_inscriptos: bool
 
     @field_serializer("start_time", "end_time")
     def serialize_time(self, value: time) -> str:

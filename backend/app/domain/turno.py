@@ -32,6 +32,7 @@ class Turno:
         enrolled: int = 0,
         has_remaining_classes: bool = True,
         has_future_classes: bool = True,
+        has_inscriptos: bool = False,
     ):
         self.id = id
         self.activity_id = activity_id
@@ -48,3 +49,4 @@ class Turno:
         self.enrolled = enrolled
         self.has_remaining_classes = has_remaining_classes
         self.has_future_classes = has_future_classes
+        self.has_inscriptos = has_inscriptos

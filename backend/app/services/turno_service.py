@@ -221,13 +221,19 @@ class TurnoService:
         if not turno:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
 
+        today = datetime.now(_ART).date()
+        if await self._clase_repo.get_max_enrolled_future(turno_id, today) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se puede modificar un turno que ya tiene inscriptos.",
+            )
+
         await self._check_no_conflict(turno, req)
         await self._validate_salon(
             req.salon_id, req.capacity, req.days, req.start_time, req.end_time,
             exclude_turno_id=turno_id,
         )
 
-        today = datetime.now(_ART).date()
         horario_cambia = req.start_time != turno.start_time or req.end_time != turno.end_time
         cupo_cambia = req.capacity != turno.capacity
         quitados = set(turno.days) - set(req.days)
@@ -278,6 +284,11 @@ class TurnoService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
 
         today = datetime.now(_ART).date()
+        if await self._clase_repo.get_max_enrolled_future(turno_id, today) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No se puede modificar un turno que ya tiene inscriptos.",
+            )
         horario_cambia = req.start_time != turno.start_time or req.end_time != turno.end_time
         quitados = set(turno.days) - set(req.days)
         agregados = set(req.days) - set(turno.days)
