@@ -228,7 +228,7 @@
 </template>
  
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { enrollmentService } from '@/services/enrollmentService'
 
@@ -297,8 +297,16 @@ const countdown = computed(() => {
 
 const countdownUrgente = computed(() => segundosRestantes.value <= 60)
 
-onMounted(() => {
-  const raw = route.query.expires_at
+// Watch (no onMounted) porque la oferta de crédito reutiliza este mismo
+// componente: navega a la misma ruta "ticket" con un expires_at recién
+// disponible (createSingle recién se llama al elegir "pagar sin crédito" o al
+// no cubrir el crédito completo), y Vue Router no remonta el componente por
+// quedarse en la misma ruta. onMounted nunca volvía a correr y el timer no
+// arrancaba.
+watch(() => route.query.expires_at, (raw) => {
+  clearInterval(intervalo)
+  intervalo = null
+  expirado.value = false
   if (!raw) return
 
   const deadline = new Date(raw).getTime()
@@ -321,7 +329,7 @@ onMounted(() => {
 
   tick()
   intervalo = setInterval(tick, 1000)
-})
+}, { immediate: true })
 
 onUnmounted(() => clearInterval(intervalo))
 
@@ -447,6 +455,7 @@ const pagarSinCredito = async () => {
     })
   } catch (e) {
     errorMsg.value = singleEnrollmentErrorMessage(e, 'No se pudo crear la inscripción. Intentá de nuevo.')
+  } finally {
     pagando.value = false
   }
 }
