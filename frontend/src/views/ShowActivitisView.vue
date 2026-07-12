@@ -1031,6 +1031,24 @@ const handleInscripcionSingle = async (turno) => {
     const claseStart = new Date(`${clase.rawDate}T${turno.hora.padStart(5, '0')}:00`)
 
     if (creditToOffer) {
+      // El cupo mostrado puede estar desactualizado (otro cliente pudo haber
+      // tomado el lugar desde que se cargó la página). Como ofrecer el crédito
+      // no pasa por createSingle todavía, se re-chequea el cupo acá para no
+      // mandar al cliente a un ticket que después va a fallar.
+      const clasesFrescas = await turnoService.getClasesByTurno(turno.id)
+        .then(res => (Array.isArray(res.data) ? res.data : res.data.items || []))
+        .catch(() => null)
+      const claseFresca = clasesFrescas?.find(c => c.id === clase.id)
+      const disponible = claseFresca
+        ? (claseFresca.capacity ?? 0) - (claseFresca.enrolled ?? claseFresca.occupied ?? 0)
+        : null
+      if (disponible !== null && disponible <= 0) {
+        errorMensaje.value = 'No hay cupo disponible para esta clase.'
+        avisoLleno.value = turno.id
+        setTimeout(() => { avisoLleno.value = null; errorMensaje.value = null }, 5000)
+        return
+      }
+
       // Ir al ticket en modo "oferta de crédito" (sin crear enrollment aún)
       router.push({
         name: 'ticket',
