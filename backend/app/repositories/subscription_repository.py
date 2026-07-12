@@ -116,7 +116,8 @@ class AbstractSubscriptionRepository(ABC):
 
     @abstractmethod
     async def admin_schedule_cancellation(self, subscription_id: int) -> "tuple[date, int] | None":
-        """Igual que schedule_cancellation pero sin verificar user_id (uso admin). Retorna (ends_on, turno_id) o None."""
+        """Igual que schedule_cancellation pero sin verificar user_id (uso admin). Retorna (ends_on, turno_id)
+        o None si no hay una suscripción activa con ese id. Lanza 409 si ya tiene una baja programada."""
         raise NotImplementedError
 
     @abstractmethod
@@ -575,6 +576,11 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         )).scalar_one_or_none()
         if sub is None:
             return None
+        if sub.ends_on is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Esta suscripción ya tiene una baja programada para el {sub.ends_on.strftime('%d/%m/%Y')}.",
+            )
 
         last_paid = (await self._session.execute(
             select(SubscriptionChargeORM.period_month, SubscriptionChargeORM.period_year)
