@@ -38,13 +38,18 @@ def subscription_covers(ref_date):
 
 
 def active_subscriptions_subq(turno_id_col, ref_date):
-    """Subquery escalar: suscripciones que ocupan el turno en ``ref_date``."""
+    """Subquery escalar: suscripciones que ocupan el turno a nivel general (no
+    por clase puntual). A diferencia de ``subscription_covers``, no exige
+    ``start_date <= ref_date``: el asiento se reserva desde que se crea la
+    suscripción, aunque ``start_date`` (la fecha de su primera clase) caiga en
+    un día futuro porque hoy no es uno de los días del turno. Solo se libera
+    cuando termina (``ends_on``)."""
     return (
         select(func.count(SubscriptionORM.id))
         .where(
             SubscriptionORM.turno_id == turno_id_col,
             SubscriptionORM.status.in_(OCCUPYING_SUBSCRIPTION_STATUSES),
-            *subscription_covers(ref_date),
+            or_(SubscriptionORM.ends_on.is_(None), ref_date <= SubscriptionORM.ends_on),
         )
         .scalar_subquery()
     )
