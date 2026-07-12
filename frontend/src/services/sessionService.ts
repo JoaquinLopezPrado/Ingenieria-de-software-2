@@ -255,7 +255,7 @@ export interface CancelPreviewAlumno {
   user_id: number
   full_name: string
   email: string
-  tipo: 'suscripcion' | 'individual_completo' | 'individual_senia'
+  tipo: 'suscripcion' | 'suscripcion_impago' | 'individual_completo' | 'individual_senia'
   amount: number
 }
 

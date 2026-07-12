@@ -141,7 +141,8 @@ const cancelError       = ref('')
 const toastMsg          = ref('')
 
 const TIPO_LABEL: Record<CancelPreviewAlumno['tipo'], string> = {
-  suscripcion:          'Descuento en próximo cobro',
+  suscripcion:          'Crédito 30 días',
+  suscripcion_impago:   'Sin devolución (período no pagado)',
   individual_completo:  'Crédito 30 días',
   individual_senia:     'Reembolso de seña',
 }
