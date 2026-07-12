@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_roles
+from app.repositories.activity_repository import ActivityRepository
 from app.repositories.salon_repository import SalonRepository
+from app.repositories.turno_repository import TurnoRepository
 from app.schemas.salon import CreateSalonRequest, SalonResponse, UpdateSalonRequest
 from app.services.salon_service import SalonService
 
@@ -10,7 +12,11 @@ router = APIRouter()
 
 
 def get_salon_service(db: AsyncSession = Depends(get_db)) -> SalonService:
-    return SalonService(salon_repo=SalonRepository(db))
+    return SalonService(
+        salon_repo=SalonRepository(db),
+        turno_repo=TurnoRepository(db),
+        activity_repo=ActivityRepository(db),
+    )
 
 
 @router.get(

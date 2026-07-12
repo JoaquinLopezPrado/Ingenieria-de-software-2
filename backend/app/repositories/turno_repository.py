@@ -85,6 +85,10 @@ class AbstractTurnoRepository(ABC):
     async def set_active(self, turno_id: int, is_active: bool) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_first_exceeding_capacity(self, salon_id: int, capacity: int) -> Optional[Turno]:
+        raise NotImplementedError
+
 
 class TurnoRepository(AbstractTurnoRepository):
 
@@ -318,6 +322,19 @@ class TurnoRepository(AbstractTurnoRepository):
         orm = result.scalar_one()
         orm.is_active = is_active
         await self._session.flush()
+
+    async def get_first_exceeding_capacity(self, salon_id: int, capacity: int) -> Optional[Turno]:
+        """Primer turno (activo o inactivo) asignado a ese salón cuyo cupo declarado
+        supera la capacidad dada. Se usa al reducir la capacidad física del salón."""
+        result = await self._session.execute(
+            select(TurnoORM)
+            .options(selectinload(TurnoORM.days), selectinload(TurnoORM.salon))
+            .where(TurnoORM.salon_id == salon_id, TurnoORM.capacity > capacity)
+            .order_by(TurnoORM.id)
+            .limit(1)
+        )
+        orm = result.scalars().first()
+        return self._to_domain(orm) if orm else None
 
     def _to_domain(
         self,
