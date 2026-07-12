@@ -377,13 +377,16 @@ const pagarSenia = async () => {
   }
 }
 
-// El cupo pudo agotarse entre que se ofreció el crédito (sin re-chequear cupo)
-// y este click. Mismo criterio que ShowActivitisView.vue: si el backend avisa
-// solape, se muestra tal cual; cualquier otro 409 es "no hay cupo" en criollo.
+// El cupo pudo agotarse, o el crédito dejar de ser válido (vencido o usado en
+// otra sesión), entre que se ofreció el crédito (sin re-chequear nada de esto)
+// y este click. Mismo criterio que ShowActivitisView.vue para el cupo: si el
+// backend avisa solape, se muestra tal cual; cualquier otro 409 es "no hay
+// cupo" en criollo. El 400 de crédito inválido también se muestra tal cual.
 function singleEnrollmentErrorMessage(e, fallback) {
   const detalle = e?.response?.data?.errors?.general
   if (e?.response?.status === 409 && /solap/i.test(detalle ?? '')) return detalle
   if (e?.response?.status === 409) return 'No hay cupo disponible para esta clase.'
+  if (e?.response?.status === 400 && detalle) return detalle
   return fallback
 }
 
