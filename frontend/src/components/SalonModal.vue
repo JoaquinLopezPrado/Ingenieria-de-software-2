@@ -56,11 +56,6 @@ const handleSubmit = () => {
     return
   }
 
-  if (capacity === null || !Number.isInteger(Number(capacity)) || Number(capacity) <= 0) {
-    error.value = 'La capacidad debe ser un número entero mayor a 0.'
-    return
-  }
-
   error.value = ''
   emit('submit', { name, capacity: Number(capacity) })
 }
@@ -78,7 +73,7 @@ const closeModal = () => {
         <button type="button" class="icon-close" @click="closeModal" :disabled="loading">×</button>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="modal-form">
+      <form @submit.prevent="handleSubmit" class="modal-form" novalidate>
         <div class="form-group">
           <label class="custom-label" for="salon-name">Nombre</label>
           <input
