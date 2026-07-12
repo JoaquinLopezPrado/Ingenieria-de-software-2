@@ -359,6 +359,15 @@ class TurnoService:
             # va a dictarse de verdad, así que se valida que el salón siga libre en ese
             # horario (pudo haberse ocupado con otro turno mientras este estaba inactivo).
             if turno.salon_id is not None:
+                salon = await self._salon_repo.get_active_by_id(turno.salon_id)
+                if salon and turno.capacity > salon.capacity:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"No se puede activar: el cupo del turno ({turno.capacity}) supera la "
+                            f"capacidad física del salón «{salon.name}» ({salon.capacity})."
+                        ),
+                    )
                 conflict = await self._turno_repo.find_salon_conflict(
                     turno.salon_id, turno.days, turno.start_time, turno.end_time,
                     exclude_turno_id=turno_id,
