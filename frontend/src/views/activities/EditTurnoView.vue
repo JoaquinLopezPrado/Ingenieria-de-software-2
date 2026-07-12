@@ -14,7 +14,8 @@
  *      esperar a que se vacíe o dar de baja el turno y crear uno nuevo.
  *
  * Guard: solo admin. Turno inactivo → banner informativo + edición permitida.
- * El campo "actividad" nunca puede modificarse.
+ * El campo "actividad" nunca puede modificarse. Activar/desactivar el turno
+ * se hace desde la grilla de turnos, no desde este formulario.
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -23,16 +24,13 @@ import {
   getTurnosAll,
   getFormOptions,
   getSalones,
-  updateTurno,
   editTurno,
   previewTurnoUpdate,
-  getTurnoDeactivationImpact,
   extractBackendError,
   type Turno,
   type Salon,
   type EditTurnoPayload,
   type UpdateTurnoPreview,
-  type TurnoDeactivationImpact,
 } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -89,7 +87,6 @@ const availableSalones = ref<Salon[]>([])
 const isLoading    = ref(true)
 const isSaving     = ref(false)
 const isPreviewing = ref(false)
-const isActivating = ref(false)
 const loadError    = ref('')
 const successMsg   = ref('')
 const serverError  = ref('')
@@ -99,11 +96,6 @@ const inscriptos   = ref(0)
 // Confirmación con impacto antes de aplicar
 const showConfirm = ref(false)
 const preview     = ref<UpdateTurnoPreview | null>(null)
-
-// Baja total del turno (caso 7)
-const showDeactivate    = ref(false)
-const deactivateImpact  = ref<TurnoDeactivationImpact | null>(null)
-const isDeactivating    = ref(false)
 
 // Formulario: mismos campos que SessionForm, sin start_date (no aplica al editar)
 const form = ref({
@@ -310,52 +302,7 @@ async function confirmSave() {
   }
 }
 
-async function activateTurno() {
-  if (!turno.value) return
-  isActivating.value = true
-  serverError.value  = ''
-  try {
-    await updateTurno(turnoId, { is_active: true })
-    turno.value.is_active = true
-    successMsg.value = 'Turno activado con éxito.'
-    setTimeout(() => router.push({ name: 'turnos-grilla' }), 1500)
-  } catch (e: unknown) {
-    serverError.value = extractBackendError(e)
-  } finally {
-    isActivating.value = false
-  }
-}
 
-// Baja total: pedir impacto y mostrar confirmación.
-async function openDeactivate() {
-  serverError.value = ''
-  isDeactivating.value = true
-  try {
-    deactivateImpact.value = await getTurnoDeactivationImpact(turnoId)
-    showDeactivate.value = true
-  } catch (e: unknown) {
-    handleApiError(e)
-  } finally {
-    isDeactivating.value = false
-  }
-}
-
-async function confirmDeactivate() {
-  if (!turno.value) return
-  isDeactivating.value = true
-  serverError.value = ''
-  try {
-    await updateTurno(turnoId, { is_active: false })
-    showDeactivate.value = false
-    successMsg.value = 'Turno dado de baja con éxito.'
-    setTimeout(() => router.push({ name: 'turnos-grilla' }), 1500)
-  } catch (e: unknown) {
-    showDeactivate.value = false
-    handleApiError(e)
-  } finally {
-    isDeactivating.value = false
-  }
-}
 </script>
 
 <template>
@@ -412,7 +359,7 @@ async function confirmDeactivate() {
         <!-- Banner turno inactivo -->
         <div v-if="turno && !turno.is_active" class="alert alert-inactive">
           <span class="alert-icon inactive-icon">!</span>
-          <span>Este turno está <strong>inactivo</strong> y no es visible para los clientes. Podés editarlo o reactivarlo.</span>
+          <span>Este turno está <strong>inactivo</strong> y no es visible para los clientes. Podés editarlo, o activarlo desde la grilla de turnos.</span>
         </div>
 
         <!-- Banner turno con inscriptos: bloquea toda edición -->
@@ -576,34 +523,16 @@ async function confirmDeactivate() {
               <button
                 type="button"
                 class="btn-cancel"
-                :disabled="isSaving || isActivating"
+                :disabled="isSaving"
                 @click="router.push({ name: 'turnos-grilla' })"
               >
                 Cancelar
               </button>
               <button
-                v-if="turno && !turno.is_active"
-                type="button"
-                class="btn-activate"
-                :disabled="isActivating || isSaving"
-                @click="activateTurno"
-              >
-                {{ isActivating ? 'Activando...' : '✓ Activar turno' }}
-              </button>
-              <button
-                v-if="turno && turno.is_active"
-                type="button"
-                class="btn-danger"
-                :disabled="isDeactivating || isSaving || isPreviewing"
-                @click="openDeactivate"
-              >
-                {{ isDeactivating ? 'Calculando...' : 'Dar de baja' }}
-              </button>
-              <button
                 v-if="!turno?.has_inscriptos"
                 type="submit"
                 class="btn-submit"
-                :disabled="isSaving || isActivating || isPreviewing || isDeactivating"
+                :disabled="isSaving || isPreviewing"
               >
                 {{ isPreviewing ? 'Calculando...' : 'Guardar cambios' }}
               </button>
@@ -659,47 +588,6 @@ async function confirmDeactivate() {
             </button>
             <button class="btn-submit" :disabled="isSaving" @click="confirmSave">
               {{ isSaving ? 'Aplicando...' : 'Confirmar y aplicar' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- ── Modal de baja total del turno (caso 7) ── -->
-    <Transition name="fade">
-      <div v-if="showDeactivate && deactivateImpact" class="modal-overlay" @click.self="showDeactivate = false">
-        <div class="modal-card" role="dialog" aria-modal="true">
-          <h2 class="modal-title">Dar de baja el turno</h2>
-          <p class="modal-desc">
-            El turno dejará de dictarse. Se cancelan todas las clases futuras y
-            las suscripciones, generando créditos canjeables en cualquier actividad.
-          </p>
-
-          <ul class="impact-list">
-            <li>
-              <span class="impact-num impact-warn">{{ deactivateImpact.clases_a_cancelar }}</span>
-              clase(s) futura(s) se cancelarán.
-            </li>
-            <li v-if="deactivateImpact.suscripciones_a_baja">
-              <span class="impact-num impact-warn">{{ deactivateImpact.suscripciones_a_baja }}</span>
-              suscripción(es) se darán de baja.
-            </li>
-            <li v-if="deactivateImpact.creditos_a_generar">
-              <span class="impact-num impact-warn">{{ deactivateImpact.creditos_a_generar }}</span>
-              crédito(s) de clase para {{ deactivateImpact.clientes_afectados }} cliente(s).
-            </li>
-            <li v-if="deactivateImpact.usuarios_a_notificar">
-              <span class="impact-num impact-ok">{{ deactivateImpact.usuarios_a_notificar }}</span>
-              usuario(s) recibirán un email de aviso.
-            </li>
-          </ul>
-
-          <div class="modal-actions">
-            <button class="btn-cancel" :disabled="isDeactivating" @click="showDeactivate = false">
-              Volver
-            </button>
-            <button class="btn-danger" :disabled="isDeactivating" @click="confirmDeactivate">
-              {{ isDeactivating ? 'Aplicando...' : 'Confirmar baja' }}
             </button>
           </div>
         </div>
@@ -970,22 +858,6 @@ select:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-submit:hover:not(:disabled) { background: #0c8a70; }
 .btn-submit:active:not(:disabled) { transform: scale(0.98); }
 .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.btn-activate {
-  background: #16a34a; color: white; font-weight: 600; font-size: 0.95rem;
-  padding: 0.7rem 1.5rem; border-radius: 8px; border: none; cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-activate:hover:not(:disabled) { background: #15803d; }
-.btn-activate:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.btn-danger {
-  background: #fff; color: #dc2626; font-weight: 600; font-size: 0.95rem;
-  padding: 0.7rem 1.5rem; border-radius: 8px; border: 1px solid #fecaca; cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
-}
-.btn-danger:hover:not(:disabled) { background: #dc2626; color: white; }
-.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-primary {
   background: #11998e; color: white; font-size: 0.9rem; font-weight: 600;

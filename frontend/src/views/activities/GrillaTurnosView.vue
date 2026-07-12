@@ -8,10 +8,13 @@ import {
   getSalonesAll,
   generateClasses,
   previewGenerateClasses,
+  updateTurno,
+  getTurnoDeactivationImpact,
   extractBackendError,
   type Turno,
   type ActivityOption,
   type Salon,
+  type TurnoDeactivationImpact,
 } from '@/services/sessionService'
 
 // ─── Estado principal ──────────────────────────────────────────────────────────
@@ -216,6 +219,61 @@ function closeGenerateModal() {
   generateModal.value = null
 }
 
+// ─── Activar / desactivar turno ────────────────────────────────────────────────
+
+type DeactivateModal =
+  | { phase: 'loading'; turnoId: number }
+  | { phase: 'confirm'; turnoId: number; impact: TurnoDeactivationImpact }
+  | { phase: 'applying'; turnoId: number }
+  | { phase: 'done' }
+  | { phase: 'error'; message: string }
+
+const deactivateModal = ref<DeactivateModal | null>(null)
+const activatingId = ref<number | null>(null)
+const activateError = ref('')
+
+async function openDeactivate(turnoId: number) {
+  deactivateModal.value = { phase: 'loading', turnoId }
+  try {
+    const impact = await getTurnoDeactivationImpact(turnoId)
+    deactivateModal.value = { phase: 'confirm', turnoId, impact }
+  } catch (error: unknown) {
+    deactivateModal.value = { phase: 'error', message: extractBackendError(error) }
+  }
+}
+
+async function confirmDeactivate() {
+  if (!deactivateModal.value || deactivateModal.value.phase !== 'confirm') return
+  const turnoId = deactivateModal.value.turnoId
+  deactivateModal.value = { phase: 'applying', turnoId }
+  try {
+    await updateTurno(turnoId, { is_active: false })
+    const turno = allTurnos.value.find(t => t.id === turnoId)
+    if (turno) turno.is_active = false
+    deactivateModal.value = { phase: 'done' }
+  } catch (error: unknown) {
+    deactivateModal.value = { phase: 'error', message: extractBackendError(error) }
+  }
+}
+
+function closeDeactivateModal() {
+  deactivateModal.value = null
+}
+
+async function activateTurno(turnoId: number) {
+  activatingId.value = turnoId
+  activateError.value = ''
+  try {
+    await updateTurno(turnoId, { is_active: true })
+    const turno = allTurnos.value.find(t => t.id === turnoId)
+    if (turno) turno.is_active = true
+  } catch (error: unknown) {
+    activateError.value = extractBackendError(error)
+  } finally {
+    activatingId.value = null
+  }
+}
+
 // ─── Carga inicial ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
@@ -270,6 +328,12 @@ onMounted(async () => {
           <span class="btn-icon">+</span>
           Programar nuevo turno
         </RouterLink>
+      </div>
+
+      <!-- ── Error al activar un turno ── -->
+      <div v-if="activateError" class="alert-inline">
+        <span>{{ activateError }}</span>
+        <button class="alert-inline-close" @click="activateError = ''">×</button>
       </div>
 
       <!-- ── Panel de filtros ── -->
@@ -428,19 +492,29 @@ onMounted(async () => {
               </td>
               <td class="cell-actions">
                 <RouterLink
-                  v-if="!turno.has_inscriptos"
                   :to="`/activities/turnos/${turno.id}/edit`"
                   class="btn-edit"
+                  :title="turno.has_inscriptos ? 'Este turno tiene inscriptos: podés verlo, pero no modificarlo.' : ''"
                 >
                   Editar
                 </RouterLink>
-                <span
-                  v-else
-                  class="btn-edit btn-edit--disabled"
-                  title="Este turno tiene inscriptos y no se puede modificar. Dalo de baja y creá uno nuevo para cambiarlo."
+                <button
+                  v-if="turno.is_active"
+                  class="btn-deactivate"
+                  @click="openDeactivate(turno.id)"
+                  type="button"
                 >
-                  Editar
-                </span>
+                  Desactivar turno
+                </button>
+                <button
+                  v-else
+                  class="btn-activate"
+                  :disabled="activatingId === turno.id"
+                  @click="activateTurno(turno.id)"
+                  type="button"
+                >
+                  {{ activatingId === turno.id ? 'Activando...' : 'Activar turno' }}
+                </button>
                 <RouterLink
                   :to="{
                     name: 'clases-calendario',
@@ -570,6 +644,72 @@ onMounted(async () => {
             <div class="modal-icon modal-icon--err">!</div>
             <p class="modal-msg">{{ generateModal.message }}</p>
             <button class="modal-btn modal-btn--cancel" @click="closeGenerateModal" type="button">Cerrar</button>
+          </template>
+
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ── Modal desactivar turno ── -->
+    <Teleport to="body">
+      <div v-if="deactivateModal" class="modal-overlay" @click.self="closeDeactivateModal">
+        <div class="modal-box" role="dialog" aria-modal="true">
+
+          <!-- Cargando impacto -->
+          <template v-if="deactivateModal.phase === 'loading'">
+            <div class="modal-spinner"></div>
+            <p class="modal-msg">Calculando impacto...</p>
+          </template>
+
+          <!-- Confirmación con impacto -->
+          <template v-else-if="deactivateModal.phase === 'confirm'">
+            <h3 class="modal-title">Desactivar turno</h3>
+            <p class="modal-msg">
+              El turno dejará de dictarse. Se cancelan todas las clases futuras y
+              las suscripciones, generando créditos canjeables en cualquier actividad.
+            </p>
+            <ul class="modal-impact-list">
+              <li>
+                <span class="impact-num">{{ deactivateModal.impact.clases_a_cancelar }}</span>
+                clase(s) futura(s) se cancelarán.
+              </li>
+              <li v-if="deactivateModal.impact.suscripciones_a_baja">
+                <span class="impact-num">{{ deactivateModal.impact.suscripciones_a_baja }}</span>
+                suscripción(es) se darán de baja.
+              </li>
+              <li v-if="deactivateModal.impact.creditos_a_generar">
+                <span class="impact-num">{{ deactivateModal.impact.creditos_a_generar }}</span>
+                crédito(s) de clase para {{ deactivateModal.impact.clientes_afectados }} cliente(s).
+              </li>
+              <li v-if="deactivateModal.impact.usuarios_a_notificar">
+                <span class="impact-num">{{ deactivateModal.impact.usuarios_a_notificar }}</span>
+                usuario(s) recibirán un email de aviso.
+              </li>
+            </ul>
+            <div class="modal-actions">
+              <button class="modal-btn modal-btn--cancel" @click="closeDeactivateModal" type="button">Volver</button>
+              <button class="modal-btn modal-btn--confirm" @click="confirmDeactivate" type="button">Confirmar baja</button>
+            </div>
+          </template>
+
+          <!-- Aplicando -->
+          <template v-else-if="deactivateModal.phase === 'applying'">
+            <div class="modal-spinner"></div>
+            <p class="modal-msg">Aplicando...</p>
+          </template>
+
+          <!-- Resultado -->
+          <template v-else-if="deactivateModal.phase === 'done'">
+            <div class="modal-icon modal-icon--ok">✓</div>
+            <p class="modal-msg">Turno dado de baja con éxito.</p>
+            <button class="modal-btn modal-btn--confirm" @click="closeDeactivateModal" type="button">Cerrar</button>
+          </template>
+
+          <!-- Error -->
+          <template v-else-if="deactivateModal.phase === 'error'">
+            <div class="modal-icon modal-icon--err">!</div>
+            <p class="modal-msg">{{ deactivateModal.message }}</p>
+            <button class="modal-btn modal-btn--cancel" @click="closeDeactivateModal" type="button">Cerrar</button>
           </template>
 
         </div>
@@ -970,10 +1110,50 @@ onMounted(async () => {
   border-color: #93c5fd;
 }
 
-.btn-edit--disabled {
-  background-color: #f3f4f6;
-  color: #9ca3af;
-  border-color: #e5e7eb;
+.btn-deactivate {
+  display: inline-flex;
+  align-items: center;
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.btn-deactivate:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.btn-activate {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.btn-activate:hover:not(:disabled) {
+  background-color: #dcfce7;
+  border-color: #86efac;
+}
+
+.btn-activate:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
@@ -1267,4 +1447,56 @@ onMounted(async () => {
 
 .modal-icon--ok { background: #d1fae5; color: #065f46; }
 .modal-icon--err { background: #fee2e2; color: #991b1b; }
+
+/* ── Impacto de baja de turno ── */
+
+.modal-impact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.modal-impact-list li {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.impact-num {
+  font-weight: 700;
+  color: #dc2626;
+  margin-right: 0.3rem;
+}
+
+/* ── Alerta inline ── */
+
+.alert-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.alert-inline-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
 </style>
