@@ -225,6 +225,7 @@ function handleListaEspera(turno: Turno) {
 
 const removingEsperaId = ref<number | null>(null)
 const cancellingSubscriptionId = ref<number | null>(null)
+const confirmandoBajaId = ref<number | null>(null)
 const bajaError = ref<string | null>(null)
 
 async function handleDarDeBaja(turno: Turno) {
@@ -239,6 +240,7 @@ async function handleDarDeBaja(turno: Turno) {
     bajaError.value = extractBackendError(err)
   } finally {
     cancellingSubscriptionId.value = null
+    confirmandoBajaId.value = null
   }
 }
 
@@ -468,19 +470,44 @@ onMounted(async () => {
                   </span>
                 </td>
                 <td class="cell-accion">
-                  <!-- Ya inscripto (activo, sin baja programada) → Dar de baja -->
-                  <button
-                    v-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on"
-                    type="button"
-                    class="btn-dar-baja"
-                    :disabled="cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
-                    @click="handleDarDeBaja(turno)"
-                  >
-                    {{ cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id
-                      ? 'Procesando...'
-                      : 'Dar de baja'
-                    }}
-                  </button>
+                  <!-- Ya inscripto (activo, sin baja programada) → Dar de baja (con confirmación inline) -->
+                  <template v-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on">
+                    <div
+                      v-if="confirmandoBajaId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
+                      class="baja-confirm-cell"
+                    >
+                      <p class="baja-confirm-msg">¿Confirmás la baja? El cliente mantiene el lugar hasta el fin del período pagado.</p>
+                      <div class="baja-confirm-btns">
+                        <button
+                          type="button"
+                          class="baja-btn baja-btn--confirmar"
+                          :disabled="cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
+                          @click="handleDarDeBaja(turno)"
+                        >
+                          {{ cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id
+                            ? 'Procesando...'
+                            : 'Sí, dar de baja'
+                          }}
+                        </button>
+                        <button
+                          type="button"
+                          class="baja-btn baja-btn--cancelar"
+                          :disabled="cancellingSubscriptionId === inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
+                          @click="confirmandoBajaId = null"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      v-else
+                      type="button"
+                      class="btn-dar-baja"
+                      @click="confirmandoBajaId = inscripcionStore.getSubscriptionEntry(turno.id)!.subscription_id"
+                    >
+                      Dar de baja
+                    </button>
+                  </template>
                   <!-- Baja ya programada (active + ends_on seteado) → badge + botón reinscribir -->
                   <div
                     v-else-if="inscripcionStore.getSubscriptionEntry(turno.id)?.status === 'active' && !!inscripcionStore.getSubscriptionEntry(turno.id)?.ends_on"
@@ -1078,6 +1105,65 @@ onMounted(async () => {
 .btn-dar-baja:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Confirmación inline antes de dar de baja */
+.baja-confirm-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  max-width: 220px;
+  margin-left: auto;
+}
+
+.baja-confirm-msg {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: right;
+  line-height: 1.4;
+}
+
+.baja-confirm-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.baja-btn {
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+.baja-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.baja-btn--confirmar {
+  background-color: #b91c1c;
+  color: white;
+  border: 1px solid #b91c1c;
+}
+
+.baja-btn--confirmar:hover:not(:disabled) {
+  background-color: #991b1b;
+}
+
+.baja-btn--cancelar {
+  background: none;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.baja-btn--cancelar:hover:not(:disabled) {
+  background-color: #f3f4f6;
 }
 
 /* Baja ya programada → badge informativo */
