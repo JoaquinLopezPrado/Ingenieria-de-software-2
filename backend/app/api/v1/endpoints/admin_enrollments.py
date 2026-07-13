@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_roles
@@ -58,6 +58,19 @@ def _get_payment_service(db: AsyncSession = Depends(get_db)) -> PaymentService:
     )
 
 
+def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
+    return UserRepository(db)
+
+
+async def _assert_client_active(user_id: int, user_repo: UserRepository) -> None:
+    user = await user_repo.get_by_id(user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El cliente está desactivado y no puede inscribirse.",
+        )
+
+
 @router.post(
     "/subscription/preview",
     response_model=AdminSubscriptionPreviewResponse,
@@ -95,7 +108,9 @@ async def enroll_subscription_cash(
     _=require_roles("admin", "empleado"),
     subscription_service: SubscriptionService = Depends(_get_subscription_service),
     payment_service: PaymentService = Depends(_get_payment_service),
+    user_repo: UserRepository = Depends(_get_user_repo),
 ):
+    await _assert_client_active(body.user_id, user_repo)
     charge = await subscription_service.create(
         body.turno_id, body.user_id,
         min_month=body.start_month, min_year=body.start_year,
@@ -120,7 +135,9 @@ async def enroll_single_cash(
     _=require_roles("admin", "empleado"),
     single_service: SingleEnrollmentService = Depends(_get_single_service),
     payment_service: PaymentService = Depends(_get_payment_service),
+    user_repo: UserRepository = Depends(_get_user_repo),
 ):
+    await _assert_client_active(body.user_id, user_repo)
     enrollment = await single_service.create_single(clase_ids=body.clase_ids, user_id=body.user_id)
     await payment_service.cash_confirm_single_enrollment(enrollment.id)
     return AdminSingleEnrollResponse(
