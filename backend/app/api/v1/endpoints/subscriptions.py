@@ -142,12 +142,11 @@ async def cash_confirm_charge(
 async def admin_generate_next_month_charges(
     _=require_roles("admin", "empleado"),
     service: SubscriptionService = Depends(get_subscription_service),
+    payment_service: PaymentService = Depends(_get_payment_service),
     db: AsyncSession = Depends(get_db),
 ):
     """Genera los cargos del mes siguiente y envía mail de recordatorio a cada abonado."""
-    import calendar
     from datetime import datetime, timedelta, timezone
-    from app.core.config import settings
 
     today = datetime.now(timezone(timedelta(hours=-3))).date()
     month = today.month % 12 + 1
@@ -157,7 +156,7 @@ async def admin_generate_next_month_charges(
         period_month=month,
         period_year=year,
         email_service=EmailService(),
-        payment_url=f"{settings.frontend_url}/list",
+        payment_service=payment_service,
     )
     if created:
         await db.commit()

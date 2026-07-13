@@ -250,9 +250,10 @@ class SubscriptionService:
         return await self._ensure_current_charges(period_month=period_month, period_year=period_year)
 
     async def generate_charges_and_notify(
-        self, period_month: int, period_year: int, email_service: "EmailService", payment_url: str
+        self, period_month: int, period_year: int, email_service: "EmailService", payment_service: "PaymentService"
     ) -> int:
-        """Genera cargos del período y envía mail de recordatorio a cada afectado.
+        """Genera cargos del período y envía mail de recordatorio a cada afectado,
+        con un link de pago de Mercado Pago propio de cada cargo.
         Retorna la cantidad de cargos nuevos creados."""
         from app.services.email_service import EmailService  # evitar import circular
 
@@ -265,7 +266,7 @@ class SubscriptionService:
             if num_classes == 0:
                 continue
             amount = Decimal(class_price) * num_classes
-            await self._repo.add_charge(
+            charge_id = await self._repo.add_charge(
                 subscription_id=sub_id,
                 period_month=period_month,
                 period_year=period_year,
@@ -273,10 +274,11 @@ class SubscriptionService:
                 original_amount=amount,
                 due_date=due_date,
             )
-            notifications.append((user_email, first_name, activity_name, turno_desc, amount))
+            notifications.append((charge_id, user_email, first_name, activity_name, turno_desc, amount))
             created += 1
 
-        for user_email, first_name, activity_name, turno_desc, amount in notifications:
+        for charge_id, user_email, first_name, activity_name, turno_desc, amount in notifications:
+            payment_url = await payment_service.create_subscription_charge_preference_for_notification(charge_id)
             email_service.send_subscription_charge_pending(
                 to=user_email,
                 first_name=first_name,
