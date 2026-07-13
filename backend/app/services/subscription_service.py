@@ -1,4 +1,5 @@
 import calendar
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -12,6 +13,7 @@ from app.repositories.subscription_repository import AbstractSubscriptionReposit
 
 _DEPOSIT_RATIO = Decimal("0.30")
 _ART = timezone(timedelta(hours=-3))
+_logger = logging.getLogger(__name__)
 
 
 def _end_of_month(year: int, month: int) -> date:
@@ -278,7 +280,11 @@ class SubscriptionService:
             created += 1
 
         for charge_id, user_email, first_name, activity_name, turno_desc, amount in notifications:
-            payment_url = await payment_service.create_subscription_charge_preference_for_notification(charge_id)
+            try:
+                payment_url = await payment_service.create_subscription_charge_preference_for_notification(charge_id)
+            except Exception:
+                _logger.exception("No se pudo crear la preferencia de MP para el cargo %s; se omite el mail.", charge_id)
+                continue
             email_service.send_subscription_charge_pending(
                 to=user_email,
                 first_name=first_name,
