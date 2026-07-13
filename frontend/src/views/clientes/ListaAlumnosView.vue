@@ -10,10 +10,12 @@ const router = useRouter()
 const inscripcionStore = useInscripcionStore()
 
 function inscribirATurno(cliente: Cliente) {
+  if (!cliente.is_active) return
   router.push({ name: 'clientes-inscripciones-turnos', params: { clienteId: cliente.id } })
 }
 
 function inscribirAClase(cliente: Cliente) {
+  if (!cliente.is_active) return
   inscripcionStore.setCliente({
     id: cliente.id,
     first_name: cliente.first_name,
@@ -252,10 +254,22 @@ const hasData = computed(() =>
                 </td>
 
                 <td class="cell-actions" @click.stop>
-                  <button type="button" class="btn-accion btn-inscribir-turno" @click.stop="inscribirATurno(cliente)">
+                  <button
+                    type="button"
+                    class="btn-accion btn-inscribir-turno"
+                    :disabled="!cliente.is_active"
+                    :title="!cliente.is_active ? 'El cliente está desactivado y no puede inscribirse a turnos.' : ''"
+                    @click.stop="inscribirATurno(cliente)"
+                  >
                     Inscribir a Turno
                   </button>
-                  <button type="button" class="btn-accion btn-inscribir-clase" @click.stop="inscribirAClase(cliente)">
+                  <button
+                    type="button"
+                    class="btn-accion btn-inscribir-clase"
+                    :disabled="!cliente.is_active"
+                    :title="!cliente.is_active ? 'El cliente está desactivado y no puede inscribirse a clases.' : ''"
+                    @click.stop="inscribirAClase(cliente)"
+                  >
                     Inscribir a clase
                   </button>
                   <RouterLink
