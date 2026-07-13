@@ -411,7 +411,7 @@ class SingleEnrollmentRepository(AbstractSingleEnrollmentRepository):
         return result.rowcount > 0
 
     async def cancel_all_future_for_user(self, user_id: int) -> int:
-        today = date.today()
+        today = datetime.now(_ART).date()
         future_ids = (await self._session.execute(
             select(SingleEnrollmentORM.id)
             .join(SingleSlotORM, SingleSlotORM.enrollment_id == SingleEnrollmentORM.id)
