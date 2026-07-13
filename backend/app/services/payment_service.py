@@ -70,6 +70,19 @@ class PaymentService:
             expires_at=details.expires_at,
         )
 
+    async def create_subscription_charge_preference_for_notification(self, charge_id: int) -> str:
+        """Crea la preferencia de pago para el mail de recordatorio de cuota mensual.
+        A diferencia de create_subscription_charge_preference, no valida propietario
+        porque se invoca desde el generador de cargos, no desde una request de usuario."""
+        details = await self._subscription_repo.get_charge_details(charge_id)
+        return await self._build_preference(
+            ref_id=charge_id,
+            title=f"Suscripción a {details.activity_name} — {details.turno_description}",
+            amount=float(details.amount),
+            external_reference=f"sub:{charge_id}",
+            expires_at=details.expires_at,
+        )
+
     async def free_confirm_subscription(self, charge_id: int, user_id: int) -> None:
         details = await self._subscription_repo.get_charge_details(charge_id)
         if details.user_id != user_id:
