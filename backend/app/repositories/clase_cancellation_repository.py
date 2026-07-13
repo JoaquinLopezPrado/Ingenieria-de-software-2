@@ -20,6 +20,7 @@ from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 from app.schemas.clases import CancelPreviewAlumno, CancelPreviewResponse
 
 _CREDIT_DAYS = 30
+_ART = timezone(timedelta(hours=-3))
 
 # Statuses that mean the class was fully paid
 _FULL_PAID_STATUSES = {SingleEnrollmentStatus.CONFIRMED}
@@ -75,8 +76,11 @@ class ClaseCancellationRepository:
         clase, turno = row
         if clase.cancelled_at is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La clase ya fue cancelada.")
-        today = datetime.now(timezone.utc).date()
-        if clase.date <= today:
+        now_art = datetime.now(_ART)
+        today = now_art.date()
+        # "Futura" incluye la clase de hoy si todavía no empezó (mismo criterio
+        # que el resto del código para "hoy"), no solo estrictamente después de hoy.
+        if clase.date < today or (clase.date == today and clase.start_time <= now_art.time()):
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Solo se pueden cancelar clases futuras.")
         return clase, turno
 

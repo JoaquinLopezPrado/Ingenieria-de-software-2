@@ -146,12 +146,19 @@ class ClaseRepository(AbstractClaseRepository):
         return result.rowcount
 
     async def list_future_active(self, turno_id: int, from_date: date) -> List[tuple]:
+        # "Futura" incluye la clase de hoy si todavía no empezó (mismo criterio que
+        # el resto del código para "hoy"): from_date > hoy dejaba afuera la clase de
+        # hoy siempre, incluso con horario a la noche, sin importar la hora actual.
+        now_art = datetime.now(_ART)
         result = await self._session.execute(
             select(ClaseORM.id, ClaseORM.date)
             .where(
                 ClaseORM.turno_id == turno_id,
                 ClaseORM.is_active == True,
-                ClaseORM.date > from_date,
+                or_(
+                    ClaseORM.date > from_date,
+                    and_(ClaseORM.date == from_date, ClaseORM.start_time > now_art.time()),
+                ),
             )
             .order_by(ClaseORM.date)
         )
