@@ -78,7 +78,7 @@ onMounted(async () => {
 })
 
 function inscribirAClase() {
-  if (!cliente.value) return
+  if (!cliente.value || !cliente.value.is_active) return
   const c = cliente.value
   inscripcionStore.setCliente({
     id: c.id,
@@ -141,15 +141,26 @@ function inscribirAClase() {
         <div class="actions-card">
           <div class="actions-grid">
             <RouterLink
+              v-if="cliente.is_active"
               :to="{ name: 'clientes-inscripciones-turnos', params: { clienteId } }"
               class="action-btn action-inscribir-turno"
             >
               Inscribir a Turno
             </RouterLink>
+            <span
+              v-else
+              class="action-btn action-inscribir-turno action-btn--disabled"
+              title="El cliente está desactivado y no puede inscribirse a turnos."
+            >
+              Inscribir a Turno
+            </span>
 
             <button
               type="button"
               class="action-btn action-inscribir-clase"
+              :class="{ 'action-btn--disabled': !cliente.is_active }"
+              :disabled="!cliente.is_active"
+              :title="!cliente.is_active ? 'El cliente está desactivado y no puede inscribirse a clases.' : ''"
               @click="inscribirAClase"
             >
               Inscribir a Clase
@@ -409,6 +420,14 @@ function inscribirAClase() {
 .action-inscribir-clase:hover {
   background-color: #ede9fe;
   border-color: #c4b5fd;
+}
+
+.action-btn--disabled,
+.action-btn--disabled:hover {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
 }
 
 .action-secondary {
