@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import date
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import AsyncSessionLocal
 from app.repositories.single_enrollment_repository import SingleEnrollmentRepository
@@ -9,6 +9,8 @@ from app.repositories.waitlist_repository import WaitlistRepository
 from app.services.email_service import EmailService
 from app.services.subscription_service import SubscriptionService
 from app.services.waitlist_service import WaitlistService
+
+_ART = timezone(timedelta(hours=-3))
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ async def enrollment_expiry_loop(interval_seconds: int) -> None:
 
 
 async def _generate_monthly_charges() -> None:
-    today = date.today()
+    today = datetime.now(_ART).date()
     async with AsyncSessionLocal() as session:
         async with session.begin():
             service = SubscriptionService(SubscriptionRepository(session))

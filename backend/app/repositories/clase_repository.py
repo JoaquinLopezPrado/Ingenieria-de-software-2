@@ -19,6 +19,8 @@ from app.models.subscription import Subscription as SubscriptionORM
 from app.models.turno import Turno as TurnoORM
 from app.repositories.capacity import ACTIVE_SINGLE_STATUSES
 
+_ART = timezone(timedelta(hours=-3))
+
 
 class AbstractClaseRepository(ABC):
 
@@ -292,7 +294,7 @@ class ClaseRepository(AbstractClaseRepository):
         return result.scalar_one()
 
     async def list_by_activity(self, activity_id: int) -> List[Clase]:
-        today = date.today()
+        today = datetime.now(_ART).date()
         result = await self._session.execute(
             select(ClaseORM)
             .join(TurnoORM, ClaseORM.turno_id == TurnoORM.id)

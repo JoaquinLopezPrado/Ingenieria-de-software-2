@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.clase import ClaseHoy
 from app.repositories.clase_repository import ClaseRepository
 from app.schemas.clases import UpdateClaseHorarioRequest
+
+_ART = timezone(timedelta(hours=-3))
 
 
 class ClaseService:
@@ -23,4 +25,4 @@ class ClaseService:
         )
 
     async def get_clases_hoy(self) -> list[ClaseHoy]:
-        return await self._clase_repo.list_hoy(today=date.today())
+        return await self._clase_repo.list_hoy(today=datetime.now(_ART).date())

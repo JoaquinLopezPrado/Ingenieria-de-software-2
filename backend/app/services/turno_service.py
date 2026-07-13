@@ -192,7 +192,7 @@ class TurnoService:
         if not turno:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
         last_date = await self._clase_repo.get_last_date(turno_id)
-        start = (last_date + timedelta(days=1)) if last_date else date.today()
+        start = (last_date + timedelta(days=1)) if last_date else datetime.now(_ART).date()
         end = _end_date_months_ahead(start, _MONTHS_AHEAD)
         dates = _generate_dates_in_range(start, end, turno.days)
         return start, end, len(dates)
@@ -203,7 +203,7 @@ class TurnoService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado.")
 
         last_date = await self._clase_repo.get_last_date(turno_id)
-        start = (last_date + timedelta(days=1)) if last_date else date.today()
+        start = (last_date + timedelta(days=1)) if last_date else datetime.now(_ART).date()
         end = _end_date_months_ahead(start, _MONTHS_AHEAD)
         dates = _generate_dates_in_range(start, end, turno.days)
 

@@ -33,6 +33,8 @@ _ACTIVE_SINGLE_STATUSES = [
     SingleEnrollmentStatus.DEPOSIT_PAID,
 ]
 
+_ART = timezone(timedelta(hours=-3))
+
 
 class AbstractSubscriptionRepository(ABC):
 
@@ -234,7 +236,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         return await find_conflicts(self._session, user_id, clase_ids)
 
     async def get_future_clases(self, turno_id: int) -> list[ClaseORM]:
-        today = date.today()
+        today = datetime.now(_ART).date()
         result = await self._session.execute(
             select(ClaseORM)
             .where(
@@ -552,7 +554,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             month, year = last_paid[0], last_paid[1]
             ends_on = date(year, month, calendar.monthrange(year, month)[1])
         else:
-            ends_on = date.today()
+            ends_on = datetime.now(_ART).date()
 
         sub.ends_on = ends_on
         # Los cargos pendientes/vencidos ya no se cobran.
@@ -596,7 +598,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
             month, year = last_paid[0], last_paid[1]
             ends_on = date(year, month, calendar.monthrange(year, month)[1])
         else:
-            ends_on = date.today()
+            ends_on = datetime.now(_ART).date()
 
         sub.ends_on = ends_on
         await self._session.execute(
@@ -611,7 +613,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         return ends_on, sub.turno_id
 
     async def effectivize_scheduled_cancellations(self) -> list[int]:
-        today = date.today()
+        today = datetime.now(_ART).date()
         # Obtener turno_ids antes de cancelar para notificar la lista de espera.
         to_cancel = (await self._session.execute(
             select(SubscriptionORM.id, SubscriptionORM.turno_id)

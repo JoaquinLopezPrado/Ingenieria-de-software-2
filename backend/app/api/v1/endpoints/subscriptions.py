@@ -146,10 +146,10 @@ async def admin_generate_next_month_charges(
 ):
     """Genera los cargos del mes siguiente y envía mail de recordatorio a cada abonado."""
     import calendar
-    from datetime import date
+    from datetime import datetime, timedelta, timezone
     from app.core.config import settings
 
-    today = date.today()
+    today = datetime.now(timezone(timedelta(hours=-3))).date()
     month = today.month % 12 + 1
     year = today.year + (1 if today.month == 12 else 0)
 

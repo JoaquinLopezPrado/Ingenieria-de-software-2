@@ -11,6 +11,7 @@ from app.repositories.schedule_conflict import conflict_message
 from app.repositories.subscription_repository import AbstractSubscriptionRepository
 
 _DEPOSIT_RATIO = Decimal("0.30")
+_ART = timezone(timedelta(hours=-3))
 
 
 def _end_of_month(year: int, month: int) -> date:
@@ -292,7 +293,7 @@ class SubscriptionService:
     async def _ensure_current_charges(
         self, user_id: int | None = None, period_month: int | None = None, period_year: int | None = None
     ) -> int:
-        today = date.today()
+        today = datetime.now(_ART).date()
         month = period_month or today.month
         year = period_year or today.year
         pending = await self._repo.get_active_missing_charge(month, year, user_id=user_id)

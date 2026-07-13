@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import date, datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -15,6 +15,8 @@ from app.models.waitlist import SubscriptionWaitlist as WaitlistORM
 from app.domain.subscription import OCCUPYING_SUBSCRIPTION_STATUSES
 from app.models.subscription import Subscription as SubscriptionORM
 from app.repositories.schedule_conflict import assert_no_schedule_conflict
+
+_ART = timezone(timedelta(hours=-3))
 
 
 class AbstractWaitlistRepository(ABC):
@@ -115,7 +117,7 @@ class WaitlistRepository(AbstractWaitlistRepository):
             select(ClaseORM.id).where(
                 ClaseORM.turno_id == turno_id,
                 ClaseORM.is_active.is_(True),
-                ClaseORM.date >= date.today(),
+                ClaseORM.date >= datetime.now(_ART).date(),
             )
         )).scalars().all()
         await assert_no_schedule_conflict(self._session, user_id, list(future_clase_ids))
