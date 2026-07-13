@@ -143,7 +143,8 @@ class AbstractSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add_charge(self, subscription_id: int, period_month: int, period_year: int, amount: Decimal, original_amount: Decimal, due_date: date) -> None:
+    async def add_charge(self, subscription_id: int, period_month: int, period_year: int, amount: Decimal, original_amount: Decimal, due_date: date) -> int:
+        """Crea el cargo y retorna su id."""
         raise NotImplementedError
 
     @abstractmethod
@@ -716,7 +717,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
 
     async def add_charge(
         self, subscription_id: int, period_month: int, period_year: int, amount: Decimal, original_amount: Decimal, due_date: date
-    ) -> None:
+    ) -> int:
         charge = SubscriptionChargeORM(
             subscription_id=subscription_id,
             period_month=period_month,
@@ -728,6 +729,7 @@ class SubscriptionRepository(AbstractSubscriptionRepository):
         )
         self._session.add(charge)
         await self._session.flush()
+        return charge.id
 
     async def get_overdue(self, min_unpaid: int) -> list[dict]:
         """Suscripciones ACTIVE con >= min_unpaid cargos impagos (pending/overdue)."""
