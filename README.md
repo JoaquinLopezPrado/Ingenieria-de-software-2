@@ -9,13 +9,13 @@ Este repositorio contiene el desarrollo del proyecto para la cátedra de **Ingen
 
 A continuación se detallan los integrantes del equipo de desarrollo:
 
-| Apellido | Nombre | Legajo |
-| :--- | :--- | :--- |
-| Genoves | Agustin Ignacio | 14665/3 |
-| Kairiyama | Malena | 18640/2 |
-| Samudio | Santiago | 19336/1 |
-| Bonifazi | Matías | 23831/1 |
-| Lopez Prado | Joaquin | 23164/7 |
+| Apellido | Nombre
+| :--- | :--- 
+| Genoves | Agustin Ignacio
+| Kairiyama | Malena 
+| Samudio | Santiago 
+| Bonifazi | Matías 
+| Lopez Prado | Joaquin 
 
 ## 🛠️ Tecnologías Utilizadas
 
